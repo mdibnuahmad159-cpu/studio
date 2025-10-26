@@ -34,7 +34,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowDown, ArrowUp, GraduationCap, FileDown } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { ArrowDown, ArrowUp, GraduationCap, FileDown, ArrowRightLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
@@ -59,6 +61,8 @@ export default function KelasPage() {
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [filterKelas, setFilterKelas] = useState('all');
   const [alertInfo, setAlertInfo] = useState<{ title: string; description: string; onConfirm: () => void } | null>(null);
+  const [isMoveClassDialogOpen, setIsMoveClassDialogOpen] = useState(false);
+  const [targetClass, setTargetClass] = useState<string>('');
   const { toast } = useToast();
   
   // Effect to sync state with the mock data store on component mount and updates
@@ -201,6 +205,27 @@ export default function KelasPage() {
     );
   };
 
+  const handleOpenMoveClassDialog = () => {
+    if (currentKelasForSelection === null || currentKelasForSelection === 'mixed') return;
+    setTargetClass(String(currentKelasForSelection));
+    setIsMoveClassDialogOpen(true);
+  };
+  
+  const handleMoveClass = () => {
+      const studentNames = getSelectedStudentsDetails().map(s => s.nama).join(', ');
+      createAlert(
+        'Pindahkan Kelas',
+        `Anda yakin ingin memindahkan ${selectedStudents.length} siswa (${studentNames}) ke kelas ${targetClass}?`,
+        () => {
+          const newStudents = students.map(s => selectedStudents.includes(s.nis) ? { ...s, kelas: Number(targetClass) } : s);
+          updateStudents(newStudents);
+          setSelectedStudents([]);
+          setIsMoveClassDialogOpen(false);
+          toast({ title: 'Berhasil!', description: `${selectedStudents.length} siswa telah dipindahkan.` });
+        }
+      );
+  };
+
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
     doc.text(`Data Siswa - ${filterKelas === 'all' ? 'Semua Kelas' : `Kelas ${filterKelas}`}`, 20, 10);
@@ -254,6 +279,9 @@ export default function KelasPage() {
             </div>
             
             <div className="flex gap-2 flex-wrap justify-end">
+                <Button onClick={handleOpenMoveClassDialog} size="sm" variant="outline" disabled={areActionsDisabled}>
+                    <ArrowRightLeft className="mr-2 h-4 w-4" /> Pindahkan
+                </Button>
                 <Button onClick={handlePromote} size="sm" variant="outline" disabled={areActionsDisabled || currentKelas === 6}>
                     <ArrowUp className="mr-2 h-4 w-4" /> Naik Kelas
                 </Button>
@@ -312,6 +340,34 @@ export default function KelasPage() {
         </div>
       </div>
 
+      <Dialog open={isMoveClassDialogOpen} onOpenChange={setIsMoveClassDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pindahkan Siswa ke Kelas Lain</DialogTitle>
+            <DialogDescription>
+              Pilih kelas tujuan untuk {selectedStudents.length} siswa yang dipilih.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+              <Label htmlFor="kelas">Pilih Kelas Tujuan</Label>
+              <Select value={targetClass} onValueChange={setTargetClass}>
+                  <SelectTrigger className="w-full mt-1">
+                      <SelectValue placeholder="Pilih Kelas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {KELAS_OPTIONS.map(kelas => (
+                          <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => setIsMoveClassDialogOpen(false)}>Batal</Button>
+            <Button type="submit" onClick={handleMoveClass} className="bg-gradient-primary text-primary-foreground hover:brightness-110">Pindahkan</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
        <AlertDialog open={!!alertInfo} onOpenChange={() => setAlertInfo(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -331,7 +387,3 @@ export default function KelasPage() {
     </div>
   );
 }
-
-    
-
-    
