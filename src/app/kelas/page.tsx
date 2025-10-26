@@ -111,6 +111,8 @@ export default function KelasPage() {
     ? students.find(s => s.nis === selectedStudents[0])?.kelas
     : undefined;
 
+  const noStudentsSelected = selectedStudents.length === 0;
+
   return (
     <div className="bg-background">
       <div className="container py-12 md:py-20">
@@ -136,15 +138,15 @@ export default function KelasPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleAction('promote')} disabled={currentKelasForSelection === 6}>
+                <DropdownMenuItem onClick={() => handleAction('promote')} disabled={noStudentsSelected || currentKelasForSelection === 6}>
                   <ChevronsUp className="mr-2 h-4 w-4" />
                   Naik Kelas
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAction('demote')} disabled={currentKelasForSelection === 0}>
+                <DropdownMenuItem onClick={() => handleAction('demote')} disabled={noStudentsSelected || currentKelasForSelection === 0}>
                   <ChevronsDown className="mr-2 h-4 w-4" />
                   Turun Kelas
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleAction('graduate')} disabled={currentKelasForSelection !== 6}>
+                <DropdownMenuItem onClick={() => handleAction('graduate')} disabled={noStudentsSelected || currentKelasForSelection !== 6}>
                   <GraduationCap className="mr-2 h-4 w-4" />
                   Luluskan
                 </DropdownMenuItem>
