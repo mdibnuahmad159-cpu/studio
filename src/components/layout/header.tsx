@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 import { useAdmin } from '@/context/AdminProvider';
 import { useToast } from '@/hooks/use-toast';
+import { ModeToggle } from '../mode-toggle';
 
 
 const navLinks = [
@@ -137,7 +138,8 @@ export function Header() {
             </nav>
           </div>
           
-          <div className="hidden md:block">
+          <div className="hidden md:flex items-center gap-2">
+            <ModeToggle />
             {renderAuthButton()}
           </div>
         </div>
@@ -188,12 +190,7 @@ export function Header() {
             IBNU AHMAD APP
           </div>
 
-          <Button asChild size="icon" variant="ghost">
-            <Link href="/pendaftaran">
-              <UserCircle className="h-6 w-6" />
-              <span className="sr-only">Pendaftaran</span>
-            </Link>
-          </Button>
+          <ModeToggle />
         </div>
       </header>
 
@@ -226,4 +223,3 @@ export function Header() {
     </>
   );
 }
-
