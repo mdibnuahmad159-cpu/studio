@@ -54,6 +54,10 @@ export default function KurikulumPage() {
     setNewKurikulum(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleSelectChange = (name: string, value: string) => {
+    setNewKurikulum(prev => ({ ...prev, [name]: value }));
+  };
+
   const handleAddKurikulum = () => {
     if (newKurikulum.kelas && newKurikulum.mataPelajaran && newKurikulum.kitab) {
       setKitabPelajaran(prev => [...prev, newKurikulum]);
@@ -156,7 +160,16 @@ export default function KurikulumPage() {
               <Label htmlFor="kelas" className="text-right">
                 Kelas
               </Label>
-              <Input id="kelas" name="kelas" value={newKurikulum.kelas} onChange={handleInputChange} className="col-span-3" />
+              <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={newKurikulum.kelas}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Pilih Kelas" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[...Array(7)].map((_, i) => (
+                      <SelectItem key={i} value={String(i)}>Kelas {i}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="mataPelajaran" className="text-right">
