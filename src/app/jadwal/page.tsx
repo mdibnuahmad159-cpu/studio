@@ -100,7 +100,7 @@ export default function JadwalPage() {
         filtered = filtered.filter(item => String(item.guruId) === selectedGuru);
     }
     return filtered.sort((a, b) => availableHari.indexOf(a.hari) - availableHari.indexOf(b.hari) || a.jam.localeCompare(b.jam));
-  }, [jadwal, selectedKelas, selectedHari, selectedGuru]);
+  }, [jadwal, selectedKelas, selectedHari, selectedGuru, availableHari]);
 
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
@@ -117,8 +117,6 @@ export default function JadwalPage() {
     });
     doc.save('jadwal-pelajaran.pdf');
   };
-
-  let lastDay: string | null = null;
 
   return (
     <div className="bg-background">
@@ -193,10 +191,8 @@ export default function JadwalPage() {
             </TableHeader>
             <TableBody>
               {filteredJadwal.map((item, index) => {
-                 const showDaySeparator = item.hari !== lastDay;
-                 lastDay = item.hari;
                  return (
-                    <TableRow key={index} className={cn(showDaySeparator && index > 0 && 'border-t-4 border-primary/20')}>
+                    <TableRow key={index} className={cn(item.jam === '15:30 - 16:30' ? 'bg-muted/50' : '')}>
                         <TableCell className="font-medium">{item.hari}</TableCell>
                         <TableCell>Kelas {item.kelas}</TableCell>
                         <TableCell>{item.mataPelajaran}</TableCell>
@@ -294,5 +290,3 @@ export default function JadwalPage() {
     </div>
   );
 }
-
-    
