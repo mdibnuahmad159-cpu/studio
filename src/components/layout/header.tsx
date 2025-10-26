@@ -29,14 +29,15 @@ export function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 hidden md:block">
-      <div className="container flex h-16 items-center justify-between">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      {/* Desktop Header */}
+      <div className="container hidden h-16 items-center justify-between md:flex">
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
+          <Link href="/" className="flex items-center gap-2">
             <School className="h-6 w-6 text-primary" />
             <span className="font-headline text-xl font-bold text-primary sr-only md:not-sr-only">VibrantEdu</span>
           </Link>
-          <nav className="hidden items-center gap-6 md:flex">
+          <nav className="flex items-center gap-6">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -64,49 +65,61 @@ export function Header() {
               </Link>
             </Button>
         </div>
+      </div>
 
-        <div className="md:hidden">
-          <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Toggle Menu</span>
+      {/* Mobile Header */}
+      <div className="container flex h-16 items-center justify-between md:hidden">
+        <Sheet open={isOpen} onOpenChange={setIsOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Menu className="h-6 w-6" />
+              <span className="sr-only">Toggle Menu</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-[300px] sm:w-[400px]">
+             <SheetHeader>
+              <SheetTitle className="sr-only">Menu</SheetTitle>
+              <SheetDescription className="sr-only">
+                Navigasi utama situs. Pilih tautan untuk berpindah ke halaman lain.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="flex flex-col p-6">
+              <Link href="/" className="mb-8 flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                <School className="h-6 w-6 text-primary" />
+                <span className="font-headline text-xl font-bold text-primary">VibrantEdu</span>
+              </Link>
+              <nav className="flex flex-col gap-4">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setIsOpen(false)}
+                    className={cn(
+                      'text-lg font-medium transition-colors hover:text-primary',
+                      pathname === link.href ? 'text-primary' : 'text-foreground'
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </nav>
+               <Button asChild size="lg" className="mt-8 bg-gradient-primary hover:brightness-110">
+                  <Link href="/pendaftaran" onClick={() => setIsOpen(false)}>Daftar Sekarang</Link>
               </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-               <SheetHeader>
-                <SheetTitle className="sr-only">Menu</SheetTitle>
-                <SheetDescription className="sr-only">
-                  Navigasi utama situs. Pilih tautan untuk berpindah ke halaman lain.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="flex flex-col p-6">
-                <Link href="/" className="mb-8 flex items-center gap-2" onClick={() => setIsOpen(false)}>
-                  <School className="h-6 w-6 text-primary" />
-                  <span className="font-headline text-xl font-bold text-primary">VibrantEdu</span>
-                </Link>
-                <nav className="flex flex-col gap-4">
-                  {navLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      onClick={() => setIsOpen(false)}
-                      className={cn(
-                        'text-lg font-medium transition-colors hover:text-primary',
-                        pathname === link.href ? 'text-primary' : 'text-foreground'
-                      )}
-                    >
-                      {link.label}
-                    </Link>
-                  ))}
-                </nav>
-                 <Button asChild size="lg" className="mt-8 bg-gradient-primary hover:brightness-110">
-                    <Link href="/pendaftaran" onClick={() => setIsOpen(false)}>Daftar Sekarang</Link>
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
+            </div>
+          </SheetContent>
+        </Sheet>
+        
+        <div className="font-headline text-xl font-bold text-primary">
+          VibrantEdu
         </div>
+
+        <Button asChild size="icon" variant="ghost">
+          <Link href="/pendaftaran">
+            <UserCircle className="h-6 w-6" />
+            <span className="sr-only">Pendaftaran</span>
+          </Link>
+        </Button>
       </div>
     </header>
   );
