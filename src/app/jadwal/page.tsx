@@ -106,13 +106,14 @@ export default function JadwalPage() {
     const doc = new jsPDF() as jsPDFWithAutoTable;
     doc.text('Jadwal Pelajaran', 20, 10);
     doc.autoTable({
-      head: [['Hari', 'Kelas', 'Mata Pelajaran', 'Guru', 'Jam']],
+      head: [['Hari', 'Kelas', 'Mata Pelajaran', 'Guru', 'Jam', 'Keterangan']],
       body: filteredJadwal.map((item: Jadwal) => [
         item.hari,
         `Kelas ${item.kelas}`,
         item.mataPelajaran,
         getTeacherName(item.guruId),
         item.jam,
+        item.jam === '14:00 - 15:00' ? 'Jam Pertama' : 'Jam Kedua',
       ]),
     });
     doc.save('jadwal-pelajaran.pdf');
@@ -187,6 +188,7 @@ export default function JadwalPage() {
                 <TableHead className="font-headline">Mata Pelajaran</TableHead>
                 <TableHead className="font-headline">Guru</TableHead>
                 <TableHead className="font-headline">Jam</TableHead>
+                <TableHead className="font-headline">Keterangan</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -198,6 +200,7 @@ export default function JadwalPage() {
                         <TableCell>{item.mataPelajaran}</TableCell>
                         <TableCell>{getTeacherName(item.guruId)}</TableCell>
                         <TableCell>{item.jam}</TableCell>
+                        <TableCell>{item.jam === '14:00 - 15:00' ? 'Jam Pertama' : 'Jam Kedua'}</TableCell>
                     </TableRow>
                  )
               })}
