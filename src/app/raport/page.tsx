@@ -17,8 +17,15 @@ import {
   StudentRaport,
   DetailedStudent,
 } from '@/lib/data';
-import { Upload, Download, FileText } from 'lucide-react';
+import { Upload, Download, MoreHorizontal, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
 
 // This is a mock in-memory store to sync data across pages.
 let dataStore = {
@@ -116,6 +123,42 @@ export default function RaportPage() {
     return studentRaport?.raports[raportKey] || null;
   };
 
+  const renderRaportCell = (student: DetailedStudent, kelas: string, semester: 'ganjil' | 'genap') => {
+      const raportKey = `kelas_${kelas}_${semester}`;
+      const raportFile = getRaportFile(student.nis, raportKey);
+      const semesterLabel = semester === 'ganjil' ? 'Ganjil' : 'Genap';
+
+      if (raportFile) {
+          return (
+              <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                          File <MoreHorizontal className="ml-2 h-4 w-4" />
+                      </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                      <DropdownMenuItem asChild>
+                          <a href={raportFile} download={`Raport_${student.nama}_K${kelas}_${semesterLabel}.pdf`}>
+                              <Download className="mr-2 h-4 w-4" />
+                              <span>Unduh</span>
+                          </a>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleUploadClick(student.nis, raportKey)}>
+                          <Upload className="mr-2 h-4 w-4" />
+                          <span>Ganti File</span>
+                      </DropdownMenuItem>
+                  </DropdownMenuContent>
+              </DropdownMenu>
+          );
+      }
+
+      return (
+          <Button variant="outline" size="sm" onClick={() => handleUploadClick(student.nis, raportKey)}>
+              <Upload className="mr-2 h-4 w-4" /> Upload
+          </Button>
+      );
+  };
+
   return (
     <div className="bg-background">
       <div className="container py-12 md:py-20">
@@ -166,46 +209,18 @@ export default function RaportPage() {
                 {activeStudents.map((student) => (
                   <TableRow key={student.nis}>
                     <TableCell className="font-medium sticky left-0 bg-card z-10 w-[200px]">{student.nama}</TableCell>
-                    <TableCell className="w-[120px]">{student.nis}</TableCell>
-                    {KELAS_OPTIONS.map(kelas => {
-                      const ganjilKey = `kelas_${kelas}_ganjil`;
-                      const genapKey = `kelas_${kelas}_genap`;
-                      const raportGanjil = getRaportFile(student.nis, ganjilKey);
-                      const raportGenap = getRaportFile(student.nis, genapKey);
-
-                      return (
+                    <TableCell>{student.nis}</TableCell>
+                    {KELAS_OPTIONS.map(kelas => (
                         <React.Fragment key={`${student.nis}-${kelas}`}>
                           <TableCell className="text-center">
-                            {raportGanjil ? (
-                              <Button variant="link" size="sm" asChild className="h-auto p-0 text-primary">
-                                <a href={raportGanjil} download={`Raport_${student.nama}_K${kelas}_Ganjil.pdf`}>
-                                  <Download className="mr-1 h-3 w-3"/>
-                                  Lihat
-                                </a>
-                              </Button>
-                            ) : (
-                              <Button variant="outline" size="sm" onClick={() => handleUploadClick(student.nis, ganjilKey)}>
-                                <Upload className="mr-2 h-4 w-4" /> Upload
-                              </Button>
-                            )}
+                            {renderRaportCell(student, kelas, 'ganjil')}
                           </TableCell>
                           <TableCell className="text-center">
-                            {raportGenap ? (
-                              <Button variant="link" size="sm" asChild className="h-auto p-0 text-primary">
-                                <a href={raportGenap} download={`Raport_${student.nama}_K${kelas}_Genap.pdf`}>
-                                  <Download className="mr-1 h-3 w-3" />
-                                  Lihat
-                                </a>
-                              </Button>
-                            ) : (
-                              <Button variant="outline" size="sm" onClick={() => handleUploadClick(student.nis, genapKey)}>
-                                <Upload className="mr-2 h-4 w-4" /> Upload
-                              </Button>
-                            )}
+                            {renderRaportCell(student, kelas, 'genap')}
                           </TableCell>
                         </React.Fragment>
                       )
-                    })}
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
