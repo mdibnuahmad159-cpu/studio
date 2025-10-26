@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Guru } from '@/lib/data';
 import { TeacherCard } from '@/components/teacher-card';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,16 @@ const emptyTeacher: Omit<Guru, 'id' | 'imageId'> = {
   whatsapp: '',
 };
 
+const positionOrder = [
+  'Pengasuh',
+  'Pengawas',
+  'Kepala Madrasah',
+  'Wakil Kepala Madrasah',
+  'Sekretaris',
+  'Bendahara',
+  'Guru'
+];
+
 export default function GuruPage() {
   const firestore = useFirestore();
   const { user } = useUser();
@@ -56,6 +66,19 @@ export default function GuruPage() {
   const [teacherToEdit, setTeacherToEdit] = useState<Guru | null>(null);
   const [teacherToDelete, setTeacherToDelete] = useState<Guru | null>(null);
   const [formData, setFormData] = useState(emptyTeacher);
+
+  const sortedTeachers = useMemo(() => {
+    if (!teachers) return [];
+    return [...teachers].sort((a, b) => {
+      const indexA = positionOrder.indexOf(a.position);
+      const indexB = positionOrder.indexOf(b.position);
+      
+      const effectiveIndexA = indexA === -1 ? positionOrder.length : indexA;
+      const effectiveIndexB = indexB === -1 ? positionOrder.length : indexB;
+
+      return effectiveIndexA - effectiveIndexB;
+    });
+  }, [teachers]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -108,7 +131,7 @@ export default function GuruPage() {
     doc.text('Data Tenaga Pendidik', 20, 10);
     doc.autoTable({
       head: [['Nama', 'Jabatan', 'No. WhatsApp']],
-      body: teachers?.map((teacher: Guru) => [teacher.name, teacher.position, teacher.whatsapp]),
+      body: sortedTeachers?.map((teacher: Guru) => [teacher.name, teacher.position, teacher.whatsapp]),
     });
     doc.save('data-guru.pdf');
   };
@@ -138,7 +161,7 @@ export default function GuruPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {isLoading && <p>Loading...</p>}
-          {teachers?.map((teacher) => (
+          {sortedTeachers?.map((teacher) => (
             <TeacherCard 
               key={teacher.id} 
               teacher={teacher} 
