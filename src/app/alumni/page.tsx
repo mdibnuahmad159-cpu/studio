@@ -19,17 +19,34 @@ import {
 } from '@/components/ui/select';
 import { DetailedStudent, alumni as initialAlumni } from '@/lib/data';
 import { Button } from '@/components/ui/button';
-import { FileDown } from 'lucide-react';
+import { FileDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
 export default function AlumniPage() {
-  const [alumni] = useState<DetailedStudent[]>(initialAlumni);
+  const [alumni, setAlumni] = useState<DetailedStudent[]>(initialAlumni);
   const [selectedYear, setSelectedYear] = useState('all');
+  const [alumnusToDelete, setAlumnusToDelete] = useState<DetailedStudent | null>(null);
 
   const availableYears = useMemo(() => {
     const years = new Set(alumni.map(a => a.tahunLulus).filter(Boolean));
@@ -59,6 +76,17 @@ export default function AlumniPage() {
       ]),
     });
     doc.save('data-alumni.pdf');
+  };
+
+  const handleDeleteAlumnus = (alumnus: DetailedStudent) => {
+    setAlumnusToDelete(alumnus);
+  };
+
+  const confirmDelete = () => {
+    if (alumnusToDelete) {
+      setAlumni(prev => prev.filter(s => s.nis !== alumnusToDelete.nis));
+      setAlumnusToDelete(null);
+    }
   };
 
   return (
@@ -104,6 +132,7 @@ export default function AlumniPage() {
                 <TableHead className="font-headline">TTL</TableHead>
                 <TableHead className="font-headline">Tahun Lulus</TableHead>
                 <TableHead className="font-headline">Alamat</TableHead>
+                <TableHead className="font-headline text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -115,12 +144,51 @@ export default function AlumniPage() {
                   <TableCell>{`${student.tempatLahir}, ${student.tanggalLahir}`}</TableCell>
                   <TableCell>{student.tahunLulus}</TableCell>
                   <TableCell>{student.alamat}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Buka menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem disabled>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          <span>Edit</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteAlumnus(student)}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          <span>Hapus</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       </div>
+      <AlertDialog open={!!alumnusToDelete} onOpenChange={() => setAlumnusToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Data alumni "{alumnusToDelete?.nama}" akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

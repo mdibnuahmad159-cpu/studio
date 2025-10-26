@@ -18,7 +18,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { FileDown, PlusCircle } from 'lucide-react';
+import { FileDown, PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -27,28 +33,43 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { jadwalPelajaran as initialJadwal, teachers, kitabPelajaran } from '@/lib/data';
-import type { Jadwal, Teacher } from '@/lib/data';
+import type { Jadwal } from '@/lib/data';
 import { cn } from '@/lib/utils';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
+const emptyJadwal: Omit<Jadwal, 'id'> = {
+  hari: 'Senin',
+  kelas: '10',
+  mataPelajaran: '',
+  guruId: 0,
+  jam: '14:00 - 15:00',
+};
+
 export default function JadwalPage() {
   const [jadwal, setJadwal] = useState<Jadwal[]>(initialJadwal);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newJadwal, setNewJadwal] = useState<Omit<Jadwal, 'id'>>({
-    hari: 'Senin',
-    kelas: '10',
-    mataPelajaran: '',
-    guruId: 0,
-    jam: '14:00 - 15:00',
-  });
+  const [jadwalToEdit, setJadwalToEdit] = useState<Jadwal | null>(null);
+  const [jadwalToDelete, setJadwalToDelete] = useState<Jadwal | null>(null);
+  const [formData, setFormData] = useState<Omit<Jadwal, 'id'>>(emptyJadwal);
+
   const [selectedKelas, setSelectedKelas] = useState('all');
   const [selectedHari, setSelectedHari] = useState('all');
   const [selectedGuru, setSelectedGuru] = useState('all');
@@ -61,25 +82,43 @@ export default function JadwalPage() {
   const availableHari = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const availableJam = ['14:00 - 15:00', '15:30 - 16:30'];
   
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setNewJadwal(prev => ({ ...prev, [name]: value }));
-  };
-
   const handleSelectChange = (name: string, value: string) => {
-    setNewJadwal(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleAddJadwal = () => {
-    if (newJadwal.kelas && newJadwal.mataPelajaran && newJadwal.guruId && newJadwal.jam) {
-      const newEntry: Jadwal = {
-        id: jadwal.length > 0 ? Math.max(...jadwal.map(j => j.id)) + 1 : 1,
-        ...newJadwal,
-        guruId: Number(newJadwal.guruId),
-      };
-      setJadwal(prev => [...prev, newEntry].sort((a, b) => availableHari.indexOf(a.hari) - availableHari.indexOf(b.hari) || a.jam.localeCompare(b.jam)));
-      setNewJadwal({ hari: 'Senin', kelas: '10', mataPelajaran: '', guruId: 0, jam: '14:00 - 15:00' });
+  const handleOpenDialog = (item: Jadwal | null = null) => {
+    setJadwalToEdit(item);
+    setFormData(item ? { ...item } : emptyJadwal);
+    setIsDialogOpen(true);
+  };
+
+  const handleSaveJadwal = () => {
+    if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam) {
+      if (jadwalToEdit) {
+        // Edit
+        setJadwal(prev => prev.map(j => j.id === jadwalToEdit.id ? { ...j, ...formData, guruId: Number(formData.guruId) } : j));
+      } else {
+        // Add
+        const newEntry: Jadwal = {
+          id: jadwal.length > 0 ? Math.max(...jadwal.map(j => j.id)) + 1 : 1,
+          ...formData,
+          guruId: Number(formData.guruId),
+        };
+        setJadwal(prev => [...prev, newEntry].sort((a, b) => availableHari.indexOf(a.hari) - availableHari.indexOf(b.hari) || a.jam.localeCompare(b.jam)));
+      }
       setIsDialogOpen(false);
+      setJadwalToEdit(null);
+    }
+  };
+
+  const handleDeleteJadwal = (item: Jadwal) => {
+    setJadwalToDelete(item);
+  };
+  
+  const confirmDelete = () => {
+    if (jadwalToDelete) {
+        setJadwal(prev => prev.filter(j => j.id !== jadwalToDelete.id));
+        setJadwalToDelete(null);
     }
   };
 
@@ -132,7 +171,7 @@ export default function JadwalPage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto bg-gradient-primary text-primary-foreground hover:brightness-110">
+            <Button onClick={() => handleOpenDialog()} className="w-full sm:w-auto bg-gradient-primary text-primary-foreground hover:brightness-110">
               <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal
             </Button>
             <Button onClick={handleExportPdf} variant="outline" className="w-full sm:w-auto">
@@ -189,18 +228,42 @@ export default function JadwalPage() {
                 <TableHead className="font-headline">Guru</TableHead>
                 <TableHead className="font-headline">Jam</TableHead>
                 <TableHead className="font-headline">Keterangan</TableHead>
+                <TableHead className="font-headline text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredJadwal.map((item, index) => {
+              {filteredJadwal.map((item) => {
                  return (
-                    <TableRow key={index} className={cn(item.jam === '15:30 - 16:30' ? 'bg-muted/50' : '')}>
+                    <TableRow key={item.id} className={cn(item.jam === '15:30 - 16:30' ? 'bg-muted/50' : '')}>
                         <TableCell className="font-medium">{item.hari}</TableCell>
                         <TableCell>Kelas {item.kelas}</TableCell>
                         <TableCell>{item.mataPelajaran}</TableCell>
                         <TableCell>{getTeacherName(item.guruId)}</TableCell>
                         <TableCell>{item.jam}</TableCell>
                         <TableCell>{item.jam === '14:00 - 15:00' ? 'Jam Pertama' : 'Jam Kedua'}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Buka menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleOpenDialog(item)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                <span>Edit</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteJadwal(item)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Hapus</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                     </TableRow>
                  )
               })}
@@ -212,15 +275,15 @@ export default function JadwalPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Tambah Jadwal Baru</DialogTitle>
+            <DialogTitle>{jadwalToEdit ? 'Edit Jadwal' : 'Tambah Jadwal Baru'}</DialogTitle>
             <DialogDescription>
-              Isi formulir di bawah untuk menambahkan jadwal baru.
+              {jadwalToEdit ? 'Perbarui informasi jadwal di bawah ini.' : 'Isi formulir di bawah untuk menambahkan jadwal baru.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
              <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="hari" className="text-right">Hari</Label>
-              <Select name="hari" onValueChange={(value) => handleSelectChange('hari', value)} value={newJadwal.hari}>
+              <Select name="hari" onValueChange={(value) => handleSelectChange('hari', value)} value={formData.hari}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Pilih Hari" />
                 </SelectTrigger>
@@ -233,7 +296,7 @@ export default function JadwalPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="kelas" className="text-right">Kelas</Label>
-              <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={newJadwal.kelas}>
+              <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={formData.kelas}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Pilih Kelas" />
                 </SelectTrigger>
@@ -246,7 +309,7 @@ export default function JadwalPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="mataPelajaran" className="text-right">Mata Pelajaran</Label>
-              <Select name="mataPelajaran" onValueChange={(value) => handleSelectChange('mataPelajaran', value)} value={newJadwal.mataPelajaran}>
+              <Select name="mataPelajaran" onValueChange={(value) => handleSelectChange('mataPelajaran', value)} value={formData.mataPelajaran}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Pilih Mata Pelajaran" />
                 </SelectTrigger>
@@ -259,7 +322,7 @@ export default function JadwalPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="guruId" className="text-right">Guru</Label>
-              <Select name="guruId" onValueChange={(value) => handleSelectChange('guruId', value)} value={String(newJadwal.guruId)}>
+              <Select name="guruId" onValueChange={(value) => handleSelectChange('guruId', String(value))} value={String(formData.guruId)}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Pilih Guru" />
                 </SelectTrigger>
@@ -272,7 +335,7 @@ export default function JadwalPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="jam" className="text-right">Jam</Label>
-               <Select name="jam" onValueChange={(value) => handleSelectChange('jam', value)} value={newJadwal.jam}>
+               <Select name="jam" onValueChange={(value) => handleSelectChange('jam', value)} value={formData.jam}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Pilih Jam" />
                 </SelectTrigger>
@@ -286,10 +349,26 @@ export default function JadwalPage() {
           </div>
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
-            <Button type="submit" onClick={handleAddJadwal} className="bg-gradient-primary text-primary-foreground hover:brightness-110">Simpan</Button>
+            <Button type="submit" onClick={handleSaveJadwal} className="bg-gradient-primary text-primary-foreground hover:brightness-110">Simpan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={!!jadwalToDelete} onOpenChange={() => setJadwalToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Jadwal untuk kelas {jadwalToDelete?.kelas} pada hari {jadwalToDelete?.hari} akan dihapus. Aksi ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

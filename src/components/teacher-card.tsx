@@ -3,17 +3,26 @@
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, User, Phone } from 'lucide-react';
+import { Camera, User, Phone, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import type { Teacher } from '@/lib/data';
 import { useRef } from 'react';
 import Link from 'next/link';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from './ui/button';
 
 interface TeacherCardProps {
   teacher: Teacher;
   onImageChange: (teacherId: number, image: string | null) => void;
+  onEdit: (teacher: Teacher) => void;
+  onDelete: (teacher: Teacher) => void;
 }
 
-export function TeacherCard({ teacher, onImageChange }: TeacherCardProps) {
+export function TeacherCard({ teacher, onImageChange, onEdit, onDelete }: TeacherCardProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAvatarClick = () => {
@@ -34,7 +43,26 @@ export function TeacherCard({ teacher, onImageChange }: TeacherCardProps) {
   const whatsappLink = `https://wa.me/${teacher.whatsapp.replace(/[^0-9]/g, '')}`;
 
   return (
-    <Card className="overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col">
+    <Card className="overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col group">
+       <div className="absolute top-2 right-2 z-10">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onEdit(teacher)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              <span>Edit</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDelete(teacher)} className="text-red-600">
+              <Trash2 className="mr-2 h-4 w-4" />
+              <span>Hapus</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <CardContent className="p-6 text-center flex-grow flex flex-col justify-between">
         <div>
           <div className="relative w-32 h-32 mx-auto mb-4">
@@ -74,5 +102,3 @@ export function TeacherCard({ teacher, onImageChange }: TeacherCardProps) {
     </Card>
   );
 }
-
-    

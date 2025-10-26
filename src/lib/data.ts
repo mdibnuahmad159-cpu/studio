@@ -252,5 +252,3 @@ export const jadwalPelajaran: Jadwal[] = [
     { id: 3, hari: 'Selasa', kelas: '10', mataPelajaran: 'Hadits', guruId: 2, jam: '14:00 - 15:00' },
     { id: 4, hari: 'Rabu', kelas: '12', mataPelajaran: 'Tafsir', guruId: 3, jam: '15:30 - 16:30' },
 ];
-
-    

@@ -19,7 +19,13 @@ import {
 } from '@/components/ui/select';
 import { kitabPelajaran as initialKitabPelajaran } from '@/lib/data';
 import { Button } from '@/components/ui/button';
-import { FileDown, PlusCircle } from 'lucide-react';
+import { FileDown, PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -28,12 +34,23 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 type Kitab = {
+  id: number;
   kelas: string;
   mataPelajaran: string;
   kitab: string;
@@ -43,26 +60,63 @@ interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
+const emptyKurikulum: Omit<Kitab, 'id'> = {
+  kelas: '10',
+  mataPelajaran: '',
+  kitab: ''
+};
+
 export default function KurikulumPage() {
-  const [kitabPelajaran, setKitabPelajaran] = useState<Kitab[]>(initialKitabPelajaran);
+  const [kitabPelajaran, setKitabPelajaran] = useState<Kitab[]>(
+    initialKitabPelajaran.map((k, i) => ({ ...k, id: i + 1 }))
+  );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newKurikulum, setNewKurikulum] = useState({ kelas: '', mataPelajaran: '', kitab: '' });
+  const [kurikulumToEdit, setKurikulumToEdit] = useState<Kitab | null>(null);
+  const [kurikulumToDelete, setKurikulumToDelete] = useState<Kitab | null>(null);
+  const [formData, setFormData] = useState(emptyKurikulum);
   const [selectedKelas, setSelectedKelas] = useState('all');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setNewKurikulum(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setNewKurikulum(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleAddKurikulum = () => {
-    if (newKurikulum.kelas && newKurikulum.mataPelajaran && newKurikulum.kitab) {
-      setKitabPelajaran(prev => [...prev, newKurikulum]);
-      setNewKurikulum({ kelas: '', mataPelajaran: '', kitab: '' });
+  const handleOpenDialog = (item: Kitab | null = null) => {
+    setKurikulumToEdit(item);
+    setFormData(item ? { kelas: item.kelas, mataPelajaran: item.mataPelajaran, kitab: item.kitab } : emptyKurikulum);
+    setIsDialogOpen(true);
+  };
+
+  const handleSaveKurikulum = () => {
+    if (formData.kelas && formData.mataPelajaran && formData.kitab) {
+      if (kurikulumToEdit) {
+        // Edit
+        setKitabPelajaran(prev => prev.map(k => k.id === kurikulumToEdit.id ? { ...k, ...formData } : k));
+      } else {
+        // Add
+        const newEntry: Kitab = {
+          id: kitabPelajaran.length > 0 ? Math.max(...kitabPelajaran.map(k => k.id)) + 1 : 1,
+          ...formData,
+        };
+        setKitabPelajaran(prev => [...prev, newEntry]);
+      }
       setIsDialogOpen(false);
+      setKurikulumToEdit(null);
+    }
+  };
+
+  const handleDeleteKurikulum = (item: Kitab) => {
+    setKurikulumToDelete(item);
+  };
+
+  const confirmDelete = () => {
+    if (kurikulumToDelete) {
+      setKitabPelajaran(prev => prev.filter(k => k.id !== kurikulumToDelete.id));
+      setKurikulumToDelete(null);
     }
   };
 
@@ -78,10 +132,15 @@ export default function KurikulumPage() {
     doc.text('Data Kurikulum', 20, 10);
     doc.autoTable({
       head: [['Kelas', 'Mata Pelajaran', 'Kitab']],
-      body: filteredKitabPelajaran.map((item: Kitab) => [item.kelas, item.mataPelajaran, item.kitab]),
+      body: filteredKitabPelajaran.map((item: Kitab) => [`Kelas ${item.kelas}`, item.mataPelajaran, item.kitab]),
     });
     doc.save('data-kurikulum.pdf');
   };
+
+  const availableKelas = useMemo(() => {
+    const kelasSet = new Set(kitabPelajaran.map(k => k.kelas));
+    return Array.from(kelasSet).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
+ }, [kitabPelajaran]);
 
   return (
     <div className="bg-background">
@@ -97,7 +156,7 @@ export default function KurikulumPage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto bg-gradient-primary text-primary-foreground hover:brightness-110">
+            <Button onClick={() => handleOpenDialog()} className="w-full sm:w-auto bg-gradient-primary text-primary-foreground hover:brightness-110">
               <PlusCircle className="mr-2 h-4 w-4" /> Tambah Kurikulum
             </Button>
             <Button onClick={handleExportPdf} variant="outline" className="w-full sm:w-auto">
@@ -114,12 +173,9 @@ export default function KurikulumPage() {
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">Semua Kelas</SelectItem>
-                    {[...Array(7)].map((_, i) => (
-                        <SelectItem key={i} value={String(i)}>Kelas {i}</SelectItem>
+                    {availableKelas.map(kelas => (
+                        <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
                     ))}
-                    <SelectItem value="10">Kelas 10</SelectItem>
-                    <SelectItem value="11">Kelas 11</SelectItem>
-                    <SelectItem value="12">Kelas 12</SelectItem>
                 </SelectContent>
             </Select>
         </div>
@@ -132,14 +188,38 @@ export default function KurikulumPage() {
                 <TableHead className="w-[150px] font-headline">Kelas</TableHead>
                 <TableHead className="font-headline">Mata Pelajaran</TableHead>
                 <TableHead className="font-headline">Kitab</TableHead>
+                <TableHead className="font-headline text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredKitabPelajaran.map((item, index) => (
-                <TableRow key={index}>
-                  <TableCell className="font-medium">{item.kelas}</TableCell>
+              {filteredKitabPelajaran.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">Kelas {item.kelas}</TableCell>
                   <TableCell>{item.mataPelajaran}</TableCell>
                   <TableCell>{item.kitab}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Buka menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleOpenDialog(item)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          <span>Edit</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteKurikulum(item)}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          <span>Hapus</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -150,9 +230,9 @@ export default function KurikulumPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Tambah Data Kurikulum</DialogTitle>
+            <DialogTitle>{kurikulumToEdit ? 'Edit Kurikulum' : 'Tambah Data Kurikulum'}</DialogTitle>
             <DialogDescription>
-              Isi formulir di bawah ini untuk menambahkan data kurikulum baru.
+              {kurikulumToEdit ? 'Perbarui informasi kurikulum.' : 'Isi formulir di bawah ini untuk menambahkan data kurikulum baru.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -160,14 +240,14 @@ export default function KurikulumPage() {
               <Label htmlFor="kelas" className="text-right">
                 Kelas
               </Label>
-              <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={newKurikulum.kelas}>
+              <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={formData.kelas}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Pilih Kelas" />
                 </SelectTrigger>
                 <SelectContent>
-                  {[...Array(7)].map((_, i) => (
-                      <SelectItem key={i} value={String(i)}>Kelas {i}</SelectItem>
-                  ))}
+                   {['10','11','12'].map(kelas => (
+                        <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -175,23 +255,37 @@ export default function KurikulumPage() {
               <Label htmlFor="mataPelajaran" className="text-right">
                 Mata Pelajaran
               </Label>
-              <Input id="mataPelajaran" name="mataPelajaran" value={newKurikulum.mataPelajaran} onChange={handleInputChange} className="col-span-3" />
+              <Input id="mataPelajaran" name="mataPelajaran" value={formData.mataPelajaran} onChange={handleInputChange} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="kitab" className="text-right">
                 Kitab
               </Label>
-              <Input id="kitab" name="kitab" value={newKurikulum.kitab} onChange={handleInputChange} className="col-span-3" />
+              <Input id="kitab" name="kitab" value={formData.kitab} onChange={handleInputChange} className="col-span-3" />
             </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
-            <Button type="submit" onClick={handleAddKurikulum} className="bg-gradient-primary text-primary-foreground hover:brightness-110">Simpan</Button>
+            <Button type="submit" onClick={handleSaveKurikulum} className="bg-gradient-primary text-primary-foreground hover:brightness-110">Simpan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={!!kurikulumToDelete} onOpenChange={() => setKurikulumToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Kurikulum "{kurikulumToDelete?.mataPelajaran}" akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
-
-    
