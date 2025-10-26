@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -58,13 +58,30 @@ const emptyStudent: Omit<DetailedStudent, 'fileDokumen' | 'nis' | 'kelas' | 'sta
   fileDokumen: null,
 };
 
+// This is a mock in-memory store to sync data across pages.
+// In a real app, you would use a proper database or state management solution.
+let dataStore = {
+    students: initialStudents,
+};
+
+
 export default function SiswaPage() {
-  const [students, setStudents] = useState<DetailedStudent[]>(initialStudents);
+  const [students, setStudents] = useState<DetailedStudent[]>(dataStore.students);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [studentToEdit, setStudentToEdit] = useState<DetailedStudent | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<DetailedStudent | null>(null);
   const [formData, setFormData] = useState({ ...emptyStudent, nis: '' });
   const [file, setFile] = useState<File | null>(null);
+
+  // Effect to sync state with the mock data store on component mount and updates
+  useEffect(() => {
+    setStudents(dataStore.students);
+  }, []); 
+
+  const updateStudents = (newStudents: DetailedStudent[]) => {
+      dataStore.students = newStudents;
+      setStudents(newStudents);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -116,7 +133,8 @@ export default function SiswaPage() {
         ...formData,
         fileDokumen: fileUrl,
       };
-      setStudents(prev => prev.map(s => s.nis === studentToEdit.nis ? updatedStudent : s));
+      const newStudents = students.map(s => s.nis === studentToEdit.nis ? updatedStudent : s);
+      updateStudents(newStudents);
     } else {
       // Add
       let fileUrl = '/path/to/default.pdf';
@@ -136,7 +154,8 @@ export default function SiswaPage() {
           kelas: 0, // Default kelas
           status: 'Aktif'
       };
-      setStudents(prev => [...prev, studentToAdd]);
+      const newStudents = [...students, studentToAdd];
+      updateStudents(newStudents);
     }
     setIsDialogOpen(false);
     setStudentToEdit(null);
@@ -148,7 +167,8 @@ export default function SiswaPage() {
 
   const confirmDelete = () => {
     if(studentToDelete) {
-        setStudents(prev => prev.filter(s => s.nis !== studentToDelete.nis));
+        const newStudents = students.filter(s => s.nis !== studentToDelete.nis);
+        updateStudents(newStudents);
         setStudentToDelete(null);
     }
   };
@@ -156,9 +176,10 @@ export default function SiswaPage() {
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
     doc.text('Data Siswa', 20, 10);
+    const activeStudents = students.filter(s => s.status === 'Aktif');
     doc.autoTable({
       head: [['Nama', 'NIS', 'Jenis Kelamin', 'TTL', 'Nama Ayah', 'Nama Ibu', 'Alamat']],
-      body: students.map((student: DetailedStudent) => [
+      body: activeStudents.map((student: DetailedStudent) => [
         student.nama,
         student.nis,
         student.jenisKelamin,
@@ -170,6 +191,8 @@ export default function SiswaPage() {
     });
     doc.save('data-siswa.pdf');
   };
+
+  const activeStudents = students.filter(s => s.status === 'Aktif');
 
   return (
     <div className="bg-background">
@@ -210,7 +233,7 @@ export default function SiswaPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {students.map((student) => (
+              {activeStudents.map((student) => (
                 <TableRow key={student.nis}>
                   <TableCell className="font-medium">{student.nama}</TableCell>
                   <TableCell>{student.nis}</TableCell>
@@ -340,3 +363,6 @@ export default function SiswaPage() {
     </div>
   );
 }
+
+
+    

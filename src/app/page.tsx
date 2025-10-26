@@ -5,24 +5,50 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowUpRight, BookOpen, Users, UserCircle, GraduationCap } from 'lucide-react';
 import { teachers, detailedStudents, kitabPelajaran, alumni } from '@/lib/data';
+import { useState, useEffect } from 'react';
 
 export default function DashboardPage() {
-  const totalStudents = detailedStudents.filter(s => s.status === 'Aktif').length;
-  const totalTeachers = teachers.length;
+  // We use state to re-render the component when data changes.
+  const [studentCount, setStudentCount] = useState(detailedStudents.filter(s => s.status === 'Aktif').length);
+  const [alumniCount, setAlumniCount] = useState(alumni.length);
+  const [teacherCount, setTeacherCount] = useState(teachers.length);
+
+  useEffect(() => {
+    // In a real app, you'd use a more robust data fetching/caching or state management solution.
+    // Here we poll to check for changes in our mock data store.
+    const interval = setInterval(() => {
+      const newStudentCount = detailedStudents.filter(s => s.status === 'Aktif').length;
+      const newAlumniCount = alumni.length;
+      const newTeacherCount = teachers.length;
+
+      if (newStudentCount !== studentCount) {
+        setStudentCount(newStudentCount);
+      }
+      if (newAlumniCount !== alumniCount) {
+        setAlumniCount(newAlumniCount);
+      }
+       if (newTeacherCount !== teacherCount) {
+        setTeacherCount(newTeacherCount);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [studentCount, alumniCount, teacherCount]);
+
+
   const totalSubjects = kitabPelajaran.length;
-  const totalAlumni = alumni.length;
 
   const stats = [
     {
       title: 'Total Siswa Aktif',
-      value: `${totalStudents} Siswa`,
+      value: `${studentCount} Siswa`,
       icon: UserCircle,
       href: '/siswa',
       description: 'Jumlah siswa aktif terdaftar',
     },
     {
       title: 'Total Guru',
-      value: `${totalTeachers} Pendidik`,
+      value: `${teacherCount} Pendidik`,
       icon: Users,
       href: '/guru',
       description: 'Jumlah tenaga pendidik profesional',
@@ -36,7 +62,7 @@ export default function DashboardPage() {
     },
      {
       title: 'Total Alumni',
-      value: `${totalAlumni} Lulusan`,
+      value: `${alumniCount} Lulusan`,
       icon: GraduationCap,
       href: '/alumni',
       description: 'Jumlah alumni yang telah lulus',
@@ -78,3 +104,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

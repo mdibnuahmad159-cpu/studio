@@ -46,38 +46,61 @@ interface jsPDFWithAutoTable extends jsPDF {
 
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
-// This is a mock in-memory store.
-// In a real app, you'd use a database or a state management library.
-let studentDataStore = {
-  students: initialStudents.filter(s => s.status === 'Aktif'),
-  alumni: initialAlumni
+// This is a mock in-memory store to sync data across pages.
+// In a real app, you would use a proper database or state management solution.
+let dataStore = {
+    students: initialStudents,
+    alumni: initialAlumni,
 };
 
 export default function KelasPage() {
-  const [students, setStudents] = useState<DetailedStudent[]>(studentDataStore.students);
-  const [alumni, setAlumni] = useState<DetailedStudent[]>(studentDataStore.alumni);
+  const [students, setStudents] = useState<DetailedStudent[]>(dataStore.students);
+  const [alumni, setAlumni] = useState<DetailedStudent[]>(dataStore.alumni);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [filterKelas, setFilterKelas] = useState('all');
   const [alertInfo, setAlertInfo] = useState<{ title: string; description: string; onConfirm: () => void } | null>(null);
   const { toast } = useToast();
+  
+  // Effect to sync state with the mock data store on component mount and updates
+  useEffect(() => {
+    setStudents(dataStore.students);
+    setAlumni(dataStore.alumni);
+  }, []);
+
+  useEffect(() => {
+    // This effect listens for external changes to the data store
+    // and updates the component's state if necessary.
+    const interval = setInterval(() => {
+      if (dataStore.students !== students) {
+        setStudents(dataStore.students);
+      }
+      if (dataStore.alumni !== alumni) {
+        setAlumni(dataStore.alumni);
+      }
+    }, 1000); // Check every second for simplicity. In a real app, use a more robust state management.
+    return () => clearInterval(interval);
+  }, [students, alumni]);
+
 
   const updateStudents = (newStudents: DetailedStudent[]) => {
-    studentDataStore.students = newStudents;
+    dataStore.students = newStudents;
     setStudents(newStudents);
   };
   
   const updateAlumni = (newAlumni: DetailedStudent[]) => {
-    studentDataStore.alumni = newAlumni;
+    dataStore.alumni = newAlumni;
     setAlumni(newAlumni);
   }
 
+  const activeStudents = useMemo(() => students.filter(s => s.status === 'Aktif'), [students]);
+
   const filteredStudents = useMemo(() => {
-    let studentList = [...students];
+    let studentList = [...activeStudents];
     if (filterKelas !== 'all') {
       studentList = studentList.filter(s => String(s.kelas) === filterKelas);
     }
     return studentList.sort((a,b) => a.kelas - b.kelas || a.nama.localeCompare(b.nama));
-  }, [students, filterKelas]);
+  }, [activeStudents, filterKelas]);
   
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -100,7 +123,7 @@ export default function KelasPage() {
   }, [filterKelas]);
 
   const getSelectedStudentsDetails = () => {
-    return students.filter(s => selectedStudents.includes(s.nis));
+    return activeStudents.filter(s => selectedStudents.includes(s.nis));
   };
 
   const currentKelasForSelection = useMemo(() => {
@@ -157,18 +180,23 @@ export default function KelasPage() {
       `Anda yakin ingin meluluskan ${selectedStudents.length} siswa (${studentNames})? Mereka akan dipindahkan ke data alumni.`,
       () => {
         const year = new Date().getFullYear();
-        const graduatedStudents = students
-          .filter(s => selectedStudents.includes(s.nis))
-          .map(s => ({ ...s, status: 'Lulus' as const, tahunLulus: year }));
-        
-        const newAlumni = [...alumni, ...graduatedStudents];
-        updateAlumni(newAlumni);
+        let graduatedNis: string[] = [];
 
-        const newStudents = students.filter(s => !selectedStudents.includes(s.nis));
+        const newStudents = students.map(s => {
+          if (selectedStudents.includes(s.nis)) {
+            graduatedNis.push(s.nis);
+            return { ...s, status: 'Lulus' as const, tahunLulus: year };
+          }
+          return s;
+        });
+
+        const newAlumniData = [...alumni, ...newStudents.filter(s => graduatedNis.includes(s.nis))];
+        
         updateStudents(newStudents);
+        updateAlumni(newAlumniData);
 
         setSelectedStudents([]);
-        toast({ title: 'Berhasil!', description: `${graduatedStudents.length} siswa telah diluluskan.` });
+        toast({ title: 'Berhasil!', description: `${graduatedNis.length} siswa telah diluluskan.` });
       }
     );
   };
@@ -303,5 +331,7 @@ export default function KelasPage() {
     </div>
   );
 }
+
+    
 
     

@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { DetailedStudent, alumni as initialAlumni, detailedStudents } from '@/lib/data';
+import { DetailedStudent, alumni as initialAlumni, detailedStudents as initialStudents } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { FileDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -46,8 +46,8 @@ interface jsPDFWithAutoTable extends jsPDF {
 // This is a mock in-memory store to sync data across pages.
 // In a real app, you would use a proper database or state management solution.
 let dataStore = {
+    students: initialStudents,
     alumni: initialAlumni,
-    students: detailedStudents
 };
 
 export default function AlumniPage() {
@@ -59,6 +59,17 @@ export default function AlumniPage() {
   useEffect(() => {
     setAlumni(dataStore.alumni);
   }, []); 
+
+  useEffect(() => {
+    // This effect listens for external changes to the data store
+    // and updates the component's state if necessary.
+    const interval = setInterval(() => {
+      if (dataStore.alumni !== alumni) {
+        setAlumni(dataStore.alumni);
+      }
+    }, 1000); // Check every second for simplicity.
+    return () => clearInterval(interval);
+  }, [alumni]);
 
   const updateAlumni = (newAlumni: DetailedStudent[]) => {
       dataStore.alumni = newAlumni;
@@ -210,5 +221,7 @@ export default function AlumniPage() {
     </div>
   );
 }
+
+    
 
     
