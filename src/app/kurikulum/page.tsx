@@ -158,10 +158,10 @@ export default function KurikulumPage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => handleOpenDialog()} className="w-full sm:w-auto bg-gradient-primary text-primary-foreground hover:brightness-110">
+            <Button onClick={() => handleOpenDialog()} size="sm" className="w-full sm:w-auto">
               <PlusCircle className="mr-2 h-4 w-4" /> Tambah Kurikulum
             </Button>
-            <Button onClick={handleExportPdf} variant="outline" className="w-full sm:w-auto">
+            <Button onClick={handleExportPdf} variant="outline" size="sm" className="w-full sm:w-auto">
               <FileDown className="mr-2 h-4 w-4" />
               Ekspor PDF
             </Button>

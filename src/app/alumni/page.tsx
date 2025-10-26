@@ -134,7 +134,7 @@ export default function AlumniPage() {
               Jejak para lulusan IBNU AHMAD APP yang telah berkiprah.
             </p>
           </div>
-           <Button onClick={handleExportPdf} variant="outline" className="w-full sm:w-auto">
+           <Button onClick={handleExportPdf} variant="outline" size="sm" className="w-full sm:w-auto">
               <FileDown className="mr-2 h-4 w-4" />
               Ekspor PDF
             </Button>
@@ -225,7 +225,3 @@ export default function AlumniPage() {
     </div>
   );
 }
-
-    
-
-    
