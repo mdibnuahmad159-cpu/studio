@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Select,
   SelectContent,
@@ -356,5 +356,3 @@ export default function JadwalPage() {
     </div>
   );
 }
-
-    
