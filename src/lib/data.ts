@@ -70,35 +70,14 @@ export const students = [
   { id: 'VS-015', name: 'Putri Ayu', grade: '11 IPS 2' },
 ];
 
-export const curriculum = [
-    {
-        title: "Kurikulum Tingkat Dasar (Kelas 1-6)",
-        description: "Fokus pada pengembangan fundamental literasi, numerasi, dan karakter. Menggunakan metode belajar sambil bermain untuk menumbuhkan kecintaan terhadap ilmu pengetahuan.",
-        subjects: ["Bahasa Indonesia", "Matematika Dasar", "Sains Pengantar", "Pendidikan Kewarganegaraan", "Seni & Kerajinan", "Pendidikan Jasmani"]
-    },
-    {
-        title: "Kurikulum Tingkat Menengah (Kelas 7-9)",
-        description: "Pendalaman materi dan persiapan menuju jenjang yang lebih tinggi. Siswa mulai diperkenalkan pada peminatan dan proyek-proyek kolaboratif.",
-        subjects: ["Matematika Terpadu", "Fisika", "Biologi", "Kimia", "Bahasa Inggris Lanjutan", "Sejarah", "Geografi", "Ekonomi", "Teknologi Informasi"]
-    },
-    {
-        title: "Kurikulum Tingkat Atas (Kelas 10-12)",
-        description: "Program peminatan (IPA/IPS) untuk mempersiapkan siswa ke perguruan tinggi. Diperkaya dengan program magang, penelitian, dan kewirausahaan.",
-        subjects: ["Kalkulus", "Fisika Lanjutan", "Kimia Organik", "Biologi Molekuler", "Sosiologi", "Akuntansi", "Sastra Inggris", "Bahasa Asing Pilihan (Jerman/Mandarin)"]
-    },
-];
-
-export const extracurricular = [
-    {
-        title: "Klub Olahraga",
-        activities: ["Sepak Bola", "Basket", "Bulu Tangkis", "Renang"]
-    },
-    {
-        title: "Seni & Budaya",
-        activities: ["Tari Tradisional", "Teater & Drama", "Musik Modern (Band)", "Seni Lukis"]
-    },
-    {
-        title: "Akademik & Teknologi",
-        activities: ["Klub Robotik", "Olimpiade Sains", "Debat Bahasa Inggris", "Klub Jurnalistik"]
-    }
+export const kitabPelajaran = [
+  { kelas: '10', mataPelajaran: 'Fiqih', kitab: 'Fathul Qorib' },
+  { kelas: '10', mataPelajaran: 'Hadits', kitab: 'Arbain Nawawi' },
+  { kelas: '10', mataPelajaran: 'Akhlak', kitab: 'Taisirul Khallaq' },
+  { kelas: '11', mataPelajaran: 'Fiqih', kitab: 'Fathul Mu\'in' },
+  { kelas: '11', mataPelajaran: 'Hadits', kitab: 'Riyadhus Shalihin' },
+  { kelas: '11', mataPelajaran: 'Tasawuf', kitab: 'Al-Hikam' },
+  { kelas: '12', mataPelajaran: 'Ushul Fiqih', kitab: 'Al-Waraqat' },
+  { kelas: '12', mataPelajaran: 'Tafsir', kitab: 'Tafsir Jalalain' },
+  { kelas: '12', mataPelajaran: 'Balaghah', kitab: 'Jauharul Maknun' },
 ];
