@@ -18,6 +18,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { DetailedStudent, alumni as initialAlumni } from '@/lib/data';
+import { Button } from '@/components/ui/button';
+import { FileDown } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: any) => jsPDF;
+}
 
 export default function AlumniPage() {
   const [alumni] = useState<DetailedStudent[]>(initialAlumni);
@@ -36,6 +44,23 @@ export default function AlumniPage() {
     return sortedAlumni.filter(item => String(item.tahunLulus) === selectedYear);
   }, [alumni, selectedYear]);
 
+  const handleExportPdf = () => {
+    const doc = new jsPDF() as jsPDFWithAutoTable;
+    doc.text('Data Alumni', 20, 10);
+    doc.autoTable({
+      head: [['Nama', 'NIS', 'Jenis Kelamin', 'TTL', 'Tahun Lulus', 'Alamat']],
+      body: filteredAlumni.map((student) => [
+        student.nama,
+        student.nis,
+        student.jenisKelamin,
+        `${student.tempatLahir}, ${student.tanggalLahir}`,
+        student.tahunLulus,
+        student.alamat,
+      ]),
+    });
+    doc.save('data-alumni.pdf');
+  };
+
   return (
     <div className="bg-background">
       <div className="container py-12 md:py-20">
@@ -48,6 +73,10 @@ export default function AlumniPage() {
               Jejak para lulusan IBNU AHMAD APP yang telah berkiprah.
             </p>
           </div>
+           <Button onClick={handleExportPdf} variant="outline" className="w-full sm:w-auto">
+              <FileDown className="mr-2 h-4 w-4" />
+              Ekspor PDF
+            </Button>
         </div>
 
         <div className="mb-6 flex justify-end">

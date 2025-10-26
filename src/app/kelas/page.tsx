@@ -26,8 +26,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, ChevronsUp, ChevronsDown, GraduationCap } from 'lucide-react';
+import { MoreHorizontal, ChevronsUp, ChevronsDown, GraduationCap, FileDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: any) => jsPDF;
+}
 
 export default function KelasPage() {
   const [students, setStudents] = useState<DetailedStudent[]>(initialStudents);
@@ -84,6 +90,22 @@ export default function KelasPage() {
     toast({ title: "Sukses", description: `Aksi berhasil diterapkan pada ${selectedStudents.length} siswa.` });
     setSelectedStudents([]);
   };
+
+  const handleExportPdf = () => {
+    const doc = new jsPDF() as jsPDFWithAutoTable;
+    doc.text('Data Siswa per Kelas', 20, 10);
+    doc.autoTable({
+      head: [['Kelas', 'Nama', 'NIS', 'Jenis Kelamin', 'Keterangan']],
+      body: filteredStudents.map((student) => [
+        `Kelas ${student.kelas}`,
+        student.nama,
+        student.nis,
+        student.jenisKelamin,
+        student.status,
+      ]),
+    });
+    doc.save('data-kelas.pdf');
+  };
   
   const currentKelasForSelection = selectedStudents.length > 0
     ? students.find(s => s.nis === selectedStudents[0])?.kelas
@@ -102,6 +124,10 @@ export default function KelasPage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button onClick={handleExportPdf} variant="outline" className="w-full sm:w-auto">
+              <FileDown className="mr-2 h-4 w-4" />
+              Ekspor PDF
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto">
