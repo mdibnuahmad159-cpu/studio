@@ -2,7 +2,7 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { Auth, getAuth, signInAnonymously } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore'
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
@@ -23,6 +23,14 @@ export function initializeFirebase() {
         console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
       }
       firebaseApp = initializeApp(firebaseConfig);
+    }
+    const auth = getAuth(firebaseApp);
+    // Sign in anonymously if no user is present.
+    // This is useful for read-only access to data.
+    if (!auth.currentUser) {
+        signInAnonymously(auth).catch((error) => {
+            console.error("Anonymous sign-in failed", error);
+        });
     }
 
     return getSdks(firebaseApp);

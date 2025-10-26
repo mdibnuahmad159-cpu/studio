@@ -41,7 +41,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Jadwal, Guru, Kurikulum } from '@/lib/data';
 import { cn } from '@/lib/utils';
-import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 
@@ -65,14 +65,24 @@ const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 export default function JadwalPage() {
   const firestore = useFirestore();
   const { isAdmin } = useAdmin();
+  const { user } = useUser();
   
-  const jadwalRef = useMemoFirebase(() => collection(firestore, 'jadwal'), [firestore]);
+  const jadwalRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'jadwal');
+  }, [firestore, user]);
   const { data: jadwal, isLoading: jadwalLoading } = useCollection<Jadwal>(jadwalRef);
 
-  const teachersRef = useMemoFirebase(() => collection(firestore, 'gurus'), [firestore]);
+  const teachersRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'gurus');
+  }, [firestore, user]);
   const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(teachersRef);
   
-  const kurikulumRef = useMemoFirebase(() => collection(firestore, 'kurikulum'), [firestore]);
+  const kurikulumRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'kurikulum');
+  }, [firestore, user]);
   const { data: kitabPelajaran, isLoading: kurikulumLoading } = useCollection<Kurikulum>(kurikulumRef);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -98,7 +108,7 @@ export default function JadwalPage() {
   };
 
   const handleSaveJadwal = () => {
-    if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam && formData.hari) {
+    if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam && formData.hari && jadwalRef) {
       const dataToSave = { ...formData, guruId: formData.guruId };
       if (jadwalToEdit) {
         const jadwalDocRef = doc(firestore, 'jadwal', jadwalToEdit.id);

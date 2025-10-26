@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 
@@ -44,7 +44,11 @@ const emptyTeacher: Omit<Guru, 'id' | 'imageId'> = {
 
 export default function GuruPage() {
   const firestore = useFirestore();
-  const teachersRef = useMemoFirebase(() => collection(firestore, 'gurus'), [firestore]);
+  const { user } = useUser();
+  const teachersRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'gurus');
+  }, [firestore, user]);
   const { data: teachers, isLoading } = useCollection<Guru>(teachersRef);
   const { isAdmin } = useAdmin();
   
@@ -66,7 +70,7 @@ export default function GuruPage() {
   };
 
   const handleSaveTeacher = () => {
-    if (formData.name && formData.position && formData.whatsapp) {
+    if (formData.name && formData.position && formData.whatsapp && teachersRef) {
       if (teacherToEdit) {
         // Edit
         const teacherDocRef = doc(firestore, 'gurus', teacherToEdit.id);

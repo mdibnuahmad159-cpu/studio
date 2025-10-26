@@ -4,23 +4,36 @@
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowUpRight, BookOpen, Users, UserCircle, GraduationCap } from 'lucide-react';
-import { useCollection } from '@/firebase';
+import { useCollection, useUser } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase } from '@/firebase/provider';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
+  const { user } = useUser();
 
-  const guruQuery = useMemoFirebase(() => collection(firestore, 'gurus'), [firestore]);
+  const guruQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'gurus');
+  }, [firestore, user]);
   const { data: teachers } = useCollection(guruQuery);
   
-  const siswaAktifQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Aktif')), [firestore]);
+  const siswaAktifQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'siswa'), where('status', '==', 'Aktif'));
+  }, [firestore, user]);
   const { data: activeStudents } = useCollection(siswaAktifQuery);
 
-  const alumniQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Lulus')), [firestore]);
+  const alumniQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'siswa'), where('status', '==', 'Lulus'));
+  }, [firestore, user]);
   const { data: alumni } = useCollection(alumniQuery);
   
-  const kurikulumQuery = useMemoFirebase(() => collection(firestore, 'kurikulum'), [firestore]);
+  const kurikulumQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'kurikulum');
+  }, [firestore, user]);
   const { data: subjects } = useCollection(kurikulumQuery);
 
   const stats = [

@@ -38,7 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 
@@ -48,7 +48,11 @@ interface jsPDFWithAutoTable extends jsPDF {
 
 export default function AlumniPage() {
   const firestore = useFirestore();
-  const alumniQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Lulus')), [firestore]);
+  const { user } = useUser();
+  const alumniQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'siswa'), where('status', '==', 'Lulus'));
+  }, [firestore, user]);
   const { data: alumni, isLoading } = useCollection<DetailedStudent>(alumniQuery);
   const { isAdmin } = useAdmin();
   

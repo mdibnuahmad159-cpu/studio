@@ -37,7 +37,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 
@@ -49,7 +49,11 @@ const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
 export default function KelasPage() {
   const firestore = useFirestore();
-  const siswaAktifQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Aktif')), [firestore]);
+  const { user } = useUser();
+  const siswaAktifQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'siswa'), where('status', '==', 'Aktif'));
+  }, [firestore, user]);
   const { data: activeStudents, isLoading } = useCollection<DetailedStudent>(siswaAktifQuery);
   const { isAdmin } = useAdmin();
 
@@ -334,7 +338,7 @@ export default function KelasPage() {
           <AlertDialog open={!!alertInfo} onOpenChange={() => setAlertInfo(null)}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>{alertInfo?.title}</AlertDialogTitle>
+                <DialogTitle>{alertInfo?.title}</DialogTitle>
                 <AlertDialogDescription>
                   {alertInfo?.description}
                 </AlertDialogDescription>

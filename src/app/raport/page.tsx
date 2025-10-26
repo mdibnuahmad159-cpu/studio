@@ -20,7 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 
@@ -30,11 +30,18 @@ export default function RaportPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const { isAdmin } = useAdmin();
+  const { user } = useUser();
   
-  const siswaAktifQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Aktif')), [firestore]);
+  const siswaAktifQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'siswa'), where('status', '==', 'Aktif'));
+  }, [firestore, user]);
   const { data: activeStudents, isLoading: studentsLoading } = useCollection<DetailedStudent>(siswaAktifQuery);
   
-  const raportsQuery = useMemoFirebase(() => collection(firestore, 'raports'), [firestore]);
+  const raportsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'raports');
+  }, [firestore, user]);
   const { data: raports, isLoading: raportsLoading } = useCollection<Raport>(raportsQuery);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
