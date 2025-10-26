@@ -1,0 +1,164 @@
+{
+  "entities": {
+    "Guru": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Guru",
+      "type": "object",
+      "description": "Represents a teacher in the school.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Guru entity."
+        },
+        "nama": {
+          "type": "string",
+          "description": "The teacher's full name."
+        },
+        "kualifikasi": {
+          "type": "string",
+          "description": "The teacher's qualifications or certifications."
+        },
+        "kontak": {
+          "type": "string",
+          "description": "The teacher's contact information (e.g., email, phone number)."
+        },
+        "fotoUrl": {
+          "type": "string",
+          "description": "URL of the teacher's profile picture.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "nama",
+        "kualifikasi",
+        "kontak"
+      ]
+    },
+    "Siswa": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Siswa",
+      "type": "object",
+      "description": "Represents a student in the school.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Siswa entity."
+        },
+        "nama": {
+          "type": "string",
+          "description": "The student's full name."
+        },
+        "kelas": {
+          "type": "string",
+          "description": "The student's current class or grade level."
+        },
+        "tanggalLahir": {
+          "type": "string",
+          "description": "The student's date of birth.",
+          "format": "date-time"
+        },
+        "fotoUrl": {
+          "type": "string",
+          "description": "URL of the student's profile picture.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "nama",
+        "kelas",
+        "tanggalLahir"
+      ]
+    },
+    "Kurikulum": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Kurikulum",
+      "type": "object",
+      "description": "Represents a curriculum or subject offered by the school.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Kurikulum entity."
+        },
+        "nama": {
+          "type": "string",
+          "description": "The name of the curriculum or subject."
+        },
+        "deskripsi": {
+          "type": "string",
+          "description": "A description of the curriculum or subject."
+        },
+        "silabusUrl": {
+          "type": "string",
+          "description": "URL of the curriculum's syllabus document.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "nama",
+        "deskripsi"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/gurus/{guruId}",
+        "definition": {
+          "entityName": "Guru",
+          "schema": {
+            "$ref": "#/backend/entities/Guru"
+          },
+          "description": "Stores teacher (Guru) profiles. Each document represents a single teacher.",
+          "params": [
+            {
+              "name": "guruId",
+              "description": "The unique identifier of the teacher."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/siswa/{siswaId}",
+        "definition": {
+          "entityName": "Siswa",
+          "schema": {
+            "$ref": "#/backend/entities/Siswa"
+          },
+          "description": "Stores student (Siswa) profiles. Each document represents a single student.",
+          "params": [
+            {
+              "name": "siswaId",
+              "description": "The unique identifier of the student."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/kurikulum/{kurikulumId}",
+        "definition": {
+          "entityName": "Kurikulum",
+          "schema": {
+            "$ref": "#/backend/entities/Kurikulum"
+          },
+          "description": "Stores curriculum data. Each document represents a single curriculum or subject.",
+          "params": [
+            {
+              "name": "kurikulumId",
+              "description": "The unique identifier of the curriculum."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to store data for the VibrantEdu application, focusing on teachers (Guru), students (Siswa), and curriculum (Kurikulum). Each entity is stored in its own top-level collection to ensure structural segregation and a homogeneous security posture. This approach simplifies security rules and improves query performance.\n\n**Authorization Independence:**\nAuthorization for accessing and modifying data is implicitly managed via security rules based on authentication. Since there's no ownership or collaborative access specified in the requirements, no denormalization of authorization data (like membership maps) is needed. Security rules will primarily rely on user roles (if implemented) or direct access to specific documents based on user authentication.\n\n**QAPs (Rules are not Filters):**\nThe design supports secure `list` operations because each entity type (Guru, Siswa, Kurikulum) resides in its own collection. Security rules can be applied at the collection level to restrict access based on user roles or other criteria without requiring filtering of the data after retrieval. If more complex authorization needs arise (e.g., restricting access to specific student data based on teacher role), the structure can be extended with subcollections and appropriate security rules."
+  }
+}
