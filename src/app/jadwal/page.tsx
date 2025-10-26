@@ -3,14 +3,6 @@
 
 import { useState, useMemo } from 'react';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -43,8 +35,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { jadwalPelajaran as initialJadwal, teachers, kitabPelajaran } from '@/lib/data';
@@ -63,37 +55,40 @@ const emptyJadwal: Omit<Jadwal, 'id'> = {
   jam: '14:00 - 15:00',
 };
 
+const HARI_OPERASIONAL = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const JAM_PELAJARAN = ['14:00 - 15:00', '15:30 - 16:30'];
+
 export default function JadwalPage() {
   const [jadwal, setJadwal] = useState<Jadwal[]>(initialJadwal);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [jadwalToEdit, setJadwalToEdit] = useState<Jadwal | null>(null);
   const [jadwalToDelete, setJadwalToDelete] = useState<Jadwal | null>(null);
   const [formData, setFormData] = useState<Omit<Jadwal, 'id'>>(emptyJadwal);
+  const [defaultSlotData, setDefaultSlotData] = useState<Partial<Omit<Jadwal, 'id'>>>({});
 
-  const [selectedKelas, setSelectedKelas] = useState('all');
-  const [selectedHari, setSelectedHari] = useState('all');
-  const [selectedGuru, setSelectedGuru] = useState('all');
+  const [selectedKelas, setSelectedKelas] = useState('10');
 
   const availableKelas = useMemo(() => {
-     const kelasSet = new Set(jadwal.map(j => j.kelas));
+     const kelasSet = new Set(initialJadwal.map(j => j.kelas));
      return Array.from(kelasSet).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
-  }, [jadwal]);
+  }, []);
 
-  const availableHari = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-  const availableJam = ['14:00 - 15:00', '15:30 - 16:30'];
-  
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleOpenDialog = (item: Jadwal | null = null) => {
+  const handleOpenDialog = (item: Jadwal | null = null, defaultData: Partial<Omit<Jadwal, 'id'>> = {}) => {
     setJadwalToEdit(item);
-    setFormData(item ? { ...item } : emptyJadwal);
+    if (item) {
+      setFormData({ ...item });
+    } else {
+      setFormData({ ...emptyJadwal, kelas: selectedKelas, ...defaultData });
+    }
     setIsDialogOpen(true);
   };
 
   const handleSaveJadwal = () => {
-    if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam) {
+    if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam && formData.hari) {
       if (jadwalToEdit) {
         // Edit
         setJadwal(prev => prev.map(j => j.id === jadwalToEdit.id ? { ...j, ...formData, guruId: Number(formData.guruId) } : j));
@@ -104,7 +99,7 @@ export default function JadwalPage() {
           ...formData,
           guruId: Number(formData.guruId),
         };
-        setJadwal(prev => [...prev, newEntry].sort((a, b) => availableHari.indexOf(a.hari) - availableHari.indexOf(b.hari) || a.jam.localeCompare(b.jam)));
+        setJadwal(prev => [...prev, newEntry]);
       }
       setIsDialogOpen(false);
       setJadwalToEdit(null);
@@ -124,38 +119,98 @@ export default function JadwalPage() {
 
   const getTeacherName = (guruId: number) => {
     const teacher = teachers.find(t => t.id === guruId);
-    return teacher ? teacher.name : 'N/A';
+    return teacher ? teacher.name.split(',')[0] : 'N/A';
   };
 
-  const filteredJadwal = useMemo(() => {
-    let filtered = [...jadwal];
-    if (selectedKelas !== 'all') {
-      filtered = filtered.filter(item => item.kelas === selectedKelas);
-    }
-    if (selectedHari !== 'all') {
-      filtered = filtered.filter(item => item.hari === selectedHari);
-    }
-    if (selectedGuru !== 'all') {
-        filtered = filtered.filter(item => String(item.guruId) === selectedGuru);
-    }
-    return filtered.sort((a, b) => availableHari.indexOf(a.hari) - availableHari.indexOf(b.hari) || a.jam.localeCompare(b.jam));
-  }, [jadwal, selectedKelas, selectedHari, selectedGuru, availableHari]);
+  const jadwalByKelas = useMemo(() => {
+    return jadwal.reduce((acc, item) => {
+      if (!acc[item.kelas]) {
+        acc[item.kelas] = [];
+      }
+      acc[item.kelas].push(item);
+      return acc;
+    }, {} as Record<string, Jadwal[]>);
+  }, [jadwal]);
 
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
-    doc.text('Jadwal Pelajaran', 20, 10);
+    const dataToExport = jadwal.filter(j => j.kelas === selectedKelas).sort((a,b) => HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari) || a.jam.localeCompare(b.jam));
+
+    doc.text(`Jadwal Pelajaran - Kelas ${selectedKelas}`, 20, 10);
     doc.autoTable({
-      head: [['Hari', 'Kelas', 'Mata Pelajaran', 'Guru', 'Jam', 'Keterangan']],
-      body: filteredJadwal.map((item: Jadwal) => [
+      head: [['Hari', 'Jam', 'Mata Pelajaran', 'Guru']],
+      body: dataToExport.map((item: Jadwal) => [
         item.hari,
-        `Kelas ${item.kelas}`,
+        item.jam,
         item.mataPelajaran,
         getTeacherName(item.guruId),
-        item.jam,
-        item.jam === '14:00 - 15:00' ? 'Jam Pertama' : 'Jam Kedua',
       ]),
     });
-    doc.save('jadwal-pelajaran.pdf');
+    doc.save(`jadwal-kelas-${selectedKelas}.pdf`);
+  };
+
+  const renderJadwalGrid = (kelas: string) => {
+    const jadwalKelas = jadwalByKelas[kelas] || [];
+    
+    return (
+      <div className="grid grid-cols-7 gap-px bg-border rounded-lg border overflow-hidden">
+        {/* Header */}
+        <div className="bg-card p-2 text-center font-headline font-semibold text-muted-foreground">Waktu</div>
+        {HARI_OPERASIONAL.map(hari => (
+          <div key={hari} className="bg-card p-2 text-center font-headline font-semibold text-muted-foreground">{hari}</div>
+        ))}
+        
+        {/* Rows */}
+        {JAM_PELAJARAN.map(jam => (
+          <React.Fragment key={jam}>
+            <div className="bg-card p-2 text-center font-semibold flex items-center justify-center">{jam}</div>
+            {HARI_OPERASIONAL.map(hari => {
+              const itemJadwal = jadwalKelas.find(j => j.hari === hari && j.jam === jam);
+              return (
+                <div key={`${hari}-${jam}`} className="bg-card p-2 min-h-[120px]">
+                  {itemJadwal ? (
+                    <Card className="h-full flex flex-col justify-between bg-secondary/30 group relative">
+                       <CardHeader className="p-2 pb-0">
+                          <CardTitle className="text-sm font-semibold">{itemJadwal.mataPelajaran}</CardTitle>
+                       </CardHeader>
+                       <CardContent className="p-2 text-xs text-muted-foreground">
+                          <p>{getTeacherName(itemJadwal.guruId)}</p>
+                       </CardContent>
+                       <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-6 w-6 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleOpenDialog(itemJadwal)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                <span>Edit</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteJadwal(itemJadwal)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Hapus</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                       </div>
+                    </Card>
+                  ) : (
+                    <Button variant="outline" className="h-full w-full" onClick={() => handleOpenDialog(null, { hari, jam, kelas })}>
+                      <PlusCircle className="h-5 w-5 text-muted-foreground" />
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </React.Fragment>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -167,11 +222,11 @@ export default function JadwalPage() {
               Jadwal Pelajaran
             </h1>
             <p className="mt-4 max-w-2xl mx-auto sm:mx-0 text-lg text-muted-foreground">
-              Lihat dan kelola jadwal pelajaran untuk semua kelas.
+              Lihat dan kelola jadwal pelajaran untuk semua kelas secara interaktif.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => handleOpenDialog()} className="w-full sm:w-auto bg-gradient-primary text-primary-foreground hover:brightness-110">
+            <Button onClick={() => handleOpenDialog(null, { kelas: selectedKelas })} className="w-full sm:w-auto bg-gradient-primary text-primary-foreground hover:brightness-110">
               <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal
             </Button>
             <Button onClick={handleExportPdf} variant="outline" className="w-full sm:w-auto">
@@ -181,95 +236,24 @@ export default function JadwalPage() {
           </div>
         </div>
 
-        <div className="mb-6 flex flex-col sm:flex-row justify-end gap-4">
-            <Select value={selectedHari} onValueChange={setSelectedHari}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filter Hari" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Semua Hari</SelectItem>
-                    {availableHari.map(hari => (
-                        <SelectItem key={hari} value={hari}>{hari}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-            <Select value={selectedKelas} onValueChange={setSelectedKelas}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filter Kelas" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Semua Kelas</SelectItem>
-                    {availableKelas.map(kelas => (
-                        <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-            <Select value={selectedGuru} onValueChange={setSelectedGuru}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filter Guru" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Semua Guru</SelectItem>
-                    {teachers.map(teacher => (
-                        <SelectItem key={teacher.id} value={String(teacher.id)}>{teacher.name}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+        <div className="mb-6 flex justify-start gap-4">
+            <div className='w-full sm:w-[240px]'>
+                <Label className="text-sm font-medium">Pilih Kelas</Label>
+                <Select value={selectedKelas} onValueChange={setSelectedKelas}>
+                    <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Filter Kelas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {availableKelas.map(kelas => (
+                            <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
         </div>
 
-
-        <div className="border rounded-lg overflow-hidden bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="font-headline">Hari</TableHead>
-                <TableHead className="font-headline">Kelas</TableHead>
-                <TableHead className="font-headline">Mata Pelajaran</TableHead>
-                <TableHead className="font-headline">Guru</TableHead>
-                <TableHead className="font-headline">Jam</TableHead>
-                <TableHead className="font-headline">Keterangan</TableHead>
-                <TableHead className="font-headline text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredJadwal.map((item) => {
-                 return (
-                    <TableRow key={item.id} className={cn(item.jam === '15:30 - 16:30' ? 'bg-muted/50' : '')}>
-                        <TableCell className="font-medium">{item.hari}</TableCell>
-                        <TableCell>Kelas {item.kelas}</TableCell>
-                        <TableCell>{item.mataPelajaran}</TableCell>
-                        <TableCell>{getTeacherName(item.guruId)}</TableCell>
-                        <TableCell>{item.jam}</TableCell>
-                        <TableCell>{item.jam === '14:00 - 15:00' ? 'Jam Pertama' : 'Jam Kedua'}</TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Buka menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleOpenDialog(item)}>
-                                <Pencil className="mr-2 h-4 w-4" />
-                                <span>Edit</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleDeleteJadwal(item)}
-                                className="text-red-600"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                <span>Hapus</span>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                    </TableRow>
-                 )
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        {renderJadwalGrid(selectedKelas)}
+        
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -288,7 +272,7 @@ export default function JadwalPage() {
                   <SelectValue placeholder="Pilih Hari" />
                 </SelectTrigger>
                 <SelectContent>
-                   {availableHari.map(hari => (
+                   {HARI_OPERASIONAL.map(hari => (
                         <SelectItem key={hari} value={hari}>{hari}</SelectItem>
                     ))}
                 </SelectContent>
@@ -314,7 +298,7 @@ export default function JadwalPage() {
                   <SelectValue placeholder="Pilih Mata Pelajaran" />
                 </SelectTrigger>
                 <SelectContent>
-                   {kitabPelajaran.map((mapel, i) => (
+                   {kitabPelajaran.filter(k => k.kelas === formData.kelas).map((mapel, i) => (
                         <SelectItem key={`${mapel.kitab}-${i}`} value={mapel.mataPelajaran}>{mapel.mataPelajaran} ({mapel.kitab})</SelectItem>
                     ))}
                 </SelectContent>
@@ -340,7 +324,7 @@ export default function JadwalPage() {
                   <SelectValue placeholder="Pilih Jam" />
                 </SelectTrigger>
                 <SelectContent>
-                   {availableJam.map(jam => (
+                   {JAM_PELAJARAN.map(jam => (
                         <SelectItem key={jam} value={jam}>{jam}</SelectItem>
                     ))}
                 </SelectContent>
@@ -372,3 +356,5 @@ export default function JadwalPage() {
     </div>
   );
 }
+
+    
