@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
+import { useAdmin } from '@/context/AdminProvider';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -45,6 +46,7 @@ export default function GuruPage() {
   const firestore = useFirestore();
   const teachersRef = useMemoFirebase(() => collection(firestore, 'gurus'), [firestore]);
   const { data: teachers, isLoading } = useCollection<Guru>(teachersRef);
+  const { isAdmin } = useAdmin();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [teacherToEdit, setTeacherToEdit] = useState<Guru | null>(null);
@@ -57,6 +59,7 @@ export default function GuruPage() {
   };
 
   const handleOpenDialog = (teacher: Guru | null = null) => {
+    if (!isAdmin) return;
     setTeacherToEdit(teacher);
     setFormData(teacher ? { name: teacher.name, position: teacher.position, whatsapp: teacher.whatsapp } : emptyTeacher);
     setIsDialogOpen(true);
@@ -84,6 +87,7 @@ export default function GuruPage() {
   };
 
   const handleDeleteTeacher = (teacher: Guru) => {
+    if (!isAdmin) return;
     setTeacherToDelete(teacher);
   };
 
@@ -116,9 +120,11 @@ export default function GuruPage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => handleOpenDialog()} size="sm">
-              <PlusCircle className="mr-2 h-4 w-4" /> Tambah Guru
-            </Button>
+            {isAdmin && (
+              <Button onClick={() => handleOpenDialog()} size="sm">
+                <PlusCircle className="mr-2 h-4 w-4" /> Tambah Guru
+              </Button>
+            )}
             <Button onClick={handleExportPdf} variant="outline" size="sm">
               <FileDown className="mr-2 h-4 w-4" />
               Ekspor PDF
@@ -133,64 +139,69 @@ export default function GuruPage() {
               key={teacher.id} 
               teacher={teacher} 
               onImageChange={handleImageChange} 
-              onEdit={() => handleOpenDialog(teacher)}
-              onDelete={() => handleDeleteTeacher(teacher)}
+              onEdit={handleOpenDialog}
+              onDelete={handleDeleteTeacher}
+              isAdmin={isAdmin}
             />
           ))}
         </div>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{teacherToEdit ? 'Edit Data Guru' : 'Tambah Data Guru'}</DialogTitle>
-            <DialogDescription>
-              {teacherToEdit ? 'Perbarui informasi guru di bawah ini.' : 'Isi formulir di bawah ini untuk menambahkan data guru baru.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Nama
-              </Label>
-              <Input id="name" name="name" value={formData.name} onChange={handleInputChange} className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="position" className="text-right">
-                Jabatan
-              </Label>
-              <Input id="position" name="position" value={formData.position} onChange={handleInputChange} className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="whatsapp" className="text-right">
-                No. WhatsApp
-              </Label>
-              <Input id="whatsapp" name="whatsapp" type="tel" value={formData.whatsapp} onChange={handleInputChange} className="col-span-3" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
-            <Button type="submit" onClick={handleSaveTeacher}>Simpan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <AlertDialog open={!!teacherToDelete} onOpenChange={() => setTeacherToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Data guru "{teacherToDelete?.name}" akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {isAdmin && (
+        <>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>{teacherToEdit ? 'Edit Data Guru' : 'Tambah Data Guru'}</DialogTitle>
+                <DialogDescription>
+                  {teacherToEdit ? 'Perbarui informasi guru di bawah ini.' : 'Isi formulir di bawah ini untuk menambahkan data guru baru.'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right">
+                    Nama
+                  </Label>
+                  <Input id="name" name="name" value={formData.name} onChange={handleInputChange} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="position" className="text-right">
+                    Jabatan
+                  </Label>
+                  <Input id="position" name="position" value={formData.position} onChange={handleInputChange} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="whatsapp" className="text-right">
+                    No. WhatsApp
+                  </Label>
+                  <Input id="whatsapp" name="whatsapp" type="tel" value={formData.whatsapp} onChange={handleInputChange} className="col-span-3" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
+                <Button type="submit" onClick={handleSaveTeacher}>Simpan</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          
+          <AlertDialog open={!!teacherToDelete} onOpenChange={() => setTeacherToDelete(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Data guru "{teacherToDelete?.name}" akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Hapus
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
     </div>
   );
 }

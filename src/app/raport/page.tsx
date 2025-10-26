@@ -22,13 +22,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
-
+import { useAdmin } from '@/context/AdminProvider';
 
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
 export default function RaportPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { isAdmin } = useAdmin();
   
   const siswaAktifQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Aktif')), [firestore]);
   const { data: activeStudents, isLoading: studentsLoading } = useCollection<DetailedStudent>(siswaAktifQuery);
@@ -40,6 +41,7 @@ export default function RaportPage() {
   const [uploadTarget, setUploadTarget] = useState<{nis: string, raportKey: string} | null>(null);
 
   const handleUploadClick = (nis: string, raportKey: string) => {
+    if (!isAdmin) return;
     setUploadTarget({nis, raportKey});
     fileInputRef.current?.click();
   };
@@ -100,20 +102,26 @@ export default function RaportPage() {
                               <span>Unduh</span>
                           </a>
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleUploadClick(student.nis, raportKey)}>
-                          <Upload className="mr-2 h-4 w-4" />
-                          <span>Ganti File</span>
-                      </DropdownMenuItem>
+                      {isAdmin && (
+                        <DropdownMenuItem onClick={() => handleUploadClick(student.nis, raportKey)}>
+                            <Upload className="mr-2 h-4 w-4" />
+                            <span>Ganti File</span>
+                        </DropdownMenuItem>
+                      )}
                   </DropdownMenuContent>
               </DropdownMenu>
           );
       }
 
-      return (
-          <Button variant="outline" size="sm" onClick={() => handleUploadClick(student.nis, raportKey)}>
-              <Upload className="mr-2 h-4 w-4" /> Upload
-          </Button>
-      );
+      if (isAdmin) {
+        return (
+            <Button variant="outline" size="sm" onClick={() => handleUploadClick(student.nis, raportKey)}>
+                <Upload className="mr-2 h-4 w-4" /> Upload
+            </Button>
+        );
+      }
+
+      return <span className="text-xs text-muted-foreground">-</span>;
   };
 
   const isLoading = studentsLoading || raportsLoading;
@@ -138,6 +146,7 @@ export default function RaportPage() {
           ref={fileInputRef}
           className="hidden"
           onChange={handleFileChange}
+          disabled={!isAdmin}
         />
 
         <div className="border rounded-lg overflow-hidden bg-card">

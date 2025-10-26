@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
+import { useAdmin } from '@/context/AdminProvider';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -49,6 +50,7 @@ export default function AlumniPage() {
   const firestore = useFirestore();
   const alumniQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Lulus')), [firestore]);
   const { data: alumni, isLoading } = useCollection<DetailedStudent>(alumniQuery);
+  const { isAdmin } = useAdmin();
   
   const [selectedYear, setSelectedYear] = useState('all');
   const [alumnusToDelete, setAlumnusToDelete] = useState<DetailedStudent | null>(null);
@@ -86,6 +88,7 @@ export default function AlumniPage() {
   };
 
   const handleDeleteAlumnus = (alumnus: DetailedStudent) => {
+    if (!isAdmin) return;
     setAlumnusToDelete(alumnus);
   };
 
@@ -142,11 +145,11 @@ export default function AlumniPage() {
                 <TableHead className="font-headline">TTL</TableHead>
                 <TableHead className="font-headline">Tahun Lulus</TableHead>
                 <TableHead className="font-headline">Alamat</TableHead>
-                <TableHead className="font-headline text-right">Aksi</TableHead>
+                {isAdmin && <TableHead className="font-headline text-right">Aksi</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={7}>Loading...</TableCell></TableRow>}
+              {isLoading && <TableRow><TableCell colSpan={isAdmin ? 7 : 6}>Loading...</TableCell></TableRow>}
               {filteredAlumni.map((student) => (
                 <TableRow key={student.nis}>
                   <TableCell className="font-medium">{student.nama}</TableCell>
@@ -155,51 +158,55 @@ export default function AlumniPage() {
                   <TableCell>{`${student.tempatLahir}, ${student.tanggalLahir}`}</TableCell>
                   <TableCell>{student.tahunLulus}</TableCell>
                   <TableCell>{student.alamat}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Buka menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem disabled>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          <span>Edit</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteAlumnus(student)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          <span>Batalkan Kelulusan</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Buka menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem disabled>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteAlumnus(student)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Batalkan Kelulusan</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       </div>
-      <AlertDialog open={!!alumnusToDelete} onOpenChange={() => setAlumnusToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Anda yakin?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tindakan ini akan mengembalikan status "{alumnusToDelete?.nama}" menjadi siswa aktif.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Konfirmasi
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {isAdmin && (
+        <AlertDialog open={!!alumnusToDelete} onOpenChange={() => setAlumnusToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Anda yakin?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tindakan ini akan mengembalikan status "{alumnusToDelete?.nama}" menjadi siswa aktif.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Konfirmasi
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }

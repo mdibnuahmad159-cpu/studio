@@ -20,12 +20,14 @@ interface TeacherCardProps {
   onImageChange: (teacherId: string, image: string | null) => void;
   onEdit: (teacher: Teacher) => void;
   onDelete: (teacher: Teacher) => void;
+  isAdmin: boolean;
 }
 
-export function TeacherCard({ teacher, onImageChange, onEdit, onDelete }: TeacherCardProps) {
+export function TeacherCard({ teacher, onImageChange, onEdit, onDelete, isAdmin }: TeacherCardProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAvatarClick = () => {
+    if (!isAdmin) return;
     fileInputRef.current?.click();
   };
 
@@ -46,25 +48,27 @@ export function TeacherCard({ teacher, onImageChange, onEdit, onDelete }: Teache
 
   return (
     <Card className="overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col group">
-       <div className="absolute top-2 right-2 z-10">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onEdit(teacher)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              <span>Edit</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDelete(teacher)} className="text-red-600">
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Hapus</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+       {isAdmin && (
+        <div className="absolute top-2 right-2 z-10">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit(teacher)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                <span>Edit</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDelete(teacher)} className="text-red-600">
+                <Trash2 className="mr-2 h-4 w-4" />
+                <span>Hapus</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+       )}
       <CardContent className="p-6 text-center flex-grow flex flex-col justify-between">
         <div>
           <div className="relative w-32 h-32 mx-auto mb-4">
@@ -76,20 +80,24 @@ export function TeacherCard({ teacher, onImageChange, onEdit, onDelete }: Teache
                 <User />
               </AvatarFallback>
             </Avatar>
-            <button 
-              onClick={handleAvatarClick}
-              className="absolute bottom-1 right-1 bg-primary text-primary-foreground rounded-full p-2 hover:bg-primary/90 transition-all"
-              aria-label="Ubah foto"
-            >
-              <Camera className="h-4 w-4" />
-            </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*"
-              onChange={handleFileChange}
-            />
+            {isAdmin && (
+              <>
+                <button 
+                  onClick={handleAvatarClick}
+                  className="absolute bottom-1 right-1 bg-primary text-primary-foreground rounded-full p-2 hover:bg-primary/90 transition-all"
+                  aria-label="Ubah foto"
+                >
+                  <Camera className="h-4 w-4" />
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                />
+              </>
+            )}
           </div>
           <CardTitle className="font-headline text-xl">{teacher.name}</CardTitle>
           <CardDescription className="text-primary font-semibold mt-1">{teacher.position}</CardDescription>

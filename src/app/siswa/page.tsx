@@ -52,6 +52,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
+import { useAdmin } from '@/context/AdminProvider';
 
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -77,6 +78,7 @@ export default function SiswaPage() {
   const firestore = useFirestore();
   const siswaAktifQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Aktif')), [firestore]);
   const { data: activeStudents, isLoading } = useCollection<DetailedStudent>(siswaAktifQuery);
+  const { isAdmin } = useAdmin();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAssignClassDialogOpen, setIsAssignClassDialogOpen] = useState(false);
@@ -105,6 +107,7 @@ export default function SiswaPage() {
   };
 
   const handleOpenDialog = (student: DetailedStudent | null = null) => {
+    if (!isAdmin) return;
     setStudentToEdit(student);
     if (student) {
       setFormData({
@@ -177,6 +180,7 @@ export default function SiswaPage() {
 
 
   const handleDeleteStudent = (student: DetailedStudent) => {
+    if (!isAdmin) return;
     setStudentToDelete(student);
   };
 
@@ -194,6 +198,7 @@ export default function SiswaPage() {
   };
 
   const handleOpenAssignClassDialog = (student: DetailedStudent) => {
+    if (!isAdmin) return;
     setStudentToAssign(student);
     setSelectedClass(String(student.kelas));
     setIsAssignClassDialogOpen(true);
@@ -245,9 +250,11 @@ export default function SiswaPage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => handleOpenDialog()} size="sm">
-              <PlusCircle className="mr-2 h-4 w-4" /> Tambah Siswa
-            </Button>
+            {isAdmin && (
+              <Button onClick={() => handleOpenDialog()} size="sm">
+                <PlusCircle className="mr-2 h-4 w-4" /> Tambah Siswa
+              </Button>
+            )}
             <Button onClick={handleExportPdf} variant="outline" size="sm">
               <FileDown className="mr-2 h-4 w-4" />
               Ekspor PDF
@@ -268,11 +275,11 @@ export default function SiswaPage() {
                 <TableHead className="font-headline">Nama Ibu</TableHead>
                 <TableHead className="font-headline">Alamat</TableHead>
                 <TableHead className="font-headline">Dokumen</TableHead>
-                <TableHead className="font-headline text-right">Aksi</TableHead>
+                {isAdmin && <TableHead className="font-headline text-right">Aksi</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={10}>Loading...</TableCell></TableRow>}
+              {isLoading && <TableRow><TableCell colSpan={isAdmin ? 10 : 9}>Loading...</TableCell></TableRow>}
               {activeStudents?.map((student) => (
                 <TableRow key={student.nis}>
                   <TableCell className="font-medium">{student.nama}</TableCell>
@@ -291,149 +298,155 @@ export default function SiswaPage() {
                       </a>
                     </Button>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Buka menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                         <DropdownMenuItem onClick={() => handleOpenAssignClassDialog(student)}>
-                          <BookCopy className="mr-2 h-4 w-4" />
-                          <span>Masukkan ke Kelas</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenDialog(student)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          <span>Edit</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteStudent(student)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          <span>Hapus</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Buka menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleOpenAssignClassDialog(student)}>
+                            <BookCopy className="mr-2 h-4 w-4" />
+                            <span>Masukkan ke Kelas</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleOpenDialog(student)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteStudent(student)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Hapus</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       </div>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>{studentToEdit ? 'Edit Data Siswa' : 'Tambah Data Siswa'}</DialogTitle>
-            <DialogDescription>
-              {studentToEdit ? 'Perbarui informasi siswa di bawah ini.' : 'Isi formulir di bawah ini untuk menambahkan data siswa baru.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
-            <div className="space-y-2">
-                <Label htmlFor="nama">Nama Lengkap</Label>
-                <Input id="nama" name="nama" value={formData.nama} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="nis">NIS</Label>
-                <Input id="nis" name="nis" value={formData.nis} onChange={handleInputChange} disabled={!!studentToEdit} />
-            </div>
-             <div className="space-y-2">
-                <Label>Jenis Kelamin</Label>
-                <RadioGroup name="jenisKelamin" onValueChange={(value: any) => handleRadioChange(value)} value={formData.jenisKelamin} className="flex items-center space-x-4 pt-2">
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Laki-laki" id="male" />
-                        <Label htmlFor="male">Laki-laki</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Perempuan" id="female" />
-                        <Label htmlFor="female">Perempuan</Label>
-                    </div>
-                </RadioGroup>
-            </div>
-             <div className="space-y-2">
-                <Label htmlFor="tempatLahir">Tempat Lahir</Label>
-                <Input id="tempatLahir" name="tempatLahir" value={formData.tempatLahir} onChange={handleInputChange} />
-            </div>
-             <div className="space-y-2">
-                <Label htmlFor="tanggalLahir">Tanggal Lahir (DD-MM-YYYY)</Label>
-                <Input id="tanggalLahir" name="tanggalLahir" value={formData.tanggalLahir} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="namaAyah">Nama Ayah</Label>
-                <Input id="namaAyah" name="namaAyah" value={formData.namaAyah} onChange={handleInputChange} />
-            </div>
-             <div className="space-y-2">
-                <Label htmlFor="namaIbu">Nama Ibu</Label>
-                <Input id="namaIbu" name="namaIbu" value={formData.namaIbu} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="alamat">Alamat</Label>
-                <Input id="alamat" name="alamat" value={formData.alamat} onChange={handleInputChange} />
-            </div>
-             <div className="space-y-2">
-                <Label htmlFor="fileDokumen">File Dokumen</Label>
-                <Input id="fileDokumen" name="fileDokumen" type="file" onChange={handleFileChange} />
-                 {studentToEdit && typeof formData.fileDokumen === 'string' && (
-                    <p className="text-sm text-muted-foreground mt-1">Dokumen saat ini: <a href={formData.fileDokumen} target="_blank" rel="noopener noreferrer" className="text-primary underline">Lihat</a></p>
-                )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
-            <Button type="submit" onClick={handleSaveStudent}>Simpan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isAssignClassDialogOpen} onOpenChange={setIsAssignClassDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Masukkan Siswa ke Kelas</DialogTitle>
-            <DialogDescription>
-              Pilih kelas baru untuk siswa <strong>{studentToAssign?.nama}</strong>.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-              <Label htmlFor="kelas">Pilih Kelas</Label>
-              <Select value={selectedClass} onValueChange={setSelectedClass}>
-                  <SelectTrigger className="w-full mt-1">
-                      <SelectValue placeholder="Pilih Kelas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                      {KELAS_OPTIONS.map(kelas => (
-                          <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
-                      ))}
-                  </SelectContent>
-              </Select>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => setIsAssignClassDialogOpen(false)}>Batal</Button>
-            <Button type="submit" onClick={handleAssignClass}>Simpan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       
-      <AlertDialog open={!!studentToDelete} onOpenChange={() => setStudentToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Data siswa "{studentToDelete?.nama}" akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {isAdmin && (
+        <>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent className="sm:max-w-4xl">
+              <DialogHeader>
+                <DialogTitle>{studentToEdit ? 'Edit Data Siswa' : 'Tambah Data Siswa'}</DialogTitle>
+                <DialogDescription>
+                  {studentToEdit ? 'Perbarui informasi siswa di bawah ini.' : 'Isi formulir di bawah ini untuk menambahkan data siswa baru.'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
+                <div className="space-y-2">
+                    <Label htmlFor="nama">Nama Lengkap</Label>
+                    <Input id="nama" name="nama" value={formData.nama} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="nis">NIS</Label>
+                    <Input id="nis" name="nis" value={formData.nis} onChange={handleInputChange} disabled={!!studentToEdit} />
+                </div>
+                <div className="space-y-2">
+                    <Label>Jenis Kelamin</Label>
+                    <RadioGroup name="jenisKelamin" onValueChange={(value: any) => handleRadioChange(value)} value={formData.jenisKelamin} className="flex items-center space-x-4 pt-2">
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Laki-laki" id="male" />
+                            <Label htmlFor="male">Laki-laki</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Perempuan" id="female" />
+                            <Label htmlFor="female">Perempuan</Label>
+                        </div>
+                    </RadioGroup>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="tempatLahir">Tempat Lahir</Label>
+                    <Input id="tempatLahir" name="tempatLahir" value={formData.tempatLahir} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="tanggalLahir">Tanggal Lahir (DD-MM-YYYY)</Label>
+                    <Input id="tanggalLahir" name="tanggalLahir" value={formData.tanggalLahir} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="namaAyah">Nama Ayah</Label>
+                    <Input id="namaAyah" name="namaAyah" value={formData.namaAyah} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="namaIbu">Nama Ibu</Label>
+                    <Input id="namaIbu" name="namaIbu" value={formData.namaIbu} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="alamat">Alamat</Label>
+                    <Input id="alamat" name="alamat" value={formData.alamat} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="fileDokumen">File Dokumen</Label>
+                    <Input id="fileDokumen" name="fileDokumen" type="file" onChange={handleFileChange} />
+                    {studentToEdit && typeof formData.fileDokumen === 'string' && (
+                        <p className="text-sm text-muted-foreground mt-1">Dokumen saat ini: <a href={formData.fileDokumen} target="_blank" rel="noopener noreferrer" className="text-primary underline">Lihat</a></p>
+                    )}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
+                <Button type="submit" onClick={handleSaveStudent}>Simpan</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isAssignClassDialogOpen} onOpenChange={setIsAssignClassDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Masukkan Siswa ke Kelas</DialogTitle>
+                <DialogDescription>
+                  Pilih kelas baru untuk siswa <strong>{studentToAssign?.nama}</strong>.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                  <Label htmlFor="kelas">Pilih Kelas</Label>
+                  <Select value={selectedClass} onValueChange={setSelectedClass}>
+                      <SelectTrigger className="w-full mt-1">
+                          <SelectValue placeholder="Pilih Kelas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {KELAS_OPTIONS.map(kelas => (
+                              <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="secondary" onClick={() => setIsAssignClassDialogOpen(false)}>Batal</Button>
+                <Button type="submit" onClick={handleAssignClass}>Simpan</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          
+          <AlertDialog open={!!studentToDelete} onOpenChange={() => setStudentToDelete(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Data siswa "{studentToDelete?.nama}" akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Hapus
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
     </div>
   );
 }

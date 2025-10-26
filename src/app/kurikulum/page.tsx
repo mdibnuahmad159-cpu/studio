@@ -50,6 +50,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
+import { useAdmin } from '@/context/AdminProvider';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -67,6 +68,7 @@ export default function KurikulumPage() {
   const firestore = useFirestore();
   const kurikulumRef = useMemoFirebase(() => collection(firestore, 'kurikulum'), [firestore]);
   const { data: kitabPelajaran, isLoading } = useCollection<Kitab>(kurikulumRef);
+  const { isAdmin } = useAdmin();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [kurikulumToEdit, setKurikulumToEdit] = useState<Kitab | null>(null);
@@ -84,6 +86,7 @@ export default function KurikulumPage() {
   };
 
   const handleOpenDialog = (item: Kitab | null = null) => {
+    if (!isAdmin) return;
     setKurikulumToEdit(item);
     setFormData(item ? { kelas: item.kelas, mataPelajaran: item.mataPelajaran, kitab: item.kitab } : emptyKurikulum);
     setIsDialogOpen(true);
@@ -103,6 +106,7 @@ export default function KurikulumPage() {
   };
 
   const handleDeleteKurikulum = (item: Kitab) => {
+    if (!isAdmin) return;
     setKurikulumToDelete(item);
   };
 
@@ -146,9 +150,11 @@ export default function KurikulumPage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => handleOpenDialog()} size="sm">
-              <PlusCircle className="mr-2 h-4 w-4" /> Tambah Kurikulum
-            </Button>
+            {isAdmin && (
+              <Button onClick={() => handleOpenDialog()} size="sm">
+                <PlusCircle className="mr-2 h-4 w-4" /> Tambah Kurikulum
+              </Button>
+            )}
             <Button onClick={handleExportPdf} variant="outline" size="sm">
               <FileDown className="mr-2 h-4 w-4" />
               Ekspor PDF
@@ -178,105 +184,111 @@ export default function KurikulumPage() {
                 <TableHead className="w-[150px] font-headline">Kelas</TableHead>
                 <TableHead className="font-headline">Mata Pelajaran</TableHead>
                 <TableHead className="font-headline">Kitab</TableHead>
-                <TableHead className="font-headline text-right">Aksi</TableHead>
+                {isAdmin && <TableHead className="font-headline text-right">Aksi</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={4}>Loading...</TableCell></TableRow>}
+              {isLoading && <TableRow><TableCell colSpan={isAdmin ? 4 : 3}>Loading...</TableCell></TableRow>}
               {filteredKitabPelajaran.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">Kelas {item.kelas}</TableCell>
                   <TableCell>{item.mataPelajaran}</TableCell>
                   <TableCell>{item.kitab}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Buka menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleOpenDialog(item)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          <span>Edit</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteKurikulum(item)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          <span>Hapus</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Buka menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleOpenDialog(item)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteKurikulum(item)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Hapus</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       </div>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{kurikulumToEdit ? 'Edit Kurikulum' : 'Tambah Data Kurikulum'}</DialogTitle>
-            <DialogDescription>
-              {kurikulumToEdit ? 'Perbarui informasi kurikulum.' : 'Isi formulir di bawah ini untuk menambahkan data kurikulum baru.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="kelas" className="text-right">
-                Kelas
-              </Label>
-              <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={formData.kelas}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Pilih Kelas" />
-                </SelectTrigger>
-                <SelectContent>
-                   {KELAS_OPTIONS.map(kelas => (
-                        <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="mataPelajaran" className="text-right">
-                Mata Pelajaran
-              </Label>
-              <Input id="mataPelajaran" name="mataPelajaran" value={formData.mataPelajaran} onChange={handleInputChange} className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="kitab" className="text-right">
-                Kitab
-              </Label>
-              <Input id="kitab" name="kitab" value={formData.kitab} onChange={handleInputChange} className="col-span-3" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
-            <Button type="submit" onClick={handleSaveKurikulum}>Simpan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <AlertDialog open={!!kurikulumToDelete} onOpenChange={() => setKurikulumToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Kurikulum "{kurikulumToDelete?.mataPelajaran}" akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      
+      {isAdmin && (
+        <>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>{kurikulumToEdit ? 'Edit Kurikulum' : 'Tambah Data Kurikulum'}</DialogTitle>
+                <DialogDescription>
+                  {kurikulumToEdit ? 'Perbarui informasi kurikulum.' : 'Isi formulir di bawah ini untuk menambahkan data kurikulum baru.'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="kelas" className="text-right">
+                    Kelas
+                  </Label>
+                  <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={formData.kelas}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Pilih Kelas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {KELAS_OPTIONS.map(kelas => (
+                            <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="mataPelajaran" className="text-right">
+                    Mata Pelajaran
+                  </Label>
+                  <Input id="mataPelajaran" name="mataPelajaran" value={formData.mataPelajaran} onChange={handleInputChange} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="kitab" className="text-right">
+                    Kitab
+                  </Label>
+                  <Input id="kitab" name="kitab" value={formData.kitab} onChange={handleInputChange} className="col-span-3" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
+                <Button type="submit" onClick={handleSaveKurikulum}>Simpan</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <AlertDialog open={!!kurikulumToDelete} onOpenChange={() => setKurikulumToDelete(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Kurikulum "{kurikulumToDelete?.mataPelajaran}" akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Hapus
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
     </div>
   );
 }

@@ -2,9 +2,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Menu, UserCircle } from 'lucide-react';
+import { LogOut, Menu, UserCircle } from 'lucide-react';
 import { useState } from 'react';
-
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -16,6 +15,7 @@ import {
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
+import { useAdmin } from '@/context/AdminProvider';
 
 const navLinks = [
   { href: '/', label: 'Dasbor' },
@@ -31,6 +31,42 @@ const navLinks = [
 export function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const { isAdmin, logout } = useAdmin();
+
+  const renderAuthButton = () => {
+    if (isAdmin) {
+      return (
+        <Button onClick={logout} size="sm" variant="ghost">
+          <LogOut className="mr-2 h-4 w-4" />
+          Logout
+        </Button>
+      );
+    }
+    return (
+      <Button asChild size="sm" variant="outline">
+        <Link href="/pendaftaran">
+          <UserCircle className="mr-2 h-4 w-4" />
+          Pendaftaran
+        </Link>
+      </Button>
+    );
+  };
+  
+  const renderMobileAuthButton = () => {
+     if (isAdmin) {
+      return (
+        <Button onClick={() => { logout(); setIsOpen(false);}} size="lg" className="mt-8">
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout
+        </Button>
+      );
+    }
+    return (
+       <Button asChild size="lg" className="mt-8 bg-gradient-primary hover:brightness-110">
+          <Link href="/pendaftaran" onClick={() => setIsOpen(false)}>Daftar Sekarang</Link>
+      </Button>
+    )
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -56,14 +92,8 @@ export function Header() {
           </nav>
         </div>
         
-
         <div className="hidden md:block">
-            <Button asChild size="sm" variant="outline">
-              <Link href="/pendaftaran">
-                <UserCircle className="mr-2 h-4 w-4" />
-                Pendaftaran
-              </Link>
-            </Button>
+          {renderAuthButton()}
         </div>
       </div>
 
@@ -102,9 +132,7 @@ export function Header() {
                   </Link>
                 ))}
               </nav>
-               <Button asChild size="lg" className="mt-8 bg-gradient-primary hover:brightness-110">
-                  <Link href="/pendaftaran" onClick={() => setIsOpen(false)}>Daftar Sekarang</Link>
-              </Button>
+              {renderMobileAuthButton()}
             </div>
           </SheetContent>
         </Sheet>
@@ -123,5 +151,3 @@ export function Header() {
     </header>
   );
 }
-
-    

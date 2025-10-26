@@ -37,8 +37,9 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
+import { useAdmin } from '@/context/AdminProvider';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -50,6 +51,7 @@ export default function KelasPage() {
   const firestore = useFirestore();
   const siswaAktifQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Aktif')), [firestore]);
   const { data: activeStudents, isLoading } = useCollection<DetailedStudent>(siswaAktifQuery);
+  const { isAdmin } = useAdmin();
 
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [filterKelas, setFilterKelas] = useState('all');
@@ -68,6 +70,7 @@ export default function KelasPage() {
   }, [activeStudents, filterKelas]);
   
   const handleSelectAll = (checked: boolean) => {
+    if (!isAdmin) return;
     if (checked) {
       setSelectedStudents(filteredStudents.map(s => s.nis));
     } else {
@@ -76,6 +79,7 @@ export default function KelasPage() {
   };
 
   const handleSelectStudent = (nis: string, checked: boolean) => {
+    if (!isAdmin) return;
     if (checked) {
       setSelectedStudents(prev => [...prev, nis]);
     } else {
@@ -159,6 +163,7 @@ export default function KelasPage() {
   };
 
   const handleOpenMoveClassDialog = () => {
+    if (!isAdmin || areActionsDisabled) return;
     if (currentKelasForSelection === null || currentKelasForSelection === 'mixed') return;
     setTargetClass(String(currentKelasForSelection));
     setIsMoveClassDialogOpen(true);
@@ -229,18 +234,22 @@ export default function KelasPage() {
             </div>
             
             <div className="flex gap-2 flex-wrap justify-end">
-                <Button onClick={handleOpenMoveClassDialog} size="sm" variant="outline" disabled={areActionsDisabled}>
-                    <ArrowRightLeft className="mr-2 h-4 w-4" /> Pindahkan
-                </Button>
-                <Button onClick={handlePromote} size="sm" variant="outline" disabled={areActionsDisabled || currentKelas === 6}>
-                    <ArrowUp className="mr-2 h-4 w-4" /> Naik Kelas
-                </Button>
-                <Button onClick={handleDemote} size="sm" variant="outline" disabled={areActionsDisabled || currentKelas === 0}>
-                    <ArrowDown className="mr-2 h-4 w-4" /> Turun Kelas
-                </Button>
-                <Button onClick={handleGraduate} size="sm" variant="destructive" disabled={areActionsDisabled || currentKelas !== 6}>
-                    <GraduationCap className="mr-2 h-4 w-4" /> Luluskan
-                </Button>
+                {isAdmin && (
+                  <>
+                    <Button onClick={handleOpenMoveClassDialog} size="sm" variant="outline" disabled={areActionsDisabled}>
+                        <ArrowRightLeft className="mr-2 h-4 w-4" /> Pindahkan
+                    </Button>
+                    <Button onClick={handlePromote} size="sm" variant="outline" disabled={areActionsDisabled || currentKelas === 6}>
+                        <ArrowUp className="mr-2 h-4 w-4" /> Naik Kelas
+                    </Button>
+                    <Button onClick={handleDemote} size="sm" variant="outline" disabled={areActionsDisabled || currentKelas === 0}>
+                        <ArrowDown className="mr-2 h-4 w-4" /> Turun Kelas
+                    </Button>
+                    <Button onClick={handleGraduate} size="sm" variant="destructive" disabled={areActionsDisabled || currentKelas !== 6}>
+                        <GraduationCap className="mr-2 h-4 w-4" /> Luluskan
+                    </Button>
+                  </>
+                )}
                  <Button onClick={handleExportPdf} size="sm" variant="outline">
                     <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
                 </Button>
@@ -255,7 +264,7 @@ export default function KelasPage() {
                   <Checkbox
                     checked={filteredStudents.length > 0 && selectedStudents.length === filteredStudents.length}
                     onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
-                    disabled={filteredStudents.length === 0}
+                    disabled={filteredStudents.length === 0 || !isAdmin}
                   />
                 </TableHead>
                 <TableHead className="font-headline">Kelas</TableHead>
@@ -273,6 +282,7 @@ export default function KelasPage() {
                     <Checkbox
                       checked={selectedStudents.includes(student.nis)}
                       onCheckedChange={(checked) => handleSelectStudent(student.nis, Boolean(checked))}
+                      disabled={!isAdmin}
                     />
                   </TableCell>
                   <TableCell>Kelas {student.kelas}</TableCell>
@@ -290,51 +300,55 @@ export default function KelasPage() {
           </Table>
         </div>
       </div>
+      
+      {isAdmin && (
+        <>
+          <Dialog open={isMoveClassDialogOpen} onOpenChange={setIsMoveClassDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Pindahkan Siswa ke Kelas Lain</DialogTitle>
+                <DialogDescription>
+                  Pilih kelas tujuan untuk {selectedStudents.length} siswa yang dipilih.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                  <Label htmlFor="kelas">Pilih Kelas Tujuan</Label>
+                  <Select value={targetClass} onValueChange={setTargetClass}>
+                      <SelectTrigger className="w-full mt-1">
+                          <SelectValue placeholder="Pilih Kelas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {KELAS_OPTIONS.map(kelas => (
+                              <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="secondary" onClick={() => setIsMoveClassDialogOpen(false)}>Batal</Button>
+                <Button type="submit" onClick={handleMoveClass}>Pindahkan</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-      <Dialog open={isMoveClassDialogOpen} onOpenChange={setIsMoveClassDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Pindahkan Siswa ke Kelas Lain</DialogTitle>
-            <DialogDescription>
-              Pilih kelas tujuan untuk {selectedStudents.length} siswa yang dipilih.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-              <Label htmlFor="kelas">Pilih Kelas Tujuan</Label>
-              <Select value={targetClass} onValueChange={setTargetClass}>
-                  <SelectTrigger className="w-full mt-1">
-                      <SelectValue placeholder="Pilih Kelas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                      {KELAS_OPTIONS.map(kelas => (
-                          <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
-                      ))}
-                  </SelectContent>
-              </Select>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => setIsMoveClassDialogOpen(false)}>Batal</Button>
-            <Button type="submit" onClick={handleMoveClass}>Pindahkan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-       <AlertDialog open={!!alertInfo} onOpenChange={() => setAlertInfo(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{alertInfo?.title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {alertInfo?.description}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { alertInfo?.onConfirm(); setAlertInfo(null); }} >
-              Konfirmasi
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <AlertDialog open={!!alertInfo} onOpenChange={() => setAlertInfo(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{alertInfo?.title}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {alertInfo?.description}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { alertInfo?.onConfirm(); setAlertInfo(null); }} >
+                  Konfirmasi
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
     </div>
   );
 }
