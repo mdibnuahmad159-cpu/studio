@@ -42,8 +42,11 @@ export default function RaportPage() {
       const studentNises = students.map(s => s.nis);
       const raportNises = raports.map(r => r.nis);
 
-      if (studentNises.length !== raportNises.length) {
-         const newStudents = dataStore.students.filter(s => !raportNises.includes(s.nis));
+      if (dataStore.students.length !== students.length || studentNises.some(nis => !raportNises.includes(nis))) {
+         const allStudents = dataStore.students;
+         const currentRaportNises = dataStore.raports.map(r => r.nis);
+         
+         const newStudents = allStudents.filter(s => !currentRaportNises.includes(s.nis));
          const newRaports: StudentRaport[] = newStudents.map(student => ({
           nis: student.nis,
           raports: {
@@ -62,7 +65,7 @@ export default function RaportPage() {
             dataStore.raports = updatedRaports;
             setRaports(updatedRaports);
         }
-         setStudents(dataStore.students);
+         setStudents(allStudents);
       }
     }, 1000);
     return () => clearInterval(interval);
@@ -213,5 +216,3 @@ export default function RaportPage() {
     </div>
   );
 }
-
-    
