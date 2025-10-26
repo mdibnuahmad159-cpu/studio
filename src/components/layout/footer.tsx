@@ -1,5 +1,5 @@
 
-import { School, Facebook, Twitter, Instagram } from 'lucide-react';
+import { Facebook, Twitter, Instagram } from 'lucide-react';
 import Link from 'next/link';
 
 export function Footer() {
@@ -9,7 +9,6 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           <div className="md:col-span-1">
             <Link href="/" className="flex items-center gap-2">
-              <School className="h-8 w-8 text-primary" />
               <span className="font-headline text-2xl font-bold text-primary">IBNU AHMAD APP</span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground">Membentuk masa depan cerah melalui pendidikan berkualitas.</p>

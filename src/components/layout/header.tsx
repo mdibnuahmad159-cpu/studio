@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Menu, School, UserCircle, Users, GraduationCap } from 'lucide-react';
+import { Menu, UserCircle } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,6 @@ export function Header() {
       <div className="container hidden h-16 items-center justify-between md:flex">
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-2">
-            <School className="h-6 w-6 text-primary" />
             <span className="font-headline text-xl font-bold text-primary sr-only md:not-sr-only">IBNU AHMAD APP</span>
           </Link>
           <nav className="flex items-center gap-6">
@@ -87,7 +86,6 @@ export function Header() {
             </SheetHeader>
             <div className="flex flex-col p-6">
               <Link href="/" className="mb-8 flex items-center gap-2" onClick={() => setIsOpen(false)}>
-                <School className="h-6 w-6 text-primary" />
                 <span className="font-headline text-xl font-bold text-primary">IBNU AHMAD APP</span>
               </Link>
               <nav className="flex flex-col gap-4">
