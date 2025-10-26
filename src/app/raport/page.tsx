@@ -17,7 +17,7 @@ import {
   StudentRaport,
   DetailedStudent,
 } from '@/lib/data';
-import { Upload, Download, MoreHorizontal, Pencil } from 'lucide-react';
+import { Upload, Download, MoreHorizontal, Pencil, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
@@ -137,6 +137,12 @@ export default function RaportPage() {
                       </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                       <DropdownMenuItem asChild>
+                          <a href={raportFile} target="_blank" rel="noopener noreferrer">
+                              <Eye className="mr-2 h-4 w-4" />
+                              <span>Lihat</span>
+                          </a>
+                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                           <a href={raportFile} download={`Raport_${student.nama}_K${kelas}_${semesterLabel}.pdf`}>
                               <Download className="mr-2 h-4 w-4" />
