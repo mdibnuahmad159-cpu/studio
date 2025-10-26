@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -13,16 +14,18 @@ import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Siswa } from '@/lib/data';
+import { useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { doc } from 'firebase/firestore';
 
-export default function PendaftaranPage() {
-  const { toast } = useToast();
-  const [formData, setFormData] = useState({
+const initialFormState = {
+    nis: '',
     fullName: '',
     nickname: '',
     birthPlace: '',
     birthDate: undefined as Date | undefined,
-    gender: '',
-    religion: '',
+    gender: 'Laki-laki',
+    religion: 'Islam',
     address: '',
     fatherName: '',
     motherName: '',
@@ -31,8 +34,13 @@ export default function PendaftaranPage() {
     phone: '',
     email: '',
     previousSchool: '',
-    targetLevel: '',
-  });
+    targetLevel: 'Tingkat Dasar (Kelas 1-6)',
+};
+
+export default function PendaftaranPage() {
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const [formData, setFormData] = useState(initialFormState);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -48,18 +56,57 @@ export default function PendaftaranPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log(formData);
+
+    if (!formData.nis || !formData.fullName) {
+      toast({
+        variant: "destructive",
+        title: "Gagal!",
+        description: "NIS dan Nama Lengkap wajib diisi.",
+      });
+      return;
+    }
+
+    const studentData: Omit<Siswa, 'id'> = {
+        nis: formData.nis,
+        nama: formData.fullName,
+        jenisKelamin: formData.gender as 'Laki-laki' | 'Perempuan',
+        tempatLahir: formData.birthPlace,
+        tanggalLahir: formData.birthDate ? format(formData.birthDate, "dd-MM-yyyy") : '',
+        namaAyah: formData.fatherName,
+        namaIbu: formData.motherName,
+        alamat: formData.address,
+        fileDokumen: '/path/to/default.pdf', // Placeholder
+        status: 'Aktif',
+        kelas: 0, // Default to class 0
+    };
+
+    // Use NIS as the document ID for both siswa and raports collections
+    const studentDocRef = doc(firestore, 'siswa', formData.nis);
+    setDocumentNonBlocking(studentDocRef, studentData, { merge: false });
+
+    const raportDocRef = doc(firestore, 'raports', formData.nis);
+    const newRaport = {
+      nis: formData.nis,
+      raports: {
+        kelas_0_ganjil: null, kelas_0_genap: null,
+        kelas_1_ganjil: null, kelas_1_genap: null,
+        kelas_2_ganjil: null, kelas_2_genap: null,
+        kelas_3_ganjil: null, kelas_3_genap: null,
+        kelas_4_ganjil: null, kelas_4_genap: null,
+        kelas_5_ganjil: null, kelas_5_genap: null,
+        kelas_6_ganjil: null, kelas_6_genap: null,
+      }
+    };
+    setDocumentNonBlocking(raportDocRef, newRaport, { merge: false });
+
+
     toast({
         title: "Pendaftaran Berhasil!",
         description: `Terima kasih, ${formData.fullName}. Data Anda telah kami terima.`,
     });
+    
     // Reset form
-    setFormData({
-        fullName: '', nickname: '', birthPlace: '', birthDate: undefined,
-        gender: '', religion: '', address: '', fatherName: '', motherName: '',
-        fatherOccupation: '', motherOccupation: '', phone: '', email: '',
-        previousSchool: '', targetLevel: '',
-    });
+    setFormData(initialFormState);
   };
 
   return (
@@ -76,12 +123,31 @@ export default function PendaftaranPage() {
                  <h3 className="font-headline text-xl font-semibold border-b pb-2">Data Calon Siswa</h3>
                  <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
+                        <Label htmlFor="nis">NIS (Nomor Induk Siswa)</Label>
+                        <Input id="nis" name="nis" value={formData.nis} onChange={handleChange} required />
+                    </div>
+                    <div className="space-y-2">
                         <Label htmlFor="fullName">Nama Lengkap</Label>
                         <Input id="fullName" name="fullName" value={formData.fullName} onChange={handleChange} required />
                     </div>
+                 </div>
+                 <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="nickname">Nama Panggilan</Label>
                         <Input id="nickname" name="nickname" value={formData.nickname} onChange={handleChange} required />
+                    </div>
+                     <div className="space-y-2">
+                        <Label>Jenis Kelamin</Label>
+                        <RadioGroup name="gender" onValueChange={(value) => handleSelectChange('gender', value)} value={formData.gender} className="flex items-center space-x-4 pt-2">
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="Laki-laki" id="male" />
+                                <Label htmlFor="male">Laki-laki</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="Perempuan" id="female" />
+                                <Label htmlFor="female">Perempuan</Label>
+                            </div>
+                        </RadioGroup>
                     </div>
                  </div>
                  <div className="grid sm:grid-cols-2 gap-4">
@@ -117,19 +183,6 @@ export default function PendaftaranPage() {
                  </div>
                  <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <Label>Jenis Kelamin</Label>
-                        <RadioGroup name="gender" onValueChange={(value) => handleSelectChange('gender', value)} value={formData.gender} className="flex items-center space-x-4 pt-2">
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="Laki-laki" id="male" />
-                                <Label htmlFor="male">Laki-laki</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="Perempuan" id="female" />
-                                <Label htmlFor="female">Perempuan</Label>
-                            </div>
-                        </RadioGroup>
-                    </div>
-                    <div className="space-y-2">
                         <Label htmlFor="religion">Agama</Label>
                         <Select name="religion" onValueChange={(value) => handleSelectChange('religion', value)} value={formData.religion}>
                           <SelectTrigger>
@@ -145,10 +198,10 @@ export default function PendaftaranPage() {
                           </SelectContent>
                         </Select>
                     </div>
-                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="address">Alamat Lengkap</Label>
-                    <Input id="address" name="address" value={formData.address} onChange={handleChange} required />
+                     <div className="space-y-2">
+                        <Label htmlFor="address">Alamat Lengkap</Label>
+                        <Input id="address" name="address" value={formData.address} onChange={handleChange} required />
+                     </div>
                  </div>
               </div>
 
@@ -190,7 +243,7 @@ export default function PendaftaranPage() {
                   <div className="grid sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                           <Label htmlFor="previousSchool">Asal Sekolah</Label>
-                          <Input id="previousSchool" name="previousSchool" value={formData.previousSchool} onChange={handleChange} />
+                          <Input id="previousSchool" name="previousSchool" value={formData.previousSchool} />
                       </div>
                       <div className="space-y-2">
                           <Label htmlFor="targetLevel">Jenjang yang Dituju</Label>
@@ -209,7 +262,7 @@ export default function PendaftaranPage() {
               </div>
 
               <div className="text-center pt-4">
-                <Button type="submit" size="lg" className="bg-gradient-primary hover:brightness-110">
+                <Button type="submit" size="lg">
                   Daftar Sekarang
                 </Button>
               </div>
@@ -220,5 +273,3 @@ export default function PendaftaranPage() {
     </div>
   );
 }
-
-    

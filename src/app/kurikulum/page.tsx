@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { kitabPelajaran as initialKitabPelajaran } from '@/lib/data';
+import { Kurikulum as Kitab } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { FileDown, PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import {
@@ -48,13 +48,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-
-type Kitab = {
-  id: number;
-  kelas: string;
-  mataPelajaran: string;
-  kitab: string;
-};
+import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -69,9 +64,10 @@ const emptyKurikulum: Omit<Kitab, 'id'> = {
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
 export default function KurikulumPage() {
-  const [kitabPelajaran, setKitabPelajaran] = useState<Kitab[]>(
-    initialKitabPelajaran.map((k, i) => ({ ...k, id: i + 1 }))
-  );
+  const firestore = useFirestore();
+  const kurikulumRef = useMemoFirebase(() => collection(firestore, 'kurikulum'), [firestore]);
+  const { data: kitabPelajaran, isLoading } = useCollection<Kitab>(kurikulumRef);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [kurikulumToEdit, setKurikulumToEdit] = useState<Kitab | null>(null);
   const [kurikulumToDelete, setKurikulumToDelete] = useState<Kitab | null>(null);
@@ -96,15 +92,10 @@ export default function KurikulumPage() {
   const handleSaveKurikulum = () => {
     if (formData.kelas && formData.mataPelajaran && formData.kitab) {
       if (kurikulumToEdit) {
-        // Edit
-        setKitabPelajaran(prev => prev.map(k => k.id === kurikulumToEdit.id ? { ...k, ...formData } : k));
+        const kurikulumDocRef = doc(firestore, 'kurikulum', kurikulumToEdit.id);
+        updateDocumentNonBlocking(kurikulumDocRef, formData);
       } else {
-        // Add
-        const newEntry: Kitab = {
-          id: kitabPelajaran.length > 0 ? Math.max(...kitabPelajaran.map(k => k.id)) + 1 : 1,
-          ...formData,
-        };
-        setKitabPelajaran(prev => [...prev, newEntry]);
+        addDocumentNonBlocking(kurikulumRef, formData);
       }
       setIsDialogOpen(false);
       setKurikulumToEdit(null);
@@ -117,12 +108,14 @@ export default function KurikulumPage() {
 
   const confirmDelete = () => {
     if (kurikulumToDelete) {
-      setKitabPelajaran(prev => prev.filter(k => k.id !== kurikulumToDelete.id));
+      const kurikulumDocRef = doc(firestore, 'kurikulum', kurikulumToDelete.id);
+      deleteDocumentNonBlocking(kurikulumDocRef);
       setKurikulumToDelete(null);
     }
   };
 
   const filteredKitabPelajaran = useMemo(() => {
+    if (!kitabPelajaran) return [];
     if (selectedKelas === 'all') {
       return kitabPelajaran;
     }
@@ -139,11 +132,6 @@ export default function KurikulumPage() {
     doc.save('data-kurikulum.pdf');
   };
 
-  const availableKelas = useMemo(() => {
-    const kelasSet = new Set(kitabPelajaran.map(k => k.kelas));
-    return Array.from(kelasSet).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
- }, [kitabPelajaran]);
-
   return (
     <div className="bg-background">
       <div className="container py-12 md:py-20">
@@ -158,10 +146,10 @@ export default function KurikulumPage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => handleOpenDialog()} size="sm" className="w-full sm:w-auto">
+            <Button onClick={() => handleOpenDialog()} size="sm">
               <PlusCircle className="mr-2 h-4 w-4" /> Tambah Kurikulum
             </Button>
-            <Button onClick={handleExportPdf} variant="outline" size="sm" className="w-full sm:w-auto">
+            <Button onClick={handleExportPdf} variant="outline" size="sm">
               <FileDown className="mr-2 h-4 w-4" />
               Ekspor PDF
             </Button>
@@ -194,6 +182,7 @@ export default function KurikulumPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {isLoading && <TableRow><TableCell colSpan={4}>Loading...</TableCell></TableRow>}
               {filteredKitabPelajaran.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">Kelas {item.kelas}</TableCell>
@@ -268,7 +257,7 @@ export default function KurikulumPage() {
           </div>
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
-            <Button type="submit" onClick={handleSaveKurikulum} className="bg-gradient-primary text-primary-foreground hover:brightness-110">Simpan</Button>
+            <Button type="submit" onClick={handleSaveKurikulum}>Simpan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

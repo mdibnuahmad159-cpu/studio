@@ -2,67 +2,52 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowUpRight, BookOpen, Users, UserCircle, GraduationCap } from 'lucide-react';
-import { teachers, detailedStudents, kitabPelajaran, alumni } from '@/lib/data';
-import { useState, useEffect } from 'react';
+import { useCollection } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { useFirestore, useMemoFirebase } from '@/firebase/provider';
 
 export default function DashboardPage() {
-  // We use state to re-render the component when data changes.
-  const [studentCount, setStudentCount] = useState(detailedStudents.filter(s => s.status === 'Aktif').length);
-  const [alumniCount, setAlumniCount] = useState(alumni.length);
-  const [teacherCount, setTeacherCount] = useState(teachers.length);
+  const firestore = useFirestore();
 
-  useEffect(() => {
-    // In a real app, you'd use a more robust data fetching/caching or state management solution.
-    // Here we poll to check for changes in our mock data store.
-    const interval = setInterval(() => {
-      const newStudentCount = detailedStudents.filter(s => s.status === 'Aktif').length;
-      const newAlumniCount = alumni.length;
-      const newTeacherCount = teachers.length;
+  const guruQuery = useMemoFirebase(() => collection(firestore, 'gurus'), [firestore]);
+  const { data: teachers } = useCollection(guruQuery);
+  
+  const siswaAktifQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Aktif')), [firestore]);
+  const { data: activeStudents } = useCollection(siswaAktifQuery);
 
-      if (newStudentCount !== studentCount) {
-        setStudentCount(newStudentCount);
-      }
-      if (newAlumniCount !== alumniCount) {
-        setAlumniCount(newAlumniCount);
-      }
-       if (newTeacherCount !== teacherCount) {
-        setTeacherCount(newTeacherCount);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [studentCount, alumniCount, teacherCount]);
-
-
-  const totalSubjects = kitabPelajaran.length;
+  const alumniQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Lulus')), [firestore]);
+  const { data: alumni } = useCollection(alumniQuery);
+  
+  const kurikulumQuery = useMemoFirebase(() => collection(firestore, 'kurikulum'), [firestore]);
+  const { data: subjects } = useCollection(kurikulumQuery);
 
   const stats = [
     {
       title: 'Total Siswa Aktif',
-      value: `${studentCount} Siswa`,
+      value: `${activeStudents?.length || 0} Siswa`,
       icon: UserCircle,
       href: '/siswa',
       description: 'Jumlah siswa aktif terdaftar',
     },
     {
       title: 'Total Guru',
-      value: `${teacherCount} Pendidik`,
+      value: `${teachers?.length || 0} Pendidik`,
       icon: Users,
       href: '/guru',
       description: 'Jumlah tenaga pendidik profesional',
     },
     {
       title: 'Total Mata Pelajaran',
-      value: `${totalSubjects} Kitab`,
+      value: `${subjects?.length || 0} Kitab`,
       icon: BookOpen,
       href: '/kurikulum',
       description: 'Jumlah kitab yang dipelajari',
     },
      {
       title: 'Total Alumni',
-      value: `${alumniCount} Lulusan`,
+      value: `${alumni?.length || 0} Lulusan`,
       icon: GraduationCap,
       href: '/alumni',
       description: 'Jumlah alumni yang telah lulus',
@@ -104,5 +89,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

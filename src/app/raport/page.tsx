@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Table,
   TableBody,
@@ -11,13 +11,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import {
-  detailedStudents as initialStudents,
-  initialRaports,
-  StudentRaport,
-  DetailedStudent,
-} from '@/lib/data';
-import { Upload, Download, MoreHorizontal, Pencil, Eye } from 'lucide-react';
+import { Raport, Siswa as DetailedStudent } from '@/lib/data';
+import { Upload, Download, MoreHorizontal, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
@@ -25,58 +20,24 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { collection, doc, query, where } from 'firebase/firestore';
 
-
-// This is a mock in-memory store to sync data across pages.
-let dataStore = {
-  students: initialStudents,
-  raports: initialRaports,
-};
 
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
 export default function RaportPage() {
-  const [students, setStudents] = useState<DetailedStudent[]>(dataStore.students);
-  const [raports, setRaports] = useState<StudentRaport[]>(dataStore.raports);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const firestore = useFirestore();
   const { toast } = useToast();
   
+  const siswaAktifQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Aktif')), [firestore]);
+  const { data: activeStudents, isLoading: studentsLoading } = useCollection<DetailedStudent>(siswaAktifQuery);
+  
+  const raportsQuery = useMemoFirebase(() => collection(firestore, 'raports'), [firestore]);
+  const { data: raports, isLoading: raportsLoading } = useCollection<Raport>(raportsQuery);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadTarget, setUploadTarget] = useState<{nis: string, raportKey: string} | null>(null);
-
-  useEffect(() => {
-    // Sync with dataStore on mount and handle new student additions
-    const interval = setInterval(() => {
-      const studentNises = students.map(s => s.nis);
-      const raportNises = raports.map(r => r.nis);
-
-      if (dataStore.students.length !== students.length || studentNises.some(nis => !raportNises.includes(nis))) {
-         const allStudents = dataStore.students;
-         const currentRaportNises = dataStore.raports.map(r => r.nis);
-         
-         const newStudents = allStudents.filter(s => !currentRaportNises.includes(s.nis));
-         const newRaports: StudentRaport[] = newStudents.map(student => ({
-          nis: student.nis,
-          raports: {
-            kelas_0_ganjil: null, kelas_0_genap: null,
-            kelas_1_ganjil: null, kelas_1_genap: null,
-            kelas_2_ganjil: null, kelas_2_genap: null,
-            kelas_3_ganjil: null, kelas_3_genap: null,
-            kelas_4_ganjil: null, kelas_4_genap: null,
-            kelas_5_ganjil: null, kelas_5_genap: null,
-            kelas_6_ganjil: null, kelas_6_genap: null,
-          }
-        }));
-
-        if (newRaports.length > 0) {
-            const updatedRaports = [...dataStore.raports, ...newRaports];
-            dataStore.raports = updatedRaports;
-            setRaports(updatedRaports);
-        }
-         setStudents(allStudents);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [students, raports]);
 
   const handleUploadClick = (nis: string, raportKey: string) => {
     setUploadTarget({nis, raportKey});
@@ -86,24 +47,16 @@ export default function RaportPage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && uploadTarget) {
+      // In a real app, you would upload this file to Firebase Storage
+      // and then save the gs:// URL to Firestore.
+      // For this prototype, we'll use a local blob URL.
       const { nis, raportKey } = uploadTarget;
       const fileUrl = URL.createObjectURL(file);
       
-      const newRaports = raports.map(raport => {
-        if (raport.nis === nis) {
-          return {
-            ...raport,
-            raports: {
-              ...raport.raports,
-              [raportKey]: fileUrl,
-            }
-          }
-        }
-        return raport;
-      });
-
-      dataStore.raports = newRaports;
-      setRaports(newRaports);
+      const raportDocRef = doc(firestore, 'raports', nis);
+      const updateData = { [`raports.${raportKey}`]: fileUrl };
+      
+      updateDocumentNonBlocking(raportDocRef, updateData);
 
       toast({
         title: 'Upload Berhasil!',
@@ -116,10 +69,8 @@ export default function RaportPage() {
     }
   };
 
-  const activeStudents = students.filter(s => s.status === 'Aktif');
-
   const getRaportFile = (nis: string, raportKey: string): string | null => {
-    const studentRaport = raports.find(r => r.nis === nis);
+    const studentRaport = raports?.find(r => r.nis === nis);
     return studentRaport?.raports[raportKey] || null;
   };
 
@@ -164,6 +115,8 @@ export default function RaportPage() {
           </Button>
       );
   };
+
+  const isLoading = studentsLoading || raportsLoading;
 
   return (
     <div className="bg-background">
@@ -212,7 +165,8 @@ export default function RaportPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activeStudents.map((student) => (
+                {isLoading && <TableRow><TableCell colSpan={16} className="text-center">Loading...</TableCell></TableRow>}
+                {activeStudents?.map((student) => (
                   <TableRow key={student.nis}>
                     <TableCell className="font-medium sticky left-0 bg-card z-10 w-[200px]">{student.nama}</TableCell>
                     <TableCell>{student.nis}</TableCell>

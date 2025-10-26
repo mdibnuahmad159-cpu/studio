@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { teachers as initialTeachers, type Teacher } from '@/lib/data';
+import { Guru } from '@/lib/data';
 import { TeacherCard } from '@/components/teacher-card';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, FileDown, Pencil, Trash2 } from 'lucide-react';
+import { PlusCircle, FileDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import {
@@ -28,22 +28,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-const emptyTeacher: Omit<Teacher, 'id' | 'imageId'> = {
+const emptyTeacher: Omit<Guru, 'id' | 'imageId'> = {
   name: '',
   position: '',
   whatsapp: '',
 };
 
 export default function GuruPage() {
-  const [teachers, setTeachers] = useState<Teacher[]>(initialTeachers);
+  const firestore = useFirestore();
+  const teachersRef = useMemoFirebase(() => collection(firestore, 'gurus'), [firestore]);
+  const { data: teachers, isLoading } = useCollection<Guru>(teachersRef);
+  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [teacherToEdit, setTeacherToEdit] = useState<Teacher | null>(null);
-  const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
+  const [teacherToEdit, setTeacherToEdit] = useState<Guru | null>(null);
+  const [teacherToDelete, setTeacherToDelete] = useState<Guru | null>(null);
   const [formData, setFormData] = useState(emptyTeacher);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,7 +56,7 @@ export default function GuruPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleOpenDialog = (teacher: Teacher | null = null) => {
+  const handleOpenDialog = (teacher: Guru | null = null) => {
     setTeacherToEdit(teacher);
     setFormData(teacher ? { name: teacher.name, position: teacher.position, whatsapp: teacher.whatsapp } : emptyTeacher);
     setIsDialogOpen(true);
@@ -61,15 +66,11 @@ export default function GuruPage() {
     if (formData.name && formData.position && formData.whatsapp) {
       if (teacherToEdit) {
         // Edit
-        setTeachers(prev => prev.map(t => t.id === teacherToEdit.id ? { ...t, ...formData } : t));
+        const teacherDocRef = doc(firestore, 'gurus', teacherToEdit.id);
+        updateDocumentNonBlocking(teacherDocRef, { ...formData });
       } else {
         // Add
-        const newTeacherData: Teacher = {
-          id: teachers.length > 0 ? Math.max(...teachers.map(t => t.id)) + 1 : 1,
-          ...formData,
-          imageId: null,
-        };
-        setTeachers(prev => [...prev, newTeacherData]);
+        addDocumentNonBlocking(teachersRef, { ...formData, imageId: null });
       }
       setIsDialogOpen(false);
       setTeacherToEdit(null);
@@ -77,21 +78,19 @@ export default function GuruPage() {
     }
   };
   
-  const handleImageChange = (teacherId: number, image: string | null) => {
-    setTeachers(prev =>
-      prev.map(teacher =>
-        teacher.id === teacherId ? { ...teacher, imageId: image } : teacher
-      )
-    );
+  const handleImageChange = (teacherId: string, image: string | null) => {
+    const teacherDocRef = doc(firestore, 'gurus', teacherId);
+    updateDocumentNonBlocking(teacherDocRef, { imageId: image });
   };
 
-  const handleDeleteTeacher = (teacher: Teacher) => {
+  const handleDeleteTeacher = (teacher: Guru) => {
     setTeacherToDelete(teacher);
   };
 
   const confirmDelete = () => {
     if (teacherToDelete) {
-      setTeachers(prev => prev.filter(t => t.id !== teacherToDelete.id));
+      const teacherDocRef = doc(firestore, 'gurus', teacherToDelete.id);
+      deleteDocumentNonBlocking(teacherDocRef);
       setTeacherToDelete(null);
     }
   };
@@ -101,7 +100,7 @@ export default function GuruPage() {
     doc.text('Data Tenaga Pendidik', 20, 10);
     doc.autoTable({
       head: [['Nama', 'Jabatan', 'No. WhatsApp']],
-      body: teachers.map((teacher: Teacher) => [teacher.name, teacher.position, teacher.whatsapp]),
+      body: teachers?.map((teacher: Guru) => [teacher.name, teacher.position, teacher.whatsapp]),
     });
     doc.save('data-guru.pdf');
   };
@@ -117,10 +116,10 @@ export default function GuruPage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => handleOpenDialog()} size="sm" className="w-full sm:w-auto">
+            <Button onClick={() => handleOpenDialog()} size="sm">
               <PlusCircle className="mr-2 h-4 w-4" /> Tambah Guru
             </Button>
-            <Button onClick={handleExportPdf} variant="outline" size="sm" className="w-full sm:w-auto">
+            <Button onClick={handleExportPdf} variant="outline" size="sm">
               <FileDown className="mr-2 h-4 w-4" />
               Ekspor PDF
             </Button>
@@ -128,7 +127,8 @@ export default function GuruPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {teachers.map((teacher) => (
+          {isLoading && <p>Loading...</p>}
+          {teachers?.map((teacher) => (
             <TeacherCard 
               key={teacher.id} 
               teacher={teacher} 
@@ -170,7 +170,7 @@ export default function GuruPage() {
           </div>
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
-            <Button type="submit" onClick={handleSaveTeacher} className="bg-gradient-primary text-primary-foreground hover:brightness-110">Simpan</Button>
+            <Button type="submit" onClick={handleSaveTeacher}>Simpan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

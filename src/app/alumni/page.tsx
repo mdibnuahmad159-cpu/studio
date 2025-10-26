@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { DetailedStudent, alumni as initialAlumni, detailedStudents as initialStudents } from '@/lib/data';
+import { Siswa as DetailedStudent } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { FileDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -38,48 +38,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { collection, doc, query, where } from 'firebase/firestore';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-// This is a mock in-memory store to sync data across pages.
-// In a real app, you would use a proper database or state management solution.
-let dataStore = {
-    students: initialStudents,
-    alumni: initialAlumni,
-};
-
 export default function AlumniPage() {
-  const [alumni, setAlumni] = useState<DetailedStudent[]>(dataStore.alumni);
+  const firestore = useFirestore();
+  const alumniQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Lulus')), [firestore]);
+  const { data: alumni, isLoading } = useCollection<DetailedStudent>(alumniQuery);
+  
   const [selectedYear, setSelectedYear] = useState('all');
   const [alumnusToDelete, setAlumnusToDelete] = useState<DetailedStudent | null>(null);
 
-  // Effect to sync state with the mock data store on component mount and updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (dataStore.alumni.length !== alumni.length) {
-        setAlumni(dataStore.alumni);
-      }
-    }, 1000); // Check every second for simplicity.
-    return () => clearInterval(interval);
-  }, [alumni]);
-
-  const updateAlumni = (newAlumni: DetailedStudent[]) => {
-      dataStore.alumni = newAlumni;
-      setAlumni(newAlumni);
-  };
-  
-  const updateStudents = (newStudents: DetailedStudent[]) => {
-      dataStore.students = newStudents;
-  };
-
   const availableYears = useMemo(() => {
+    if (!alumni) return [];
     const years = new Set(alumni.map(a => a.tahunLulus).filter(Boolean));
     return Array.from(years).sort((a, b) => b! - a!);
   }, [alumni]);
 
   const filteredAlumni = useMemo(() => {
+    if (!alumni) return [];
     let sortedAlumni = [...alumni].sort((a, b) => (b.tahunLulus || 0) - (a.tahunLulus || 0));
     if (selectedYear === 'all') {
       return sortedAlumni;
@@ -110,14 +91,10 @@ export default function AlumniPage() {
 
   const confirmDelete = () => {
     if (alumnusToDelete) {
-      const newAlumni = alumni.filter(s => s.nis !== alumnusToDelete.nis);
-      updateAlumni(newAlumni);
-
-      // If you want to move the student back to active students list
-      // const studentToReactivate = { ...alumnusToDelete, status: 'Aktif' as const, tahunLulus: undefined };
-      // delete studentToReactivate.tahunLulus;
-      // updateStudents([...dataStore.students, studentToReactivate]);
-      
+      // This is a "soft delete" for alumni, we move them back to "Aktif"
+      // In a real app, you might have a different logic, like a "Pindah" status.
+      const studentDocRef = doc(firestore, 'siswa', alumnusToDelete.id);
+      updateDocumentNonBlocking(studentDocRef, { status: 'Aktif', tahunLulus: null });
       setAlumnusToDelete(null);
     }
   };
@@ -134,7 +111,7 @@ export default function AlumniPage() {
               Jejak para lulusan IBNU AHMAD APP yang telah berkiprah.
             </p>
           </div>
-           <Button onClick={handleExportPdf} variant="outline" size="sm" className="w-full sm:w-auto">
+           <Button onClick={handleExportPdf} variant="outline" size="sm">
               <FileDown className="mr-2 h-4 w-4" />
               Ekspor PDF
             </Button>
@@ -169,6 +146,7 @@ export default function AlumniPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {isLoading && <TableRow><TableCell colSpan={7}>Loading...</TableCell></TableRow>}
               {filteredAlumni.map((student) => (
                 <TableRow key={student.nis}>
                   <TableCell className="font-medium">{student.nama}</TableCell>
@@ -195,7 +173,7 @@ export default function AlumniPage() {
                           className="text-red-600"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
-                          <span>Hapus</span>
+                          <span>Batalkan Kelulusan</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -209,15 +187,15 @@ export default function AlumniPage() {
       <AlertDialog open={!!alumnusToDelete} onOpenChange={() => setAlumnusToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
+            <AlertDialogTitle>Anda yakin?</AlertDialogTitle>
             <AlertDialogDescription>
-              Data alumni "{alumnusToDelete?.nama}" akan dihapus secara permanen. Aksi ini tidak dapat dibatalkan.
+              Tindakan ini akan mengembalikan status "{alumnusToDelete?.nama}" menjadi siswa aktif.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Hapus
+              Konfirmasi
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

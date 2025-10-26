@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, User, Phone, MoreVertical, Pencil, Trash2 } from 'lucide-react';
-import type { Teacher } from '@/lib/data';
+import { Guru as Teacher } from '@/lib/data';
 import { useRef } from 'react';
 import Link from 'next/link';
 import {
@@ -17,7 +17,7 @@ import { Button } from './ui/button';
 
 interface TeacherCardProps {
   teacher: Teacher;
-  onImageChange: (teacherId: number, image: string | null) => void;
+  onImageChange: (teacherId: string, image: string | null) => void;
   onEdit: (teacher: Teacher) => void;
   onDelete: (teacher: Teacher) => void;
 }
@@ -32,6 +32,8 @@ export function TeacherCard({ teacher, onImageChange, onEdit, onDelete }: Teache
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // In a real app, you'd upload this to Firebase Storage.
+      // For now, we'll use a local blob URL.
       const reader = new FileReader();
       reader.onloadend = () => {
         onImageChange(teacher.id, reader.result as string);
@@ -76,7 +78,7 @@ export function TeacherCard({ teacher, onImageChange, onEdit, onDelete }: Teache
             </Avatar>
             <button 
               onClick={handleAvatarClick}
-              className="absolute bottom-1 right-1 bg-gradient-primary text-primary-foreground rounded-full p-2 hover:brightness-110 transition-all"
+              className="absolute bottom-1 right-1 bg-primary text-primary-foreground rounded-full p-2 hover:bg-primary/90 transition-all"
               aria-label="Ubah foto"
             >
               <Camera className="h-4 w-4" />

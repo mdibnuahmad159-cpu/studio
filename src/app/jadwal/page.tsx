@@ -39,9 +39,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { jadwalPelajaran as initialJadwal, teachers, kitabPelajaran } from '@/lib/data';
-import type { Jadwal } from '@/lib/data';
+import { Jadwal, Guru, Kurikulum } from '@/lib/data';
 import { cn } from '@/lib/utils';
+import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
+
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -51,7 +53,7 @@ const emptyJadwal: Omit<Jadwal, 'id'> = {
   hari: 'Senin',
   kelas: '0',
   mataPelajaran: '',
-  guruId: 0,
+  guruId: '',
   jam: '14:00 - 15:00',
 };
 
@@ -60,18 +62,23 @@ const JAM_PELAJARAN = ['14:00 - 15:00', '15:30 - 16:30'];
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
 export default function JadwalPage() {
-  const [jadwal, setJadwal] = useState<Jadwal[]>(initialJadwal);
+  const firestore = useFirestore();
+  
+  const jadwalRef = useMemoFirebase(() => collection(firestore, 'jadwal'), [firestore]);
+  const { data: jadwal, isLoading: jadwalLoading } = useCollection<Jadwal>(jadwalRef);
+
+  const teachersRef = useMemoFirebase(() => collection(firestore, 'gurus'), [firestore]);
+  const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(teachersRef);
+  
+  const kurikulumRef = useMemoFirebase(() => collection(firestore, 'kurikulum'), [firestore]);
+  const { data: kitabPelajaran, isLoading: kurikulumLoading } = useCollection<Kurikulum>(kurikulumRef);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [jadwalToEdit, setJadwalToEdit] = useState<Jadwal | null>(null);
   const [jadwalToDelete, setJadwalToDelete] = useState<Jadwal | null>(null);
   const [formData, setFormData] = useState<Omit<Jadwal, 'id'>>(emptyJadwal);
 
   const [selectedKelas, setSelectedKelas] = useState('all');
-
-  const availableKelas = useMemo(() => {
-     const kelasSet = new Set(initialJadwal.map(j => j.kelas));
-     return Array.from(kelasSet).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
-  }, []);
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -89,17 +96,12 @@ export default function JadwalPage() {
 
   const handleSaveJadwal = () => {
     if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam && formData.hari) {
+      const dataToSave = { ...formData, guruId: formData.guruId };
       if (jadwalToEdit) {
-        // Edit
-        setJadwal(prev => prev.map(j => j.id === jadwalToEdit.id ? { ...j, ...formData, guruId: Number(formData.guruId) } : j));
+        const jadwalDocRef = doc(firestore, 'jadwal', jadwalToEdit.id);
+        updateDocumentNonBlocking(jadwalDocRef, dataToSave);
       } else {
-        // Add
-        const newEntry: Jadwal = {
-          id: jadwal.length > 0 ? Math.max(...jadwal.map(j => j.id)) + 1 : 1,
-          ...formData,
-          guruId: Number(formData.guruId),
-        };
-        setJadwal(prev => [...prev, newEntry]);
+        addDocumentNonBlocking(jadwalRef, dataToSave);
       }
       setIsDialogOpen(false);
       setJadwalToEdit(null);
@@ -112,17 +114,19 @@ export default function JadwalPage() {
   
   const confirmDelete = () => {
     if (jadwalToDelete) {
-        setJadwal(prev => prev.filter(j => j.id !== jadwalToDelete.id));
+        const jadwalDocRef = doc(firestore, 'jadwal', jadwalToDelete.id);
+        deleteDocumentNonBlocking(jadwalDocRef);
         setJadwalToDelete(null);
     }
   };
 
-  const getTeacherName = (guruId: number) => {
-    const teacher = teachers.find(t => t.id === guruId);
+  const getTeacherName = (guruId: string) => {
+    const teacher = teachers?.find(t => t.id === guruId);
     return teacher ? teacher.name.split(',')[0] : 'N/A';
   };
 
   const jadwalByKelas = useMemo(() => {
+    if (!jadwal) return {};
     return jadwal.reduce((acc, item) => {
       if (!acc[item.kelas]) {
         acc[item.kelas] = [];
@@ -134,12 +138,13 @@ export default function JadwalPage() {
 
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
+    const dataJadwal = jadwal || [];
     
     if (selectedKelas === 'all') {
         doc.text(`Jadwal Pelajaran - Semua Kelas`, 20, 10);
         let firstPage = true;
         KELAS_OPTIONS.forEach(kelas => {
-            const dataToExport = jadwal.filter(j => j.kelas === kelas).sort((a,b) => HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari) || a.jam.localeCompare(b.jam));
+            const dataToExport = dataJadwal.filter(j => j.kelas === kelas).sort((a,b) => HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari) || a.jam.localeCompare(b.jam));
             if(dataToExport.length > 0) {
                 if (!firstPage) {
                     doc.addPage();
@@ -164,7 +169,7 @@ export default function JadwalPage() {
             }
         });
     } else {
-        const dataToExport = jadwal.filter(j => j.kelas === selectedKelas).sort((a,b) => HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari) || a.jam.localeCompare(b.jam));
+        const dataToExport = dataJadwal.filter(j => j.kelas === selectedKelas).sort((a,b) => HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari) || a.jam.localeCompare(b.jam));
         doc.text(`Jadwal Pelajaran - Kelas ${selectedKelas}`, 20, 10);
         doc.autoTable({
             head: [['Hari', 'Jam', 'Keterangan', 'Mata Pelajaran', 'Guru']],
@@ -255,6 +260,10 @@ export default function JadwalPage() {
     );
   };
 
+  if (jadwalLoading || teachersLoading || kurikulumLoading) {
+    return <div className="container py-12 md:py-20 text-center">Loading...</div>
+  }
+
   return (
     <div className="bg-background">
       <div className="container py-12 md:py-20">
@@ -268,10 +277,10 @@ export default function JadwalPage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Button onClick={() => handleOpenDialog(null, { kelas: selectedKelas === 'all' ? '0' : selectedKelas })} size="sm" className="w-full sm:w-auto">
+            <Button onClick={() => handleOpenDialog(null, { kelas: selectedKelas === 'all' ? '0' : selectedKelas })} size="sm">
               <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal
             </Button>
-            <Button onClick={handleExportPdf} variant="outline" size="sm" className="w-full sm:w-auto">
+            <Button onClick={handleExportPdf} variant="outline" size="sm">
               <FileDown className="mr-2 h-4 w-4" />
               Ekspor PDF
             </Button>
@@ -344,8 +353,8 @@ export default function JadwalPage() {
                   <SelectValue placeholder="Pilih Mata Pelajaran" />
                 </SelectTrigger>
                 <SelectContent>
-                   {kitabPelajaran.filter(k => k.kelas === formData.kelas).map((mapel, i) => (
-                        <SelectItem key={`${mapel.kitab}-${i}`} value={mapel.mataPelajaran}>{mapel.mataPelajaran} ({mapel.kitab})</SelectItem>
+                   {kitabPelajaran?.filter(k => k.kelas === formData.kelas).map((mapel) => (
+                        <SelectItem key={mapel.id} value={mapel.mataPelajaran}>{mapel.mataPelajaran} ({mapel.kitab})</SelectItem>
                     ))}
                 </SelectContent>
               </Select>
@@ -357,7 +366,7 @@ export default function JadwalPage() {
                   <SelectValue placeholder="Pilih Guru" />
                 </SelectTrigger>
                 <SelectContent>
-                   {teachers.map(teacher => (
+                   {teachers?.map(teacher => (
                         <SelectItem key={teacher.id} value={String(teacher.id)}>{teacher.name}</SelectItem>
                     ))}
                 </SelectContent>
@@ -379,7 +388,7 @@ export default function JadwalPage() {
           </div>
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
-            <Button type="submit" onClick={handleSaveJadwal} className="bg-gradient-primary text-primary-foreground hover:brightness-110">Simpan</Button>
+            <Button type="submit" onClick={handleSaveJadwal}>Simpan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

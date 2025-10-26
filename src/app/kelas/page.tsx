@@ -19,11 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  detailedStudents as initialStudents,
-  alumni as initialAlumni,
-  type DetailedStudent,
-} from '@/lib/data';
+import { Siswa as DetailedStudent } from '@/lib/data';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +37,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -48,57 +46,20 @@ interface jsPDFWithAutoTable extends jsPDF {
 
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
-// This is a mock in-memory store to sync data across pages.
-// In a real app, you would use a proper database or state management solution.
-let dataStore = {
-    students: initialStudents,
-    alumni: initialAlumni,
-};
-
 export default function KelasPage() {
-  const [students, setStudents] = useState<DetailedStudent[]>(dataStore.students);
-  const [alumni, setAlumni] = useState<DetailedStudent[]>(dataStore.alumni);
+  const firestore = useFirestore();
+  const siswaAktifQuery = useMemoFirebase(() => query(collection(firestore, 'siswa'), where('status', '==', 'Aktif')), [firestore]);
+  const { data: activeStudents, isLoading } = useCollection<DetailedStudent>(siswaAktifQuery);
+
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [filterKelas, setFilterKelas] = useState('all');
   const [alertInfo, setAlertInfo] = useState<{ title: string; description: string; onConfirm: () => void } | null>(null);
   const [isMoveClassDialogOpen, setIsMoveClassDialogOpen] = useState(false);
   const [targetClass, setTargetClass] = useState<string>('');
   const { toast } = useToast();
-  
-  // Effect to sync state with the mock data store on component mount and updates
-  useEffect(() => {
-    setStudents(dataStore.students);
-    setAlumni(dataStore.alumni);
-  }, []);
-
-  useEffect(() => {
-    // This effect listens for external changes to the data store
-    // and updates the component's state if necessary.
-    const interval = setInterval(() => {
-      if (dataStore.students !== students) {
-        setStudents(dataStore.students);
-      }
-      if (dataStore.alumni !== alumni) {
-        setAlumni(dataStore.alumni);
-      }
-    }, 1000); // Check every second for simplicity. In a real app, use a more robust state management.
-    return () => clearInterval(interval);
-  }, [students, alumni]);
-
-
-  const updateStudents = (newStudents: DetailedStudent[]) => {
-    dataStore.students = newStudents;
-    setStudents(newStudents);
-  };
-  
-  const updateAlumni = (newAlumni: DetailedStudent[]) => {
-    dataStore.alumni = newAlumni;
-    setAlumni(newAlumni);
-  }
-
-  const activeStudents = useMemo(() => students.filter(s => s.status === 'Aktif'), [students]);
 
   const filteredStudents = useMemo(() => {
+    if (!activeStudents) return [];
     let studentList = [...activeStudents];
     if (filterKelas !== 'all') {
       studentList = studentList.filter(s => String(s.kelas) === filterKelas);
@@ -127,7 +88,7 @@ export default function KelasPage() {
   }, [filterKelas]);
 
   const getSelectedStudentsDetails = () => {
-    return activeStudents.filter(s => selectedStudents.includes(s.nis));
+    return activeStudents?.filter(s => selectedStudents.includes(s.nis)) || [];
   };
 
   const currentKelasForSelection = useMemo(() => {
@@ -144,6 +105,17 @@ export default function KelasPage() {
     setAlertInfo({ title, description, onConfirm });
   };
   
+  const handleBatchUpdate = async (updateFn: (student: DetailedStudent) => any) => {
+    const batch = writeBatch(firestore);
+    const selectedDetails = getSelectedStudentsDetails();
+    selectedDetails.forEach(student => {
+      const studentDocRef = doc(firestore, 'siswa', student.id);
+      batch.update(studentDocRef, updateFn(student));
+    });
+    await batch.commit();
+    setSelectedStudents([]);
+  };
+
   const handlePromote = () => {
     const currentKelas = currentKelasForSelection;
     if (currentKelas === null || currentKelas === 'mixed' || currentKelas === 6) return;
@@ -151,10 +123,8 @@ export default function KelasPage() {
     createAlert(
       'Naik Kelas',
       `Anda yakin ingin menaikkan ${selectedStudents.length} siswa (${studentNames}) ke kelas ${currentKelas + 1}?`,
-      () => {
-        const newStudents = students.map(s => selectedStudents.includes(s.nis) ? { ...s, kelas: s.kelas + 1 } : s);
-        updateStudents(newStudents);
-        setSelectedStudents([]);
+      async () => {
+        await handleBatchUpdate(student => ({ kelas: student.kelas + 1 }));
         toast({ title: 'Berhasil!', description: `${selectedStudents.length} siswa telah dinaikkan kelas.` });
       }
     );
@@ -167,10 +137,8 @@ export default function KelasPage() {
     createAlert(
       'Turun Kelas',
       `Anda yakin ingin menurunkan ${selectedStudents.length} siswa (${studentNames}) ke kelas ${currentKelas - 1}?`,
-      () => {
-        const newStudents = students.map(s => selectedStudents.includes(s.nis) ? { ...s, kelas: s.kelas - 1 } : s)
-        updateStudents(newStudents);
-        setSelectedStudents([]);
+      async () => {
+        await handleBatchUpdate(student => ({ kelas: student.kelas - 1 }));
         toast({ title: 'Berhasil!', description: `${selectedStudents.length} siswa telah diturunkan kelas.` });
       }
     );
@@ -182,24 +150,9 @@ export default function KelasPage() {
     createAlert(
       'Luluskan Siswa',
       `Anda yakin ingin meluluskan ${selectedStudents.length} siswa (${studentNames})? Mereka akan dipindahkan ke data alumni.`,
-      () => {
+      async () => {
         const year = new Date().getFullYear();
-        const studentsToGraduate = getSelectedStudentsDetails();
-
-        const graduatedStudents = studentsToGraduate.map(s => ({
-            ...s,
-            status: 'Lulus' as const,
-            tahunLulus: year,
-        }));
-
-        const newAlumniData = [...alumni, ...graduatedStudents];
-        
-        const newStudentsData = students.filter(s => !selectedStudents.includes(s.nis));
-
-        updateStudents(newStudentsData);
-        updateAlumni(newAlumniData);
-
-        setSelectedStudents([]);
+        await handleBatchUpdate(() => ({ status: 'Lulus', tahunLulus: year }));
         toast({ title: 'Berhasil!', description: `${selectedStudents.length} siswa telah diluluskan.` });
       }
     );
@@ -216,10 +169,8 @@ export default function KelasPage() {
       createAlert(
         'Pindahkan Kelas',
         `Anda yakin ingin memindahkan ${selectedStudents.length} siswa (${studentNames}) ke kelas ${targetClass}?`,
-        () => {
-          const newStudents = students.map(s => selectedStudents.includes(s.nis) ? { ...s, kelas: Number(targetClass) } : s);
-          updateStudents(newStudents);
-          setSelectedStudents([]);
+        async () => {
+          await handleBatchUpdate(() => ({ kelas: Number(targetClass) }));
           setIsMoveClassDialogOpen(false);
           toast({ title: 'Berhasil!', description: `${selectedStudents.length} siswa telah dipindahkan.` });
         }
@@ -244,7 +195,6 @@ export default function KelasPage() {
 
   const areActionsDisabled = selectedStudents.length === 0 || currentKelasForSelection === 'mixed';
   const currentKelas = currentKelasForSelection;
-
 
   return (
     <div className="bg-background">
@@ -316,6 +266,7 @@ export default function KelasPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {isLoading && <TableRow><TableCell colSpan={6}>Loading...</TableCell></TableRow>}
               {filteredStudents.map((student) => (
                 <TableRow key={student.nis} data-state={selectedStudents.includes(student.nis) ? "selected" : ""}>
                   <TableCell>
@@ -363,7 +314,7 @@ export default function KelasPage() {
           </div>
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={() => setIsMoveClassDialogOpen(false)}>Batal</Button>
-            <Button type="submit" onClick={handleMoveClass} className="bg-gradient-primary text-primary-foreground hover:brightness-110">Pindahkan</Button>
+            <Button type="submit" onClick={handleMoveClass}>Pindahkan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
