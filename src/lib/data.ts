@@ -92,4 +92,12 @@ export const extracurricular = [
         title: "Akademik & Teknologi",
         activities: ["Klub Robotik", "Olimpiade Sains", "Debat Bahasa Inggris", "Klub Jurnalistik"]
     }
-]
+];
+
+export type Teacher = {
+  id: number;
+  name: string;
+  subject: string;
+  imageId: string | null;
+  bio: string;
+};

@@ -36,7 +36,7 @@ export default function Home() {
               <Link href="/kurikulum">Lihat Kurikulum</Link>
             </Button>
             <Button asChild size="lg" variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-              <Link href="#">Daftar Sekarang <ArrowRight className="ml-2 h-5 w-5" /></Link>
+              <Link href="/pendaftaran">Daftar Sekarang <ArrowRight className="ml-2 h-5 w-5" /></Link>
             </Button>
           </div>
         </div>
@@ -126,7 +126,7 @@ export default function Home() {
             Jadilah bagian dari komunitas pembelajar kami dan mulailah perjalanan akademis Anda yang luar biasa.
           </p>
           <Button asChild size="lg" className="mt-8 bg-accent hover:bg-accent/90 text-accent-foreground">
-            <Link href="#">Informasi Pendaftaran</Link>
+            <Link href="/pendaftaran">Informasi Pendaftaran</Link>
           </Button>
         </div>
       </section>

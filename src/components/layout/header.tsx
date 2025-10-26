@@ -14,6 +14,7 @@ const navLinks = [
   { href: '/guru', label: 'Data Guru' },
   { href: '/siswa', label: 'Data Siswa' },
   { href: '/kurikulum', label: 'Kurikulum' },
+  { href: '/pendaftaran', label: 'Pendaftaran' },
 ];
 
 export function Header() {
@@ -42,6 +43,12 @@ export function Header() {
             </Link>
           ))}
         </nav>
+
+        <div className="hidden md:block">
+            <Button asChild size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+              <Link href="/pendaftaran">Daftar</Link>
+            </Button>
+        </div>
 
         <div className="md:hidden">
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -72,6 +79,9 @@ export function Header() {
                     </Link>
                   ))}
                 </nav>
+                 <Button asChild size="lg" className="mt-8 bg-accent hover:bg-accent/90 text-accent-foreground">
+                    <Link href="/pendaftaran" onClick={() => setIsOpen(false)}>Daftar Sekarang</Link>
+                </Button>
               </div>
             </SheetContent>
           </Sheet>

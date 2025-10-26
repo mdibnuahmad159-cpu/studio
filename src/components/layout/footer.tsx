@@ -19,7 +19,7 @@ export function Footer() {
               <li><Link href="/guru" className="text-sm text-muted-foreground hover:text-primary">Data Guru</Link></li>
               <li><Link href="/siswa" className="text-sm text-muted-foreground hover:text-primary">Data Siswa</Link></li>
               <li><Link href="/kurikulum" className="text-sm text-muted-foreground hover:text-primary">Kurikulum</Link></li>
-              <li><Link href="#" className="text-sm text-muted-foreground hover:text-primary">Pendaftaran</Link></li>
+              <li><Link href="/pendaftaran" className="text-sm text-muted-foreground hover:text-primary">Pendaftaran</Link></li>
             </ul>
           </div>
           <div>
