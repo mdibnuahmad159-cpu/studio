@@ -34,9 +34,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowDown, ArrowUp, GraduationCap } from 'lucide-react';
+import { ArrowDown, ArrowUp, GraduationCap, FileDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: any) => jsPDF;
+}
 
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
@@ -95,11 +101,12 @@ export default function KelasPage() {
   };
   
   const handlePromote = () => {
-    if (currentKelasForSelection === null || currentKelasForSelection === 'mixed' || currentKelasForSelection === 6) return;
+    const currentKelas = currentKelasForSelection;
+    if (currentKelas === null || currentKelas === 'mixed' || currentKelas === 6) return;
     const studentNames = getSelectedStudentsDetails().map(s => s.nama).join(', ');
     createAlert(
       'Naik Kelas',
-      `Anda yakin ingin menaikkan ${selectedStudents.length} siswa (${studentNames}) ke kelas ${currentKelasForSelection + 1}?`,
+      `Anda yakin ingin menaikkan ${selectedStudents.length} siswa (${studentNames}) ke kelas ${currentKelas + 1}?`,
       () => {
         setStudents(prev => prev.map(s => selectedStudents.includes(s.nis) ? { ...s, kelas: s.kelas + 1 } : s));
         setSelectedStudents([]);
@@ -109,11 +116,12 @@ export default function KelasPage() {
   };
 
   const handleDemote = () => {
-    if (currentKelasForSelection === null || currentKelasForSelection === 'mixed' || currentKelasForSelection === 0) return;
+    const currentKelas = currentKelasForSelection;
+    if (currentKelas === null || currentKelas === 'mixed' || currentKelas === 0) return;
     const studentNames = getSelectedStudentsDetails().map(s => s.nama).join(', ');
     createAlert(
       'Turun Kelas',
-      `Anda yakin ingin menurunkan ${selectedStudents.length} siswa (${studentNames}) ke kelas ${currentKelasForSelection - 1}?`,
+      `Anda yakin ingin menurunkan ${selectedStudents.length} siswa (${studentNames}) ke kelas ${currentKelas - 1}?`,
       () => {
         setStudents(prev => prev.map(s => selectedStudents.includes(s.nis) ? { ...s, kelas: s.kelas - 1 } : s));
         setSelectedStudents([]);
@@ -142,7 +150,25 @@ export default function KelasPage() {
     );
   };
 
+  const handleExportPdf = () => {
+    const doc = new jsPDF() as jsPDFWithAutoTable;
+    doc.text(`Data Siswa - ${filterKelas === 'all' ? 'Semua Kelas' : `Kelas ${filterKelas}`}`, 20, 10);
+    doc.autoTable({
+      head: [['Kelas', 'Nama', 'NIS', 'Jenis Kelamin', 'Status']],
+      body: filteredStudents.map((student) => [
+        `Kelas ${student.kelas}`,
+        student.nama,
+        student.nis,
+        student.jenisKelamin,
+        student.status,
+      ]),
+    });
+    doc.save('data-kelas.pdf');
+  };
+
   const areActionsDisabled = selectedStudents.length === 0 || currentKelasForSelection === 'mixed';
+  const currentKelas = currentKelasForSelection;
+
 
   return (
     <div className="bg-background">
@@ -176,15 +202,18 @@ export default function KelasPage() {
                  )}
             </div>
             
-            <div className="flex gap-2">
-                <Button onClick={handlePromote} size="sm" variant="outline" disabled={areActionsDisabled || currentKelasForSelection === 6}>
+            <div className="flex gap-2 flex-wrap justify-end">
+                <Button onClick={handlePromote} size="sm" variant="outline" disabled={areActionsDisabled || currentKelas === 6}>
                     <ArrowUp className="mr-2 h-4 w-4" /> Naik Kelas
                 </Button>
-                <Button onClick={handleDemote} size="sm" variant="outline" disabled={areActionsDisabled || currentKelasForSelection === 0}>
+                <Button onClick={handleDemote} size="sm" variant="outline" disabled={areActionsDisabled || currentKelas === 0}>
                     <ArrowDown className="mr-2 h-4 w-4" /> Turun Kelas
                 </Button>
-                <Button onClick={handleGraduate} size="sm" variant="destructive" disabled={areActionsDisabled || currentKelasForSelection !== 6}>
+                <Button onClick={handleGraduate} size="sm" variant="destructive" disabled={areActionsDisabled || currentKelas !== 6}>
                     <GraduationCap className="mr-2 h-4 w-4" /> Luluskan
+                </Button>
+                 <Button onClick={handleExportPdf} size="sm" variant="outline">
+                    <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
                 </Button>
             </div>
         </div>
@@ -250,3 +279,5 @@ export default function KelasPage() {
     </div>
   );
 }
+
+    
