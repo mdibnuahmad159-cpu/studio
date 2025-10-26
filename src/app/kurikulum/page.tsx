@@ -21,15 +21,13 @@ type Kitab = {
   kitab: string;
 };
 
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: any) => jsPDF;
 }
 
 export default function KurikulumPage() {
   const handleExportPdf = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF() as jsPDFWithAutoTable;
     doc.text('Data Kurikulum', 20, 10);
     doc.autoTable({
       head: [['Kelas', 'Mata Pelajaran', 'Kitab']],

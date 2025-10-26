@@ -27,10 +27,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: any) => jsPDF;
 }
 
 const emptyStudent: Omit<DetailedStudent, 'fileDokumen'> & { fileDokumen: string } = {
@@ -71,7 +69,7 @@ export default function SiswaPage() {
   };
 
   const handleExportPdf = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF() as jsPDFWithAutoTable;
     doc.text('Data Siswa', 20, 10);
     doc.autoTable({
       head: [['Nama', 'NIS', 'Jenis Kelamin', 'TTL', 'Nama Ayah', 'Nama Ibu', 'Alamat']],

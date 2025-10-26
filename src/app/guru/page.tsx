@@ -19,10 +19,8 @@ import { PlusCircle, FileDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: any) => jsPDF;
 }
 
 export default function GuruPage() {
@@ -57,7 +55,7 @@ export default function GuruPage() {
   };
 
   const handleExportPdf = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF() as jsPDFWithAutoTable;
     doc.text('Data Tenaga Pendidik', 20, 10);
     doc.autoTable({
       head: [['Nama', 'Jabatan', 'No. WhatsApp']],
