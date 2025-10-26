@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -10,6 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { kitabPelajaran as initialKitabPelajaran } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { FileDown, PlusCircle } from 'lucide-react';
@@ -40,6 +47,7 @@ export default function KurikulumPage() {
   const [kitabPelajaran, setKitabPelajaran] = useState<Kitab[]>(initialKitabPelajaran);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newKurikulum, setNewKurikulum] = useState({ kelas: '', mataPelajaran: '', kitab: '' });
+  const [selectedKelas, setSelectedKelas] = useState('all');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -54,12 +62,19 @@ export default function KurikulumPage() {
     }
   };
 
+  const filteredKitabPelajaran = useMemo(() => {
+    if (selectedKelas === 'all') {
+      return kitabPelajaran;
+    }
+    return kitabPelajaran.filter(item => item.kelas === selectedKelas);
+  }, [kitabPelajaran, selectedKelas]);
+
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
     doc.text('Data Kurikulum', 20, 10);
     doc.autoTable({
       head: [['Kelas', 'Mata Pelajaran', 'Kitab']],
-      body: kitabPelajaran.map((item: Kitab) => [item.kelas, item.mataPelajaran, item.kitab]),
+      body: filteredKitabPelajaran.map((item: Kitab) => [item.kelas, item.mataPelajaran, item.kitab]),
     });
     doc.save('data-kurikulum.pdf');
   };
@@ -88,6 +103,24 @@ export default function KurikulumPage() {
           </div>
         </div>
 
+        <div className="mb-6 flex justify-end">
+            <Select value={selectedKelas} onValueChange={setSelectedKelas}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter Kelas" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Semua Kelas</SelectItem>
+                    {[...Array(7)].map((_, i) => (
+                        <SelectItem key={i} value={String(i)}>Kelas {i}</SelectItem>
+                    ))}
+                    <SelectItem value="10">Kelas 10</SelectItem>
+                    <SelectItem value="11">Kelas 11</SelectItem>
+                    <SelectItem value="12">Kelas 12</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+
+
         <div className="border rounded-lg overflow-hidden bg-card">
           <Table>
             <TableHeader>
@@ -98,7 +131,7 @@ export default function KurikulumPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {kitabPelajaran.map((item, index) => (
+              {filteredKitabPelajaran.map((item, index) => (
                 <TableRow key={index}>
                   <TableCell className="font-medium">{item.kelas}</TableCell>
                   <TableCell>{item.mataPelajaran}</TableCell>
