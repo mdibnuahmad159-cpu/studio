@@ -144,7 +144,7 @@ export default function RaportPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="font-headline sticky left-0 bg-card z-10 w-[200px]">Nama</TableHead>
-                  <TableHead className="font-headline sticky left-[200px] bg-card z-10 w-[120px]">NIS</TableHead>
+                  <TableHead className="font-headline w-[120px]">NIS</TableHead>
                   {KELAS_OPTIONS.map(kelas => (
                     <TableHead key={kelas} className="font-headline text-center" colSpan={2}>
                       Kelas {kelas}
@@ -153,7 +153,7 @@ export default function RaportPage() {
                 </TableRow>
                  <TableRow>
                   <TableHead className="sticky left-0 bg-card z-10 w-[200px]"></TableHead>
-                  <TableHead className="sticky left-[200px] bg-card z-10 w-[120px]"></TableHead>
+                  <TableHead className="w-[120px]"></TableHead>
                    {KELAS_OPTIONS.map(kelas => (
                     <React.Fragment key={`subheader-${kelas}`}>
                       <TableHead className="text-center font-medium">Ganjil</TableHead>
@@ -166,7 +166,7 @@ export default function RaportPage() {
                 {activeStudents.map((student) => (
                   <TableRow key={student.nis}>
                     <TableCell className="font-medium sticky left-0 bg-card z-10 w-[200px]">{student.nama}</TableCell>
-                    <TableCell className="sticky left-[200px] bg-card z-10 w-[120px]">{student.nis}</TableCell>
+                    <TableCell className="w-[120px]">{student.nis}</TableCell>
                     {KELAS_OPTIONS.map(kelas => {
                       const ganjilKey = `kelas_${kelas}_ganjil`;
                       const genapKey = `kelas_${kelas}_genap`;
