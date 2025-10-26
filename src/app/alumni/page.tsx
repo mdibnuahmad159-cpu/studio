@@ -57,14 +57,8 @@ export default function AlumniPage() {
 
   // Effect to sync state with the mock data store on component mount and updates
   useEffect(() => {
-    setAlumni(dataStore.alumni);
-  }, []); 
-
-  useEffect(() => {
-    // This effect listens for external changes to the data store
-    // and updates the component's state if necessary.
     const interval = setInterval(() => {
-      if (dataStore.alumni !== alumni) {
+      if (dataStore.alumni.length !== alumni.length) {
         setAlumni(dataStore.alumni);
       }
     }, 1000); // Check every second for simplicity.
@@ -74,6 +68,10 @@ export default function AlumniPage() {
   const updateAlumni = (newAlumni: DetailedStudent[]) => {
       dataStore.alumni = newAlumni;
       setAlumni(newAlumni);
+  };
+  
+  const updateStudents = (newStudents: DetailedStudent[]) => {
+      dataStore.students = newStudents;
   };
 
   const availableYears = useMemo(() => {
@@ -114,6 +112,12 @@ export default function AlumniPage() {
     if (alumnusToDelete) {
       const newAlumni = alumni.filter(s => s.nis !== alumnusToDelete.nis);
       updateAlumni(newAlumni);
+
+      // If you want to move the student back to active students list
+      // const studentToReactivate = { ...alumnusToDelete, status: 'Aktif' as const, tahunLulus: undefined };
+      // delete studentToReactivate.tahunLulus;
+      // updateStudents([...dataStore.students, studentToReactivate]);
+      
       setAlumnusToDelete(null);
     }
   };

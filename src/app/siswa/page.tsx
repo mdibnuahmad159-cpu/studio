@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { detailedStudents as initialStudents, type DetailedStudent } from '@/lib/data';
-import { Download, PlusCircle, FileDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Download, PlusCircle, FileDown, MoreHorizontal, Pencil, Trash2, BookCopy } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +40,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -64,19 +72,30 @@ let dataStore = {
     students: initialStudents,
 };
 
+const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
+
 
 export default function SiswaPage() {
   const [students, setStudents] = useState<DetailedStudent[]>(dataStore.students);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAssignClassDialogOpen, setIsAssignClassDialogOpen] = useState(false);
   const [studentToEdit, setStudentToEdit] = useState<DetailedStudent | null>(null);
+  const [studentToAssign, setStudentToAssign] = useState<DetailedStudent | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<DetailedStudent | null>(null);
   const [formData, setFormData] = useState({ ...emptyStudent, nis: '' });
   const [file, setFile] = useState<File | null>(null);
+  const [selectedClass, setSelectedClass] = useState<string>('');
+  const { toast } = useToast();
 
   // Effect to sync state with the mock data store on component mount and updates
   useEffect(() => {
-    setStudents(dataStore.students);
-  }, []); 
+    const interval = setInterval(() => {
+        if (dataStore.students.length !== students.length) {
+            setStudents(dataStore.students);
+        }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [students]);
 
   const updateStudents = (newStudents: DetailedStudent[]) => {
       dataStore.students = newStudents;
@@ -173,15 +192,37 @@ export default function SiswaPage() {
     }
   };
 
+  const handleOpenAssignClassDialog = (student: DetailedStudent) => {
+    setStudentToAssign(student);
+    setSelectedClass(String(student.kelas));
+    setIsAssignClassDialogOpen(true);
+  };
+
+  const handleAssignClass = () => {
+    if (studentToAssign) {
+      const newStudents = students.map(s => 
+        s.nis === studentToAssign.nis ? { ...s, kelas: Number(selectedClass) } : s
+      );
+      updateStudents(newStudents);
+      toast({
+        title: 'Berhasil!',
+        description: `${studentToAssign.nama} telah dimasukkan ke kelas ${selectedClass}.`
+      });
+      setIsAssignClassDialogOpen(false);
+      setStudentToAssign(null);
+    }
+  };
+
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
     doc.text('Data Siswa', 20, 10);
     const activeStudents = students.filter(s => s.status === 'Aktif');
     doc.autoTable({
-      head: [['Nama', 'NIS', 'Jenis Kelamin', 'TTL', 'Nama Ayah', 'Nama Ibu', 'Alamat']],
+      head: [['Nama', 'NIS', 'Kelas', 'Jenis Kelamin', 'TTL', 'Nama Ayah', 'Nama Ibu', 'Alamat']],
       body: activeStudents.map((student: DetailedStudent) => [
         student.nama,
         student.nis,
+        student.kelas,
         student.jenisKelamin,
         `${student.tempatLahir}, ${student.tanggalLahir}`,
         student.namaAyah,
@@ -223,6 +264,7 @@ export default function SiswaPage() {
               <TableRow>
                 <TableHead className="font-headline">Nama</TableHead>
                 <TableHead className="font-headline">NIS</TableHead>
+                <TableHead className="font-headline">Kelas</TableHead>
                 <TableHead className="font-headline">Jenis Kelamin</TableHead>
                 <TableHead className="font-headline">TTL</TableHead>
                 <TableHead className="font-headline">Nama Ayah</TableHead>
@@ -237,6 +279,7 @@ export default function SiswaPage() {
                 <TableRow key={student.nis}>
                   <TableCell className="font-medium">{student.nama}</TableCell>
                   <TableCell>{student.nis}</TableCell>
+                  <TableCell>{student.kelas}</TableCell>
                   <TableCell>{student.jenisKelamin}</TableCell>
                   <TableCell>{`${student.tempatLahir}, ${student.tanggalLahir}`}</TableCell>
                   <TableCell>{student.namaAyah}</TableCell>
@@ -259,6 +302,10 @@ export default function SiswaPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                         <DropdownMenuItem onClick={() => handleOpenAssignClassDialog(student)}>
+                          <BookCopy className="mr-2 h-4 w-4" />
+                          <span>Masukkan ke Kelas</span>
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenDialog(student)}>
                           <Pencil className="mr-2 h-4 w-4" />
                           <span>Edit</span>
@@ -344,6 +391,35 @@ export default function SiswaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isAssignClassDialogOpen} onOpenChange={setIsAssignClassDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Masukkan Siswa ke Kelas</DialogTitle>
+            <DialogDescription>
+              Pilih kelas baru untuk siswa <strong>{studentToAssign?.nama}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+              <Label htmlFor="kelas">Pilih Kelas</Label>
+              <Select value={selectedClass} onValueChange={setSelectedClass}>
+                  <SelectTrigger className="w-full mt-1">
+                      <SelectValue placeholder="Pilih Kelas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {KELAS_OPTIONS.map(kelas => (
+                          <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => setIsAssignClassDialogOpen(false)}>Batal</Button>
+            <Button type="submit" onClick={handleAssignClass} className="bg-gradient-primary text-primary-foreground hover:brightness-110">Simpan</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <AlertDialog open={!!studentToDelete} onOpenChange={() => setStudentToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

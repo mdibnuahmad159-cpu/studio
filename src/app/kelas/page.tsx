@@ -128,13 +128,13 @@ export default function KelasPage() {
 
   const currentKelasForSelection = useMemo(() => {
     const selectedDetails = getSelectedStudentsDetails();
-    if (selectedDetails.length === 0) return null;
+    if (selectedStudents.length === 0) return null;
     const firstKelas = selectedDetails[0].kelas;
     if (selectedDetails.every(s => s.kelas === firstKelas)) {
       return firstKelas;
     }
     return 'mixed'; // Indicates selection across different classes
-  }, [selectedStudents, students]);
+  }, [selectedStudents, activeStudents]);
 
   const createAlert = (title: string, description: string, onConfirm: () => void) => {
     setAlertInfo({ title, description, onConfirm });
@@ -173,30 +173,30 @@ export default function KelasPage() {
   };
   
   const handleGraduate = () => {
-    if (currentKelasForSelection !== 6) return;
+    if (currentKelasForSelection === 'mixed' || typeof currentKelasForSelection !== 'number' || currentKelasForSelection !== 6) return;
     const studentNames = getSelectedStudentsDetails().map(s => s.nama).join(', ');
     createAlert(
       'Luluskan Siswa',
       `Anda yakin ingin meluluskan ${selectedStudents.length} siswa (${studentNames})? Mereka akan dipindahkan ke data alumni.`,
       () => {
         const year = new Date().getFullYear();
-        let graduatedNis: string[] = [];
+        const studentsToGraduate = getSelectedStudentsDetails();
 
-        const newStudents = students.map(s => {
-          if (selectedStudents.includes(s.nis)) {
-            graduatedNis.push(s.nis);
-            return { ...s, status: 'Lulus' as const, tahunLulus: year };
-          }
-          return s;
-        });
+        const graduatedStudents = studentsToGraduate.map(s => ({
+            ...s,
+            status: 'Lulus' as const,
+            tahunLulus: year,
+        }));
 
-        const newAlumniData = [...alumni, ...newStudents.filter(s => graduatedNis.includes(s.nis))];
+        const newAlumniData = [...alumni, ...graduatedStudents];
         
-        updateStudents(newStudents);
+        const newStudentsData = students.filter(s => !selectedStudents.includes(s.nis));
+
+        updateStudents(newStudentsData);
         updateAlumni(newAlumniData);
 
         setSelectedStudents([]);
-        toast({ title: 'Berhasil!', description: `${graduatedNis.length} siswa telah diluluskan.` });
+        toast({ title: 'Berhasil!', description: `${selectedStudents.length} siswa telah diluluskan.` });
       }
     );
   };
