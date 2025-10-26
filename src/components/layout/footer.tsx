@@ -27,7 +27,6 @@ export function Footer() {
                <li><Link href="/pendaftaran" className="text-sm text-muted-foreground hover:text-primary">Pendaftaran</Link></li>
                <li><Link href="/kelas" className="text-sm text-muted-foreground hover:text-primary">Kelas</Link></li>
                <li><Link href="/raport" className="text-sm text-muted-foreground hover:text-primary">Raport</Link></li>
-               <li><Link href="/login" className="text-sm text-muted-foreground hover:text-primary">Login Admin</Link></li>
             </ul>
           </div>
         </div>
@@ -38,3 +37,4 @@ export function Footer() {
     </footer>
   );
 }
+

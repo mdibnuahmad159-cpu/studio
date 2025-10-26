@@ -2,7 +2,6 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { usePathname } from 'next/navigation';
 
 interface AdminContextType {
   isAdmin: boolean;
@@ -17,7 +16,6 @@ const ADMIN_PASSWORD = 'useAdmin'; // Store password securely in a real app
 export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  const pathname = usePathname();
 
   useEffect(() => {
     // Check sessionStorage only on the client side
@@ -61,15 +59,6 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       return null;
   }
 
-  // Allow access to login page even if not admin
-  if (pathname === '/login') {
-    return (
-      <AdminContext.Provider value={{ isAdmin, login, logout }}>
-        {children}
-      </AdminContext.Provider>
-    );
-  }
-
   return (
     <AdminContext.Provider value={{ isAdmin, login, logout }}>
       {children}
@@ -84,3 +73,4 @@ export const useAdmin = () => {
   }
   return context;
 };
+
