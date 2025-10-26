@@ -25,6 +25,7 @@ const navLinks = [
   { href: '/kurikulum', label: 'Kurikulum' },
   { href: '/jadwal', label: 'Jadwal' },
   { href: '/kelas', label: 'Kelas' },
+  { href: '/raport', label: 'Raport' },
 ];
 
 export function Header() {
@@ -122,3 +123,5 @@ export function Header() {
     </header>
   );
 }
+
+    

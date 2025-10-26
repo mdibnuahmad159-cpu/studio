@@ -85,7 +85,7 @@ export type DetailedStudent = {
   tahunLulus?: number;
 };
 
-export const detailedStudents: DetailedStudent[] = [
+export let detailedStudents: DetailedStudent[] = [
   {
     nama: 'Ahmad Abdullah',
     nis: '2024001',
@@ -179,7 +179,7 @@ export const detailedStudents: DetailedStudent[] = [
   },
 ];
 
-export const alumni: DetailedStudent[] = [
+export let alumni: DetailedStudent[] = [
     {
         nama: 'Zahra Al-Fath',
         nis: '2018001',
@@ -224,6 +224,35 @@ export const alumni: DetailedStudent[] = [
     }
 ];
 
+export type RaportFile = {
+  [key: string]: string | null; // e.g., 'kelas_0_ganjil': '/path/to/file.pdf'
+};
+
+export type StudentRaport = {
+  nis: string;
+  raports: RaportFile;
+};
+
+export const initialRaports: StudentRaport[] = detailedStudents.map(student => ({
+  nis: student.nis,
+  raports: {
+    kelas_0_ganjil: null,
+    kelas_0_genap: null,
+    kelas_1_ganjil: null,
+    kelas_1_genap: null,
+    kelas_2_ganjil: null,
+    kelas_2_genap: null,
+    kelas_3_ganjil: null,
+    kelas_3_genap: null,
+    kelas_4_ganjil: null,
+    kelas_4_genap: null,
+    kelas_5_ganjil: null,
+    kelas_5_genap: null,
+    kelas_6_ganjil: null,
+    kelas_6_genap: null,
+  }
+}));
+
 
 export const kitabPelajaran = [
   { id: 1, kelas: '0', mataPelajaran: 'Iqro', kitab: 'Iqro 1' },
@@ -253,3 +282,5 @@ export const jadwalPelajaran: Jadwal[] = [
     { id: 3, hari: 'Selasa', kelas: '1', mataPelajaran: 'Hadits', guruId: 2, jam: '14:00 - 15:00' },
     { id: 4, hari: 'Rabu', kelas: '6', mataPelajaran: 'Tafsir', guruId: 3, jam: '15:30 - 16:30' },
 ];
+
+    

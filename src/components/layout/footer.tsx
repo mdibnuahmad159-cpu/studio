@@ -21,6 +21,7 @@ export function Footer() {
               <li><Link href="/kurikulum" className="text-sm text-muted-foreground hover:text-primary">Kurikulum</Link></li>
               <li><Link href="/pendaftaran" className="text-sm text-muted-foreground hover:text-primary">Pendaftaran</Link></li>
                <li><Link href="/kelas" className="text-sm text-muted-foreground hover:text-primary">Kelas</Link></li>
+               <li><Link href="/raport" className="text-sm text-muted-foreground hover:text-primary">Raport</Link></li>
             </ul>
           </div>
         </div>
@@ -31,3 +32,5 @@ export function Footer() {
     </footer>
   );
 }
+
+    
