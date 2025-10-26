@@ -51,14 +51,14 @@ interface jsPDFWithAutoTable extends jsPDF {
 }
 
 const emptyJadwal: Omit<Jadwal, 'id'> = {
-  hari: 'Senin',
+  hari: 'Sabtu',
   kelas: '0',
   mataPelajaran: '',
   guruId: '',
   jam: '14:00 - 15:00',
 };
 
-const HARI_OPERASIONAL = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const HARI_OPERASIONAL = ['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis'];
 const JAM_PELAJARAN = ['14:00 - 15:00', '15:30 - 16:30'];
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
