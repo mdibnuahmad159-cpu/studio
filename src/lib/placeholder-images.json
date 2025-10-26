@@ -1,3 +1,58 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-students",
+      "description": "Happy students in a classroom setting.",
+      "imageUrl": "https://images.unsplash.com/photo-1571260899304-425eee4c7efc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxoYXBweSUyMHN0dWRlbnRzfGVufDB8fHx8MTc2MTQxODMwOXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "happy students"
+    },
+    {
+      "id": "teacher-male-1",
+      "description": "A male teacher smiling.",
+      "imageUrl": "https://images.unsplash.com/photo-1624824179660-80d32a64a887?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bWFsZSUyMHRlYWNoZXJ8ZW58MHx8fHwxNzYxNDcxMTEwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "male teacher"
+    },
+    {
+      "id": "teacher-female-1",
+      "description": "A female teacher in a library.",
+      "imageUrl": "https://images.unsplash.com/photo-1551836022-d0b54d686dd0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxmZW1hbGUlMjB0ZWFjaGVyfGVufDB8fHx8MTc2MTM1OTM4OHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "female teacher"
+    },
+    {
+      "id": "teacher-male-2",
+      "description": "A male teacher explaining something.",
+      "imageUrl": "https://images.unsplash.com/photo-1574281570877-bd815ebb50a4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHx0ZWFjaGVyJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzYxNDA0MTYwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "teacher portrait"
+    },
+    {
+      "id": "teacher-female-2",
+      "description": "A female science teacher.",
+      "imageUrl": "https://images.unsplash.com/photo-1565792894736-eeced66760d7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxzY2llbmNlJTIwdGVhY2hlcnxlbnwwfHx8fDE3NjE0NzI2Mjd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "science teacher"
+    },
+    {
+      "id": "school-facility",
+      "description": "Modern school library or computer lab.",
+      "imageUrl": "https://images.unsplash.com/photo-1468273519810-d3fe4c125cdb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxzY2hvb2wlMjBsaWJyYXJ5fGVufDB8fHx8MTc2MTM4NTUyM3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "school library"
+    },
+    {
+      "id": "student-life",
+      "description": "Students collaborating on a project.",
+      "imageUrl": "https://images.unsplash.com/photo-1758270705290-62b6294dd044?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8c3R1ZGVudHMlMjBjb2xsYWJvcmF0aW5nfGVufDB8fHx8MTc2MTQyNjAyOHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "students collaborating"
+    },
+    {
+      "id": "teacher-male-3",
+      "description": "A male art teacher.",
+      "imageUrl": "https://images.unsplash.com/photo-1752317591522-55d67dba0849?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxhcnQlMjB0ZWFjaGVyfGVufDB8fHx8MTc2MTQ3MjYyOHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "art teacher"
+    },
+    {
+      "id": "teacher-female-3",
+      "description": "A female music teacher.",
+      "imageUrl": "https://images.unsplash.com/photo-1617398745178-f40f24bbaa23?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxtdXNpYyUyMHRlYWNoZXJ8ZW58MHx8fHwxNzYxNDcyNjI3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "music teacher"
+    }
+  ]
 }
