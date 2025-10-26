@@ -88,7 +88,7 @@ export function Header() {
                     </Link>
                   ))}
                 </nav>
-                 <Button asChild size="lg" className="mt-8 bg-primary hover:bg-primary/90">
+                 <Button asChild size="lg" className="mt-8 bg-gradient-primary hover:brightness-110">
                     <Link href="/pendaftaran" onClick={() => setIsOpen(false)}>Daftar Sekarang</Link>
                 </Button>
               </div>

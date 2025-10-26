@@ -48,7 +48,7 @@ export function TeacherCard({ teacher, onImageChange }: TeacherCardProps) {
             </Avatar>
             <button 
               onClick={handleAvatarClick}
-              className="absolute bottom-1 right-1 bg-primary text-primary-foreground rounded-full p-2 hover:bg-primary/90 transition-colors"
+              className="absolute bottom-1 right-1 bg-gradient-primary text-primary-foreground rounded-full p-2 hover:brightness-110 transition-all"
               aria-label="Ubah foto"
             >
               <Camera className="h-4 w-4" />
@@ -74,3 +74,5 @@ export function TeacherCard({ teacher, onImageChange }: TeacherCardProps) {
     </Card>
   );
 }
+
+    

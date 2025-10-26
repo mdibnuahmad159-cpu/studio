@@ -56,7 +56,7 @@ export default function DashboardPage() {
 
         {/* Summary Card */}
         <div className="px-4 md:p-0">
-          <Card className="bg-primary text-primary-foreground shadow-lg md:shadow-xl rounded-2xl md:rounded-lg">
+          <Card className="bg-gradient-primary text-primary-foreground shadow-lg md:shadow-xl rounded-2xl md:rounded-lg">
             <CardHeader>
               <CardDescription className="text-primary-foreground/80">Total Siswa Aktif</CardDescription>
               <CardTitle className="text-4xl font-bold">{activeStudents} Siswa</CardTitle>
@@ -111,3 +111,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

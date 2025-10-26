@@ -184,8 +184,7 @@ export default function PendaftaranPage() {
                           <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} required />
                       </div>
                       <div className="space-y-2">
-                          <Label htmlFor="email">Alamat Email</Label>
-                          <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
+                          <Label htmlFor="email">Alamat Email</Label>                          <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
                       </div>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -210,7 +209,7 @@ export default function PendaftaranPage() {
               </div>
 
               <div className="text-center pt-4">
-                <Button type="submit" size="lg" className="bg-primary hover:bg-primary/90">
+                <Button type="submit" size="lg" className="bg-gradient-primary hover:brightness-110">
                   Daftar Sekarang
                 </Button>
               </div>
@@ -221,3 +220,5 @@ export default function PendaftaranPage() {
     </div>
   );
 }
+
+    
