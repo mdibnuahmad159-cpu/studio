@@ -12,7 +12,7 @@ const navLinks = [
   { href: '/jadwal', label: 'Jadwal', icon: CalendarDays },
   { href: '/guru', label: 'Guru', icon: Users },
   { href: '/siswa', label: 'Siswa', icon: UserCircle },
-  { href: '/kelas', label: 'Kelas', icon: GraduationCap },
+  { href: '/alumni', label: 'Alumni', icon: GraduationCap },
 ];
 
 export function BottomNav() {

@@ -17,7 +17,6 @@ export function Footer() {
             <ul className="mt-4 space-y-2">
               <li><Link href="/guru" className="text-sm text-muted-foreground hover:text-primary">Data Guru</Link></li>
               <li><Link href="/siswa" className="text-sm text-muted-foreground hover:text-primary">Data Siswa</Link></li>
-              <li><Link href="/kelas" className="text-sm text-muted-foreground hover:text-primary">Data Kelas</Link></li>
               <li><Link href="/alumni" className="text-sm text-muted-foreground hover:text-primary">Data Alumni</Link></li>
               <li><Link href="/kurikulum" className="text-sm text-muted-foreground hover:text-primary">Kurikulum</Link></li>
               <li><Link href="/pendaftaran" className="text-sm text-muted-foreground hover:text-primary">Pendaftaran</Link></li>

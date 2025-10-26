@@ -21,7 +21,6 @@ const navLinks = [
   { href: '/', label: 'Dasbor' },
   { href: '/guru', label: 'Data Guru' },
   { href: '/siswa', label: 'Data Siswa' },
-  { href: '/kelas', label: 'Data Kelas' },
   { href: '/alumni', label: 'Data Alumni' },
   { href: '/kurikulum', label: 'Kurikulum' },
   { href: '/jadwal', label: 'Jadwal' },

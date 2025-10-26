@@ -80,7 +80,6 @@ export type DetailedStudent = {
   namaIbu: string;
   alamat: string;
   fileDokumen: string;
-  kelas: number;
   status: 'Aktif' | 'Lulus' | 'Pindah';
   tahunLulus?: number;
 };
@@ -96,7 +95,6 @@ export const detailedStudents: DetailedStudent[] = [
     namaIbu: 'Sri',
     alamat: 'Jl. Merdeka No. 1, Jakarta',
     fileDokumen: '/path/to/doc1.pdf',
-    kelas: 6,
     status: 'Aktif',
   },
   {
@@ -109,7 +107,6 @@ export const detailedStudents: DetailedStudent[] = [
     namaIbu: 'Maria',
     alamat: 'Jl. Pahlawan No. 10, Surabaya',
     fileDokumen: '/path/to/doc2.pdf',
-    kelas: 5,
     status: 'Aktif',
   },
   {
@@ -122,7 +119,6 @@ export const detailedStudents: DetailedStudent[] = [
     namaIbu: 'Eka',
     alamat: 'Jl. Asia Afrika No. 30, Bandung',
     fileDokumen: '/path/to/doc3.pdf',
-    kelas: 4,
     status: 'Aktif',
   },
   {
@@ -135,7 +131,6 @@ export const detailedStudents: DetailedStudent[] = [
     namaIbu: 'Grace',
     alamat: 'Jl. Gatot Subroto No. 5, Medan',
     fileDokumen: '/path/to/doc4.pdf',
-    kelas: 3,
     status: 'Aktif',
   },
     {
@@ -148,7 +143,6 @@ export const detailedStudents: DetailedStudent[] = [
     namaIbu: 'Indah',
     alamat: 'Jl. Pandanaran No. 50, Semarang',
     fileDokumen: '/path/to/doc6.pdf',
-    kelas: 1,
     status: 'Aktif',
   },
   {
@@ -161,7 +155,6 @@ export const detailedStudents: DetailedStudent[] = [
     namaIbu: 'Jasmine',
     alamat: 'Jl. Malioboro No. 12, Yogyakarta',
     fileDokumen: '/path/to/doc5.pdf',
-    kelas: 2,
     status: 'Aktif',
   },
     {
@@ -174,7 +167,6 @@ export const detailedStudents: DetailedStudent[] = [
     namaIbu: 'Kartini',
     alamat: 'Jl. Sultan Hasanuddin No. 8, Makassar',
     fileDokumen: '/path/to/doc7.pdf',
-    kelas: 0,
     status: 'Aktif',
   },
 ];
@@ -190,7 +182,6 @@ export const alumni: DetailedStudent[] = [
         namaIbu: 'Aisyah',
         alamat: 'Jl. Kenangan No. 10, Jakarta',
         fileDokumen: '/path/to/doc_alumni1.pdf',
-        kelas: 6,
         status: 'Lulus',
         tahunLulus: 2023
     },
@@ -204,7 +195,6 @@ export const alumni: DetailedStudent[] = [
         namaIbu: 'Halimah',
         alamat: 'Jl. Cihampelas No. 20, Bandung',
         fileDokumen: '/path/to/doc_alumni2.pdf',
-        kelas: 6,
         status: 'Lulus',
         tahunLulus: 2023
     },
@@ -218,7 +208,6 @@ export const alumni: DetailedStudent[] = [
         namaIbu: 'Gabriella',
         alamat: 'Jl. Darmo No. 30, Surabaya',
         fileDokumen: '/path/to/doc_alumni3.pdf',
-        kelas: 6,
         status: 'Lulus',
         tahunLulus: 2022
     }
