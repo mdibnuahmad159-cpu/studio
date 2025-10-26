@@ -247,8 +247,10 @@ export type Jadwal = {
 };
 
 export const jadwalPelajaran: Jadwal[] = [
-    { id: 1, hari: 'Senin', kelas: '10', mataPelajaran: 'Fiqih', guruId: 1, jam: '07:00 - 08:30' },
-    { id: 2, hari: 'Senin', kelas: '11', mataPelajaran: 'Fiqih', guruId: 1, jam: '09:00 - 10:30' },
-    { id: 3, hari: 'Selasa', kelas: '10', mataPelajaran: 'Hadits', guruId: 2, jam: '07:00 - 08:30' },
-    { id: 4, hari: 'Rabu', kelas: '12', mataPelajaran: 'Tafsir', guruId: 3, jam: '09:00 - 10:30' },
+    { id: 1, hari: 'Senin', kelas: '10', mataPelajaran: 'Fiqih', guruId: 1, jam: '14:00 - 15:00' },
+    { id: 2, hari: 'Senin', kelas: '11', mataPelajaran: 'Fiqih', guruId: 1, jam: '15:30 - 16:30' },
+    { id: 3, hari: 'Selasa', kelas: '10', mataPelajaran: 'Hadits', guruId: 2, jam: '14:00 - 15:00' },
+    { id: 4, hari: 'Rabu', kelas: '12', mataPelajaran: 'Tafsir', guruId: 3, jam: '15:30 - 16:30' },
 ];
+
+    

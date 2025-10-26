@@ -33,6 +33,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { jadwalPelajaran as initialJadwal, teachers, kitabPelajaran } from '@/lib/data';
 import type { Jadwal, Teacher } from '@/lib/data';
+import { cn } from '@/lib/utils';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -46,10 +47,11 @@ export default function JadwalPage() {
     kelas: '10',
     mataPelajaran: '',
     guruId: 0,
-    jam: '',
+    jam: '14:00 - 15:00',
   });
   const [selectedKelas, setSelectedKelas] = useState('all');
   const [selectedHari, setSelectedHari] = useState('all');
+  const [selectedGuru, setSelectedGuru] = useState('all');
 
   const availableKelas = useMemo(() => {
      const kelasSet = new Set(jadwal.map(j => j.kelas));
@@ -57,6 +59,7 @@ export default function JadwalPage() {
   }, [jadwal]);
 
   const availableHari = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const availableJam = ['14:00 - 15:00', '15:30 - 16:30'];
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -74,8 +77,8 @@ export default function JadwalPage() {
         ...newJadwal,
         guruId: Number(newJadwal.guruId),
       };
-      setJadwal(prev => [...prev, newEntry]);
-      setNewJadwal({ hari: 'Senin', kelas: '10', mataPelajaran: '', guruId: 0, jam: '' });
+      setJadwal(prev => [...prev, newEntry].sort((a, b) => availableHari.indexOf(a.hari) - availableHari.indexOf(b.hari) || a.jam.localeCompare(b.jam)));
+      setNewJadwal({ hari: 'Senin', kelas: '10', mataPelajaran: '', guruId: 0, jam: '14:00 - 15:00' });
       setIsDialogOpen(false);
     }
   };
@@ -93,8 +96,11 @@ export default function JadwalPage() {
     if (selectedHari !== 'all') {
       filtered = filtered.filter(item => item.hari === selectedHari);
     }
-    return filtered;
-  }, [jadwal, selectedKelas, selectedHari]);
+    if (selectedGuru !== 'all') {
+        filtered = filtered.filter(item => String(item.guruId) === selectedGuru);
+    }
+    return filtered.sort((a, b) => availableHari.indexOf(a.hari) - availableHari.indexOf(b.hari) || a.jam.localeCompare(b.jam));
+  }, [jadwal, selectedKelas, selectedHari, selectedGuru]);
 
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
@@ -111,6 +117,8 @@ export default function JadwalPage() {
     });
     doc.save('jadwal-pelajaran.pdf');
   };
+
+  let lastDay: string | null = null;
 
   return (
     <div className="bg-background">
@@ -158,6 +166,17 @@ export default function JadwalPage() {
                     ))}
                 </SelectContent>
             </Select>
+            <Select value={selectedGuru} onValueChange={setSelectedGuru}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filter Guru" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Semua Guru</SelectItem>
+                    {teachers.map(teacher => (
+                        <SelectItem key={teacher.id} value={String(teacher.id)}>{teacher.name}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
         </div>
 
 
@@ -173,15 +192,19 @@ export default function JadwalPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredJadwal.map((item, index) => (
-                <TableRow key={index}>
-                  <TableCell className="font-medium">{item.hari}</TableCell>
-                  <TableCell>Kelas {item.kelas}</TableCell>
-                  <TableCell>{item.mataPelajaran}</TableCell>
-                  <TableCell>{getTeacherName(item.guruId)}</TableCell>
-                  <TableCell>{item.jam}</TableCell>
-                </TableRow>
-              ))}
+              {filteredJadwal.map((item, index) => {
+                 const showDaySeparator = item.hari !== lastDay;
+                 lastDay = item.hari;
+                 return (
+                    <TableRow key={index} className={cn(showDaySeparator && index > 0 && 'border-t-4 border-primary/20')}>
+                        <TableCell className="font-medium">{item.hari}</TableCell>
+                        <TableCell>Kelas {item.kelas}</TableCell>
+                        <TableCell>{item.mataPelajaran}</TableCell>
+                        <TableCell>{getTeacherName(item.guruId)}</TableCell>
+                        <TableCell>{item.jam}</TableCell>
+                    </TableRow>
+                 )
+              })}
             </TableBody>
           </Table>
         </div>
@@ -250,7 +273,16 @@ export default function JadwalPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="jam" className="text-right">Jam</Label>
-              <Input id="jam" name="jam" value={newJadwal.jam} onChange={handleInputChange} className="col-span-3" placeholder="Contoh: 07:00 - 08:30"/>
+               <Select name="jam" onValueChange={(value) => handleSelectChange('jam', value)} value={newJadwal.jam}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Pilih Jam" />
+                </SelectTrigger>
+                <SelectContent>
+                   {availableJam.map(jam => (
+                        <SelectItem key={jam} value={jam}>{jam}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -262,3 +294,5 @@ export default function JadwalPage() {
     </div>
   );
 }
+
+    
