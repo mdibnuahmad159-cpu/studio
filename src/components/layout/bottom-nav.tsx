@@ -3,13 +3,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, BookMarked, UserCircle, GraduationCap, CalendarDays } from 'lucide-react';
+import { Home, Users, BookMarked, UserCircle, GraduationCap, CalendarDays, BookCopy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/kurikulum', label: 'Kurikulum', icon: BookMarked },
   { href: '/jadwal', label: 'Jadwal', icon: CalendarDays },
+  { href: '/kelas', label: 'Kelas', icon: BookCopy },
   { href: '/guru', label: 'Guru', icon: Users },
   { href: '/siswa', label: 'Siswa', icon: UserCircle },
   { href: '/alumni', label: 'Alumni', icon: GraduationCap },

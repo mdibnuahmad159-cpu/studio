@@ -81,6 +81,7 @@ export type DetailedStudent = {
   alamat: string;
   fileDokumen: string;
   status: 'Aktif' | 'Lulus' | 'Pindah';
+  kelas: number;
   tahunLulus?: number;
 };
 
@@ -96,6 +97,7 @@ export const detailedStudents: DetailedStudent[] = [
     alamat: 'Jl. Merdeka No. 1, Jakarta',
     fileDokumen: '/path/to/doc1.pdf',
     status: 'Aktif',
+    kelas: 6,
   },
   {
     nama: 'Bella Christina',
@@ -108,6 +110,7 @@ export const detailedStudents: DetailedStudent[] = [
     alamat: 'Jl. Pahlawan No. 10, Surabaya',
     fileDokumen: '/path/to/doc2.pdf',
     status: 'Aktif',
+    kelas: 5,
   },
   {
     nama: 'Charlie Darmawan',
@@ -120,6 +123,7 @@ export const detailedStudents: DetailedStudent[] = [
     alamat: 'Jl. Asia Afrika No. 30, Bandung',
     fileDokumen: '/path/to/doc3.pdf',
     status: 'Aktif',
+    kelas: 4,
   },
   {
     nama: 'Diana Puspita',
@@ -132,6 +136,7 @@ export const detailedStudents: DetailedStudent[] = [
     alamat: 'Jl. Gatot Subroto No. 5, Medan',
     fileDokumen: '/path/to/doc4.pdf',
     status: 'Aktif',
+    kelas: 3,
   },
     {
     nama: 'Gita Amelia',
@@ -144,6 +149,7 @@ export const detailedStudents: DetailedStudent[] = [
     alamat: 'Jl. Pandanaran No. 50, Semarang',
     fileDokumen: '/path/to/doc6.pdf',
     status: 'Aktif',
+    kelas: 1,
   },
   {
     nama: 'Fahri Hidayat',
@@ -156,6 +162,7 @@ export const detailedStudents: DetailedStudent[] = [
     alamat: 'Jl. Malioboro No. 12, Yogyakarta',
     fileDokumen: '/path/to/doc5.pdf',
     status: 'Aktif',
+    kelas: 2,
   },
     {
     nama: 'Elang Perkasa',
@@ -168,6 +175,7 @@ export const detailedStudents: DetailedStudent[] = [
     alamat: 'Jl. Sultan Hasanuddin No. 8, Makassar',
     fileDokumen: '/path/to/doc7.pdf',
     status: 'Aktif',
+    kelas: 0,
   },
 ];
 
@@ -183,6 +191,7 @@ export const alumni: DetailedStudent[] = [
         alamat: 'Jl. Kenangan No. 10, Jakarta',
         fileDokumen: '/path/to/doc_alumni1.pdf',
         status: 'Lulus',
+        kelas: 6,
         tahunLulus: 2023
     },
     {
@@ -196,6 +205,7 @@ export const alumni: DetailedStudent[] = [
         alamat: 'Jl. Cihampelas No. 20, Bandung',
         fileDokumen: '/path/to/doc_alumni2.pdf',
         status: 'Lulus',
+        kelas: 6,
         tahunLulus: 2023
     },
     {
@@ -209,22 +219,23 @@ export const alumni: DetailedStudent[] = [
         alamat: 'Jl. Darmo No. 30, Surabaya',
         fileDokumen: '/path/to/doc_alumni3.pdf',
         status: 'Lulus',
+        kelas: 6,
         tahunLulus: 2022
     }
 ];
 
 
 export const kitabPelajaran = [
-  { kelas: '0', mataPelajaran: 'Iqro', kitab: 'Iqro 1' },
-  { kelas: '1', mataPelajaran: 'Fiqih', kitab: 'Safinatun Najah' },
-  { kelas: '1', mataPelajaran: 'Hadits', kitab: 'Arbain Nawawi' },
-  { kelas: '2', mataPelajaran: 'Akhlak', kitab: 'Taisirul Khallaq' },
-  { kelas: '3', mataPelajaran: 'Fiqih', kitab: 'Fathul Qorib' },
-  { kelas: '4', mataPelajaran: 'Hadits', kitab: 'Bulughul Maram' },
-  { kelas: '5', mataPelajaran: 'Tasawuf', kitab: 'Al-Hikam' },
-  { kelas: '6', mataPelajaran: 'Ushul Fiqih', kitab: 'Al-Waraqat' },
-  { kelas: '6', mataPelajaran: 'Tafsir', kitab: 'Tafsir Jalalain' },
-  { kelas: '6', mataPelajaran: 'Balaghah', kitab: 'Jauharul Maknun' },
+  { id: 1, kelas: '0', mataPelajaran: 'Iqro', kitab: 'Iqro 1' },
+  { id: 2, kelas: '1', mataPelajaran: 'Fiqih', kitab: 'Safinatun Najah' },
+  { id: 3, kelas: '1', mataPelajaran: 'Hadits', kitab: 'Arbain Nawawi' },
+  { id: 4, kelas: '2', mataPelajaran: 'Akhlak', kitab: 'Taisirul Khallaq' },
+  { id: 5, kelas: '3', mataPelajaran: 'Fiqih', kitab: 'Fathul Qorib' },
+  { id: 6, kelas: '4', mataPelajaran: 'Hadits', kitab: 'Bulughul Maram' },
+  { id: 7, kelas: '5', mataPelajaran: 'Tasawuf', kitab: 'Al-Hikam' },
+  { id: 8, kelas: '6', mataPelajaran: 'Ushul Fiqih', kitab: 'Al-Waraqat' },
+  { id: 9, kelas: '6', mataPelajaran: 'Tafsir', kitab: 'Tafsir Jalalain' },
+  { id: 10, kelas: '6', mataPelajaran: 'Balaghah', kitab: 'Jauharul Maknun' },
 ];
 
 export type Jadwal = {

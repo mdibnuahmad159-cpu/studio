@@ -20,6 +20,7 @@ export function Footer() {
               <li><Link href="/alumni" className="text-sm text-muted-foreground hover:text-primary">Data Alumni</Link></li>
               <li><Link href="/kurikulum" className="text-sm text-muted-foreground hover:text-primary">Kurikulum</Link></li>
               <li><Link href="/pendaftaran" className="text-sm text-muted-foreground hover:text-primary">Pendaftaran</Link></li>
+               <li><Link href="/kelas" className="text-sm text-muted-foreground hover:text-primary">Kelas</Link></li>
             </ul>
           </div>
         </div>
