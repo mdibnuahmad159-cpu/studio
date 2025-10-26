@@ -61,10 +61,12 @@ interface jsPDFWithAutoTable extends jsPDF {
 }
 
 const emptyKurikulum: Omit<Kitab, 'id'> = {
-  kelas: '10',
+  kelas: '0',
   mataPelajaran: '',
   kitab: ''
 };
+
+const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
 export default function KurikulumPage() {
   const [kitabPelajaran, setKitabPelajaran] = useState<Kitab[]>(
@@ -173,7 +175,7 @@ export default function KurikulumPage() {
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">Semua Kelas</SelectItem>
-                    {availableKelas.map(kelas => (
+                    {KELAS_OPTIONS.map(kelas => (
                         <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
                     ))}
                 </SelectContent>
@@ -245,7 +247,7 @@ export default function KurikulumPage() {
                   <SelectValue placeholder="Pilih Kelas" />
                 </SelectTrigger>
                 <SelectContent>
-                   {['10','11','12'].map(kelas => (
+                   {KELAS_OPTIONS.map(kelas => (
                         <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
                     ))}
                 </SelectContent>

@@ -53,21 +53,21 @@ export const teachers: Teacher[] = [
 ];
 
 export const students = [
-  { id: 'VS-001', name: 'Ahmad Abdullah', grade: '12 IPA 1' },
-  { id: 'VS-002', name: 'Bella Christina', grade: '12 IPS 2' },
-  { id: 'VS-003', name: 'Charlie Darmawan', grade: '11 IPA 1' },
-  { id: 'VS-004', name: 'Diana Puspita', grade: '11 IPS 3' },
-  { id: 'VS-005', name: 'Fahri Hidayat', grade: '10-A' },
-  { id: 'VS-006', name: 'Gita Amelia', grade: '10-B' },
-  { id: 'VS-007', name: 'Hasan Basri', grade: '12 IPA 2' },
-  { id: 'VS-008', name: 'Indah Permata', grade: '11 IPS 1' },
-  { id: 'VS-009', name: 'Joko Susilo', grade: '10-C' },
-  { id: 'VS-010', name: 'Kartika Sari', grade: '12 IPS 1' },
-  { id: 'VS-011', name: 'Lina Marlina', grade: '10-A' },
-  { id: 'VS-012', name: 'Muhammad Rafi', grade: '11 IPA 2' },
-  { id: 'VS-013', name: 'Nadia Putri', grade: '12 IPS 1' },
-  { id: 'VS-014', name: 'Oscar Wijaya', grade: '10-B' },
-  { id: 'VS-015', name: 'Putri Ayu', grade: '11 IPS 2' },
+  { id: 'VS-001', name: 'Ahmad Abdullah', grade: '6' },
+  { id: 'VS-002', name: 'Bella Christina', grade: '6' },
+  { id: 'VS-003', name: 'Charlie Darmawan', grade: '5' },
+  { id: 'VS-004', name: 'Diana Puspita', grade: '5' },
+  { id: 'VS-005', name: 'Fahri Hidayat', grade: '1' },
+  { id: 'VS-006', name: 'Gita Amelia', grade: '1' },
+  { id: 'VS-007', name: 'Hasan Basri', grade: '6' },
+  { id: 'VS-008', name: 'Indah Permata', grade: '5' },
+  { id: 'VS-009', name: 'Joko Susilo', grade: '0' },
+  { id: 'VS-010', name: 'Kartika Sari', grade: '6' },
+  { id: 'VS-011', name: 'Lina Marlina', grade: '1' },
+  { id: 'VS-012', name: 'Muhammad Rafi', grade: '5' },
+  { id: 'VS-013', name: 'Nadia Putri', grade: '6' },
+  { id: 'VS-014', name: 'Oscar Wijaya', grade: '0' },
+  { id: 'VS-015', name: 'Putri Ayu', grade: '5' },
 ];
 
 export type DetailedStudent = {
@@ -215,15 +215,16 @@ export const alumni: DetailedStudent[] = [
 
 
 export const kitabPelajaran = [
-  { kelas: '10', mataPelajaran: 'Fiqih', kitab: 'Fathul Qorib' },
-  { kelas: '10', mataPelajaran: 'Hadits', kitab: 'Arbain Nawawi' },
-  { kelas: '10', mataPelajaran: 'Akhlak', kitab: 'Taisirul Khallaq' },
-  { kelas: '11', mataPelajaran: 'Fiqih', kitab: 'Fathul Mu\'in' },
-  { kelas: '11', mataPelajaran: 'Hadits', kitab: 'Riyadhus Shalihin' },
-  { kelas: '11', mataPelajaran: 'Tasawuf', kitab: 'Al-Hikam' },
-  { kelas: '12', mataPelajaran: 'Ushul Fiqih', kitab: 'Al-Waraqat' },
-  { kelas: '12', mataPelajaran: 'Tafsir', kitab: 'Tafsir Jalalain' },
-  { kelas: '12', mataPelajaran: 'Balaghah', kitab: 'Jauharul Maknun' },
+  { kelas: '0', mataPelajaran: 'Iqro', kitab: 'Iqro 1' },
+  { kelas: '1', mataPelajaran: 'Fiqih', kitab: 'Safinatun Najah' },
+  { kelas: '1', mataPelajaran: 'Hadits', kitab: 'Arbain Nawawi' },
+  { kelas: '2', mataPelajaran: 'Akhlak', kitab: 'Taisirul Khallaq' },
+  { kelas: '3', mataPelajaran: 'Fiqih', kitab: 'Fathul Qorib' },
+  { kelas: '4', mataPelajaran: 'Hadits', kitab: 'Bulughul Maram' },
+  { kelas: '5', mataPelajaran: 'Tasawuf', kitab: 'Al-Hikam' },
+  { kelas: '6', mataPelajaran: 'Ushul Fiqih', kitab: 'Al-Waraqat' },
+  { kelas: '6', mataPelajaran: 'Tafsir', kitab: 'Tafsir Jalalain' },
+  { kelas: '6', mataPelajaran: 'Balaghah', kitab: 'Jauharul Maknun' },
 ];
 
 export type Jadwal = {
@@ -236,8 +237,8 @@ export type Jadwal = {
 };
 
 export const jadwalPelajaran: Jadwal[] = [
-    { id: 1, hari: 'Senin', kelas: '10', mataPelajaran: 'Fiqih', guruId: 1, jam: '14:00 - 15:00' },
-    { id: 2, hari: 'Senin', kelas: '11', mataPelajaran: 'Fiqih', guruId: 1, jam: '15:30 - 16:30' },
-    { id: 3, hari: 'Selasa', kelas: '10', mataPelajaran: 'Hadits', guruId: 2, jam: '14:00 - 15:00' },
-    { id: 4, hari: 'Rabu', kelas: '12', mataPelajaran: 'Tafsir', guruId: 3, jam: '15:30 - 16:30' },
+    { id: 1, hari: 'Senin', kelas: '1', mataPelajaran: 'Fiqih', guruId: 1, jam: '14:00 - 15:00' },
+    { id: 2, hari: 'Senin', kelas: '2', mataPelajaran: 'Akhlak', guruId: 1, jam: '15:30 - 16:30' },
+    { id: 3, hari: 'Selasa', kelas: '1', mataPelajaran: 'Hadits', guruId: 2, jam: '14:00 - 15:00' },
+    { id: 4, hari: 'Rabu', kelas: '6', mataPelajaran: 'Tafsir', guruId: 3, jam: '15:30 - 16:30' },
 ];

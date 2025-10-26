@@ -49,7 +49,7 @@ interface jsPDFWithAutoTable extends jsPDF {
 
 const emptyJadwal: Omit<Jadwal, 'id'> = {
   hari: 'Senin',
-  kelas: '10',
+  kelas: '0',
   mataPelajaran: '',
   guruId: 0,
   jam: '14:00 - 15:00',
@@ -57,6 +57,7 @@ const emptyJadwal: Omit<Jadwal, 'id'> = {
 
 const HARI_OPERASIONAL = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const JAM_PELAJARAN = ['14:00 - 15:00', '15:30 - 16:30'];
+const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
 export default function JadwalPage() {
   const [jadwal, setJadwal] = useState<Jadwal[]>(initialJadwal);
@@ -64,9 +65,8 @@ export default function JadwalPage() {
   const [jadwalToEdit, setJadwalToEdit] = useState<Jadwal | null>(null);
   const [jadwalToDelete, setJadwalToDelete] = useState<Jadwal | null>(null);
   const [formData, setFormData] = useState<Omit<Jadwal, 'id'>>(emptyJadwal);
-  const [defaultSlotData, setDefaultSlotData] = useState<Partial<Omit<Jadwal, 'id'>>>({});
 
-  const [selectedKelas, setSelectedKelas] = useState('10');
+  const [selectedKelas, setSelectedKelas] = useState('0');
 
   const availableKelas = useMemo(() => {
      const kelasSet = new Set(initialJadwal.map(j => j.kelas));
@@ -138,10 +138,11 @@ export default function JadwalPage() {
 
     doc.text(`Jadwal Pelajaran - Kelas ${selectedKelas}`, 20, 10);
     doc.autoTable({
-      head: [['Hari', 'Jam', 'Mata Pelajaran', 'Guru']],
+      head: [['Hari', 'Jam', 'Keterangan', 'Mata Pelajaran', 'Guru']],
       body: dataToExport.map((item: Jadwal) => [
         item.hari,
         item.jam,
+        item.jam === JAM_PELAJARAN[0] ? 'Jam Pertama' : 'Jam Kedua',
         item.mataPelajaran,
         getTeacherName(item.guruId),
       ]),
@@ -161,13 +162,18 @@ export default function JadwalPage() {
         ))}
         
         {/* Rows */}
-        {JAM_PELAJARAN.map(jam => (
+        {JAM_PELAJARAN.map((jam, index) => (
           <React.Fragment key={jam}>
-            <div className="bg-card p-2 text-center font-semibold flex items-center justify-center">{jam}</div>
+            <div className={cn("p-2 text-center font-semibold flex items-center justify-center", index % 2 === 0 ? "bg-card" : "bg-muted/50")}>
+              <div>
+                <p>{jam}</p>
+                <p className="text-xs font-normal text-muted-foreground">{index === 0 ? 'Jam Pertama' : 'Jam Kedua'}</p>
+              </div>
+            </div>
             {HARI_OPERASIONAL.map(hari => {
               const itemJadwal = jadwalKelas.find(j => j.hari === hari && j.jam === jam);
               return (
-                <div key={`${hari}-${jam}`} className="bg-card p-2 min-h-[120px]">
+                <div key={`${hari}-${jam}`} className={cn("p-2 min-h-[120px]", index % 2 === 0 ? "bg-card" : "bg-muted/50")}>
                   {itemJadwal ? (
                     <Card className="h-full flex flex-col justify-between bg-secondary/30 group relative">
                        <CardHeader className="p-2 pb-0">
@@ -244,7 +250,7 @@ export default function JadwalPage() {
                         <SelectValue placeholder="Filter Kelas" />
                     </SelectTrigger>
                     <SelectContent>
-                        {availableKelas.map(kelas => (
+                        {KELAS_OPTIONS.map(kelas => (
                             <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
                         ))}
                     </SelectContent>
@@ -285,7 +291,7 @@ export default function JadwalPage() {
                   <SelectValue placeholder="Pilih Kelas" />
                 </SelectTrigger>
                 <SelectContent>
-                   {availableKelas.map(kelas => (
+                   {KELAS_OPTIONS.map(kelas => (
                         <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
                     ))}
                 </SelectContent>
