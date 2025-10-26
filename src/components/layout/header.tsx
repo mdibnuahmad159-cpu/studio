@@ -5,7 +5,7 @@ import { Menu, School } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 
@@ -59,6 +59,12 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Menu</SheetTitle>
+                <SheetDescription>
+                  Navigasi utama situs. Pilih tautan untuk berpindah ke halaman lain.
+                </SheetDescription>
+              </SheetHeader>
               <div className="flex flex-col p-6">
                 <Link href="/" className="mb-8 flex items-center gap-2" onClick={() => setIsOpen(false)}>
                   <School className="h-6 w-6 text-primary" />
