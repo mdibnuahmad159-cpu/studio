@@ -24,6 +24,7 @@ const navLinks = [
   { href: '/kelas', label: 'Data Kelas' },
   { href: '/alumni', label: 'Data Alumni' },
   { href: '/kurikulum', label: 'Kurikulum' },
+  { href: '/jadwal', label: 'Jadwal' },
 ];
 
 export function Header() {

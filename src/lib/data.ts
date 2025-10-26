@@ -236,3 +236,19 @@ export const kitabPelajaran = [
   { kelas: '12', mataPelajaran: 'Tafsir', kitab: 'Tafsir Jalalain' },
   { kelas: '12', mataPelajaran: 'Balaghah', kitab: 'Jauharul Maknun' },
 ];
+
+export type Jadwal = {
+  id: number;
+  hari: string;
+  kelas: string;
+  mataPelajaran: string;
+  guruId: number;
+  jam: string;
+};
+
+export const jadwalPelajaran: Jadwal[] = [
+    { id: 1, hari: 'Senin', kelas: '10', mataPelajaran: 'Fiqih', guruId: 1, jam: '07:00 - 08:30' },
+    { id: 2, hari: 'Senin', kelas: '11', mataPelajaran: 'Fiqih', guruId: 1, jam: '09:00 - 10:30' },
+    { id: 3, hari: 'Selasa', kelas: '10', mataPelajaran: 'Hadits', guruId: 2, jam: '07:00 - 08:30' },
+    { id: 4, hari: 'Rabu', kelas: '12', mataPelajaran: 'Tafsir', guruId: 3, jam: '09:00 - 10:30' },
+];
