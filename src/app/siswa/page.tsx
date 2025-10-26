@@ -31,7 +31,7 @@ interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-const emptyStudent: Omit<DetailedStudent, 'fileDokumen'> & { fileDokumen: string } = {
+const emptyStudent: Omit<DetailedStudent, 'fileDokumen'> & { fileDokumen: File | null | string } = {
   nama: '',
   nis: '',
   jenisKelamin: 'Laki-laki',
@@ -40,7 +40,7 @@ const emptyStudent: Omit<DetailedStudent, 'fileDokumen'> & { fileDokumen: string
   namaAyah: '',
   namaIbu: '',
   alamat: '',
-  fileDokumen: '',
+  fileDokumen: null,
 };
 
 export default function SiswaPage() {
@@ -53,15 +53,35 @@ export default function SiswaPage() {
     setNewStudent(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setNewStudent(prev => ({ ...prev, fileDokumen: file }));
+    }
+  };
+
   const handleRadioChange = (value: 'Laki-laki' | 'Perempuan') => {
     setNewStudent(prev => ({ ...prev, jenisKelamin: value }));
   };
   
   const handleAddStudent = () => {
-    const studentToAdd = {
-        ...newStudent,
+    let fileUrl = '/path/to/default.pdf';
+    if (newStudent.fileDokumen instanceof File) {
+      fileUrl = URL.createObjectURL(newStudent.fileDokumen);
+    } else if (typeof newStudent.fileDokumen === 'string' && newStudent.fileDokumen) {
+      fileUrl = newStudent.fileDokumen;
+    }
+
+    const studentToAdd: DetailedStudent = {
+        nama: newStudent.nama,
         nis: newStudent.nis || `N-${Date.now()}`,
-        fileDokumen: newStudent.fileDokumen || '/path/to/default.pdf',
+        jenisKelamin: newStudent.jenisKelamin,
+        tempatLahir: newStudent.tempatLahir,
+        tanggalLahir: newStudent.tanggalLahir,
+        namaAyah: newStudent.namaAyah,
+        namaIbu: newStudent.namaIbu,
+        alamat: newStudent.alamat,
+        fileDokumen: fileUrl,
     };
     setStudents(prev => [...prev, studentToAdd]);
     setNewStudent(emptyStudent);
@@ -199,8 +219,8 @@ export default function SiswaPage() {
                 <Input id="alamat" name="alamat" value={newStudent.alamat} onChange={handleInputChange} />
             </div>
              <div className="space-y-2">
-                <Label htmlFor="fileDokumen">URL Dokumen</Label>
-                <Input id="fileDokumen" name="fileDokumen" value={newStudent.fileDokumen} onChange={handleInputChange} />
+                <Label htmlFor="fileDokumen">File Dokumen</Label>
+                <Input id="fileDokumen" name="fileDokumen" type="file" onChange={handleFileChange} />
             </div>
           </div>
           <DialogFooter>
