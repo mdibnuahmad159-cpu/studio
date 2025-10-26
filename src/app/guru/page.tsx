@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -14,28 +15,27 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { PlusCircle } from 'lucide-react';
 
 export default function GuruPage() {
   const [teachers, setTeachers] = useState<Teacher[]>(initialTeachers);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newTeacher, setNewTeacher] = useState({ name: '', subject: '', bio: '' });
+  const [newTeacher, setNewTeacher] = useState({ name: '', position: '', whatsapp: '' });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setNewTeacher(prev => ({ ...prev, [name]: value }));
   };
 
   const handleAddTeacher = () => {
-    if (newTeacher.name && newTeacher.subject && newTeacher.bio) {
+    if (newTeacher.name && newTeacher.position && newTeacher.whatsapp) {
       const newTeacherData: Teacher = {
         id: teachers.length > 0 ? Math.max(...teachers.map(t => t.id)) + 1 : 1,
         ...newTeacher,
         imageId: null,
       };
       setTeachers(prev => [...prev, newTeacherData]);
-      setNewTeacher({ name: '', subject: '', bio: '' });
+      setNewTeacher({ name: '', position: '', whatsapp: '' });
       setIsDialogOpen(false);
     }
   };
@@ -86,16 +86,16 @@ export default function GuruPage() {
               <Input id="name" name="name" value={newTeacher.name} onChange={handleInputChange} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="subject" className="text-right">
-                Mata Pelajaran
+              <Label htmlFor="position" className="text-right">
+                Jabatan
               </Label>
-              <Input id="subject" name="subject" value={newTeacher.subject} onChange={handleInputChange} className="col-span-3" />
+              <Input id="position" name="position" value={newTeacher.position} onChange={handleInputChange} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="bio" className="text-right">
-                Bio
+              <Label htmlFor="whatsapp" className="text-right">
+                No. WhatsApp
               </Label>
-              <Textarea id="bio" name="bio" value={newTeacher.bio} onChange={handleInputChange} className="col-span-3" />
+              <Input id="whatsapp" name="whatsapp" type="tel" value={newTeacher.whatsapp} onChange={handleInputChange} className="col-span-3" />
             </div>
           </div>
           <DialogFooter>

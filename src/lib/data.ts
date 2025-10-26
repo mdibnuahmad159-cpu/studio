@@ -1,45 +1,54 @@
-export const teachers = [
+
+export type Teacher = {
+  id: number;
+  name: string;
+  position: string;
+  whatsapp: string;
+  imageId: string | null;
+};
+
+export const teachers: Teacher[] = [
   {
     id: 1,
     name: 'Budi Santoso, M.Pd.',
-    subject: 'Kepala Sekolah, Matematika',
-    imageId: 'teacher-male-1',
-    bio: 'Berpengalaman lebih dari 15 tahun dalam dunia pendidikan dan berkomitmen untuk menciptakan lingkungan belajar yang inspiratif.'
+    position: 'Kepala Sekolah, Matematika',
+    whatsapp: '6281234567890',
+    imageId: 'teacher-male-1'
   },
   {
     id: 2,
     name: 'Citra Lestari, S.S.',
-    subject: 'Bahasa Inggris',
-    imageId: 'teacher-female-1',
-    bio: 'Lulusan Sastra Inggris dengan predikat cum laude, memiliki sertifikasi mengajar internasional.'
+    position: 'Guru Bahasa Inggris',
+    whatsapp: '6281234567891',
+    imageId: 'teacher-female-1'
   },
   {
     id: 3,
     name: 'Agus Wijaya, S.Kom.',
-    subject: 'Teknologi Informasi',
-    imageId: 'teacher-male-2',
-    bio: 'Praktisi IT yang beralih ke dunia pendidikan untuk mempersiapkan generasi digital.'
+    position: 'Guru Teknologi Informasi',
+    whatsapp: '6281234567892',
+    imageId: 'teacher-male-2'
   },
   {
     id: 4,
     name: 'Dewi Anjani, S.Si.',
-    subject: 'Sains (Fisika, Kimia)',
-    imageId: 'teacher-female-2',
-    bio: 'Memiliki semangat tinggi dalam membuat sains menjadi pelajaran yang menyenangkan dan mudah dipahami.'
+    position: 'Guru Sains (Fisika, Kimia)',
+    whatsapp: '6281234567893',
+    imageId: 'teacher-female-2'
   },
   {
     id: 5,
     name: 'Eko Prasetyo, S.Pd.',
-    subject: 'Pendidikan Jasmani',
-    imageId: 'teacher-male-3',
-    bio: 'Mantan atlet nasional yang berdedikasi untuk membangun karakter dan kesehatan siswa melalui olahraga.'
+    position: 'Guru Pendidikan Jasmani',
+    whatsapp: '6281234567894',
+    imageId: 'teacher-male-3'
   },
   {
     id: 6,
     name: 'Fitriani, S.Sn.',
-    subject: 'Seni Budaya',
-    imageId: 'teacher-female-3',
-    bio: 'Seniman multi-talenta yang menginspirasi siswa untuk berekspresi secara kreatif.'
+    position: 'Guru Seni Budaya',
+    whatsapp: '6281234567895',
+    imageId: 'teacher-female-3'
   },
 ];
 
@@ -93,11 +102,3 @@ export const extracurricular = [
         activities: ["Klub Robotik", "Olimpiade Sains", "Debat Bahasa Inggris", "Klub Jurnalistik"]
     }
 ];
-
-export type Teacher = {
-  id: number;
-  name: string;
-  subject: string;
-  imageId: string | null;
-  bio: string;
-};
