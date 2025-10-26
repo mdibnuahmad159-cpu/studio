@@ -54,9 +54,6 @@ export function Header() {
           </nav>
         </div>
         
-        <div className="absolute left-1/2 -translate-x-1/2">
-            <span className="font-headline text-xl font-bold text-primary">IBNU AHMAD APP</span>
-        </div>
 
         <div className="hidden md:block">
             <Button asChild size="sm" variant="outline">

@@ -1,12 +1,11 @@
 
-import { Facebook, Twitter, Instagram } from 'lucide-react';
 import Link from 'next/link';
 
 export function Footer() {
   return (
     <footer className="bg-secondary text-secondary-foreground hidden md:block">
       <div className="container py-12">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           <div className="md:col-span-1">
             <Link href="/" className="flex items-center gap-2">
               <span className="font-headline text-2xl font-bold text-primary">IBNU AHMAD APP</span>
@@ -23,22 +22,6 @@ export function Footer() {
               <li><Link href="/kurikulum" className="text-sm text-muted-foreground hover:text-primary">Kurikulum</Link></li>
               <li><Link href="/pendaftaran" className="text-sm text-muted-foreground hover:text-primary">Pendaftaran</Link></li>
             </ul>
-          </div>
-          <div>
-            <h3 className="font-headline font-semibold">Hubungi Kami</h3>
-            <address className="mt-4 not-italic text-sm space-y-2 text-muted-foreground">
-              <p>Jl. Pendidikan No. 123, Jakarta</p>
-              <p>Email: <a href="mailto:info@ibnuahmadapp.sch.id" className="hover:text-primary">info@ibnuahmadapp.sch.id</a></p>
-              <p>Telp: (021) 123-4567</p>
-            </address>
-          </div>
-          <div>
-            <h3 className="font-headline font-semibold">Ikuti Kami</h3>
-            <div className="mt-4 flex space-x-4">
-              <a href="#" aria-label="Facebook" className="text-muted-foreground hover:text-primary"><Facebook /></a>
-              <a href="#" aria-label="Twitter" className="text-muted-foreground hover:text-primary"><Twitter /></a>
-              <a href="#" aria-label="Instagram" className="text-muted-foreground hover:text-primary"><Instagram /></a>
-            </div>
           </div>
         </div>
         <div className="mt-8 border-t border-border pt-8 text-center text-sm text-muted-foreground">
