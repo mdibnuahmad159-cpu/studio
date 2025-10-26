@@ -70,6 +70,66 @@ export const students = [
   { id: 'VS-015', name: 'Putri Ayu', grade: '11 IPS 2' },
 ];
 
+export type DetailedStudent = {
+  nama: string;
+  nis: string;
+  jenisKelamin: 'Laki-laki' | 'Perempuan';
+  tempatLahir: string;
+  tanggalLahir: string;
+  namaAyah: string;
+  namaIbu: string;
+  alamat: string;
+  fileDokumen: string;
+};
+
+export const detailedStudents: DetailedStudent[] = [
+  {
+    nama: 'Ahmad Abdullah',
+    nis: '2024001',
+    jenisKelamin: 'Laki-laki',
+    tempatLahir: 'Jakarta',
+    tanggalLahir: '15-05-2008',
+    namaAyah: 'Bambang',
+    namaIbu: 'Sri',
+    alamat: 'Jl. Merdeka No. 1, Jakarta',
+    fileDokumen: '/path/to/doc1.pdf',
+  },
+  {
+    nama: 'Bella Christina',
+    nis: '2024002',
+    jenisKelamin: 'Perempuan',
+    tempatLahir: 'Surabaya',
+    tanggalLahir: '22-08-2008',
+    namaAyah: 'Charles',
+    namaIbu: 'Maria',
+    alamat: 'Jl. Pahlawan No. 10, Surabaya',
+    fileDokumen: '/path/to/doc2.pdf',
+  },
+  {
+    nama: 'Charlie Darmawan',
+    nis: '2024003',
+    jenisKelamin: 'Laki-laki',
+    tempatLahir: 'Bandung',
+    tanggalLahir: '01-12-2009',
+    namaAyah: 'Darmawan',
+    namaIbu: 'Eka',
+    alamat: 'Jl. Asia Afrika No. 30, Bandung',
+    fileDokumen: '/path/to/doc3.pdf',
+  },
+  {
+    nama: 'Diana Puspita',
+    nis: '2024004',
+    jenisKelamin: 'Perempuan',
+    tempatLahir: 'Medan',
+    tanggalLahir: '19-03-2009',
+    namaAyah: 'Franky',
+    namaIbu: 'Grace',
+    alamat: 'Jl. Gatot Subroto No. 5, Medan',
+    fileDokumen: '/path/to/doc4.pdf',
+  },
+];
+
+
 export const kitabPelajaran = [
   { kelas: '10', mataPelajaran: 'Fiqih', kitab: 'Fathul Qorib' },
   { kelas: '10', mataPelajaran: 'Hadits', kitab: 'Arbain Nawawi' },

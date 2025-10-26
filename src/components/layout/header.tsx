@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Menu, School } from 'lucide-react';
+import { Menu, School, UserCircle } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,6 @@ const navLinks = [
   { href: '/guru', label: 'Data Guru' },
   { href: '/siswa', label: 'Data Siswa' },
   { href: '/kurikulum', label: 'Kurikulum' },
-  { href: '/pendaftaran', label: 'Pendaftaran' },
 ];
 
 export function Header() {
@@ -46,8 +45,11 @@ export function Header() {
         </nav>
 
         <div className="hidden md:block">
-            <Button asChild size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-              <Link href="/pendaftaran">Daftar</Link>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/pendaftaran">
+                <UserCircle className="mr-2 h-4 w-4" />
+                Pendaftaran
+              </Link>
             </Button>
         </div>
 
@@ -60,7 +62,7 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-              <SheetHeader>
+               <SheetHeader>
                 <SheetTitle className="sr-only">Menu</SheetTitle>
                 <SheetDescription className="sr-only">
                   Navigasi utama situs. Pilih tautan untuk berpindah ke halaman lain.
@@ -86,7 +88,7 @@ export function Header() {
                     </Link>
                   ))}
                 </nav>
-                 <Button asChild size="lg" className="mt-8 bg-accent hover:bg-accent/90 text-accent-foreground">
+                 <Button asChild size="lg" className="mt-8 bg-primary hover:bg-primary/90">
                     <Link href="/pendaftaran" onClick={() => setIsOpen(false)}>Daftar Sekarang</Link>
                 </Button>
               </div>
