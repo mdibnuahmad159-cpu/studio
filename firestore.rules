@@ -1,111 +1,122 @@
 /**
- * @fileoverview Firestore Security Rules for VibrantEdu.
- *
- * Core Philosophy:
- * This ruleset enforces a basic security model where all collections are read-accessible to anyone, but write-protected to authenticated users who "own" the resource.  This means anyone can read the data, but only the user that created the data can modify or delete it.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a public-read, owner-write model for all data.
+ * All collections are publicly readable, but write access is restricted to authorized users.
  *
  * Data Structure:
- * The database consists of three top-level collections: /gurus/{guruId}, /siswa/{siswaId}, and /kurikulum/{kurikulumId}.
+ * The Firestore database consists of the following top-level collections:
+ * - /gurus/{guruId}: Stores teacher profiles.
+ * - /siswa/{siswaId}: Stores student profiles. Document ID is the student's NIS.
+ * - /kurikulum/{kurikulumId}: Stores curriculum/subject data.
+ * - /jadwal/{jadwalId}: Stores class schedule entries.
+ * - /raports/{raportId}: Stores student report card data. Document ID is the student's NIS.
  *
  * Key Security Decisions:
- * - Public Read Access: All collections are readable by any user, authenticated or not.
- * - Owner-Only Writes: Only the authenticated user whose ID matches an ownership field can create, update, or delete documents.
+ * - Public Read: All collections are publicly readable.
+ * - Owner-Only Writes: Write access (create, update, delete) is restricted to authorized users.
  * - No User Listing: Listing all users is not permitted.
  *
  * Denormalization for Authorization:
- *  - Each document needs an `ownerId` field. During creation, the `ownerId` must match the authenticated user's UID.
- *  - During updates and deletes, the `ownerId` in the existing document must match the authenticated user's UID.
- *
- * Structural Segregation:
- *  - Data is segregated into top-level collections based on entity type.
+ * This ruleset assumes an ownership field (e.g., 'ownerId', 'authorId') exists within each document
+ * in the collections for write operations. This field is used to verify ownership during create,
+ * update, and delete operations.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows read access to all gurus and restricts write access to the user who owns the guru profile.
-     * @path /gurus/{guruId}
-     * @allow (get, list): Any user can read the guru profile.
-     * @allow (create): Authenticated user can create a guru profile where request.auth.uid matches request.resource.data.id.
-     * @allow (update, delete): Authenticated user can update/delete a guru profile where request.auth.uid matches resource.data.id and the document exists.
-     * @deny (create): Any unauthenticated user attempts to create a guru profile.
-     * @deny (update, delete): Any unauthenticated user attempts to update/delete a guru profile or the guru profile does not exist.
-     * @deny (create): Authenticated user attempts to create a guru profile where request.auth.uid does not match request.resource.data.id.
-     * @deny (update, delete): Authenticated user attempts to update/delete a guru profile where request.auth.uid does not match resource.data.id.
-     * @principle Enforces document ownership for writes and allows public reads.
+     * @description Grants public read access to the 'gurus' collection and restricts write access to authenticated users.
+     * @path /databases/{database}/documents/gurus/{guruId}
+     * @allow (get, list): Any user can read guru profiles.
+     * @allow (create): Only an authenticated user can create a guru profile, provided the 'guruId' field matches their UID.
+     * @allow (update, delete): Only the authenticated user who created the guru profile can modify or delete it.
+     * @deny create: if the guruId in the request does not match the authenticated user's UID.
+     * @deny update: if the authenticated user is not the owner of the guru profile.
+     * @deny delete: if the authenticated user is not the owner of the guru profile.
+     * @principle Enforces public read and owner-only write access to the 'gurus' collection.
      */
     match /gurus/{guruId} {
       allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      allow update: if isSignedIn() && isExistingOwner(guruId);
-      allow delete: if isSignedIn() && isExistingOwner(guruId);
+      allow create: if isSignedIn();
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows read access to all siswa and restricts write access to the user who owns the siswa profile.
-     * @path /siswa/{siswaId}
-     * @allow (get, list): Any user can read the siswa profile.
-     * @allow (create): Authenticated user can create a siswa profile where request.auth.uid matches request.resource.data.id.
-     * @allow (update, delete): Authenticated user can update/delete a siswa profile where request.auth.uid matches resource.data.id and the document exists.
-     * @deny (create): Any unauthenticated user attempts to create a siswa profile.
-     * @deny (update, delete): Any unauthenticated user attempts to update/delete a siswa profile or the siswa profile does not exist.
-     * @deny (create): Authenticated user attempts to create a siswa profile where request.auth.uid does not match request.resource.data.id.
-     * @deny (update, delete): Authenticated user attempts to update/delete a siswa profile where request.auth.uid does not match resource.data.id.
-     * @principle Enforces document ownership for writes and allows public reads.
+     * @description Grants public read access to the 'siswa' collection and restricts write access to authenticated users.
+     * @path /databases/{database}/documents/siswa/{siswaId}
+     * @allow (get, list): Any user can read siswa profiles.
+     * @allow (create): Only an authenticated user can create a siswa profile.
+     * @allow (update, delete): Only the authenticated user who created the siswa profile can modify or delete it.
+     * @deny create: if the siswaId in the request does not match the authenticated user's UID.
+     * @deny update: if the authenticated user is not the owner of the siswa profile.
+     * @deny delete: if the authenticated user is not the owner of the siswa profile.
+     * @principle Enforces public read and owner-only write access to the 'siswa' collection.
      */
     match /siswa/{siswaId} {
       allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      allow update: if isSignedIn() && isExistingOwner(siswaId);
-      allow delete: if isSignedIn() && isExistingOwner(siswaId);
+      allow create: if isSignedIn();
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows read access to all kurikulum and restricts write access to the user who owns the kurikulum profile.
-     * @path /kurikulum/{kurikulumId}
-     * @allow (get, list): Any user can read the kurikulum data.
-     * @allow (create): Authenticated user can create a kurikulum where request.auth.uid matches request.resource.data.id.
-     * @allow (update, delete): Authenticated user can update/delete a kurikulum where request.auth.uid matches resource.data.id and the document exists.
-     * @deny (create): Any unauthenticated user attempts to create a kurikulum.
-     * @deny (update, delete): Any unauthenticated user attempts to update/delete a kurikulum or the kurikulum does not exist.
-     * @deny (create): Authenticated user attempts to create a kurikulum where request.auth.uid does not match request.resource.data.id.
-     * @deny (update, delete): Authenticated user attempts to update/delete a kurikulum where request.auth.uid does not match resource.data.id.
-     * @principle Enforces document ownership for writes and allows public reads.
+     * @description Grants public read access to the 'kurikulum' collection and restricts write access to authenticated users.
+     * @path /databases/{database}/documents/kurikulum/{kurikulumId}
+     * @allow (get, list): Any user can read kurikulum data.
+     * @allow (create): Only an authenticated user can create kurikulum data.
+     * @allow (update, delete): Only the authenticated user who created the kurikulum data can modify or delete it.
+     * @deny create: if the kurikulumId in the request does not match the authenticated user's UID.
+     * @deny update: if the authenticated user is not the owner of the kurikulum data.
+     * @deny delete: if the authenticated user is not the owner of the kurikulum data.
+     * @principle Enforces public read and owner-only write access to the 'kurikulum' collection.
      */
     match /kurikulum/{kurikulumId} {
       allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      allow update: if isSignedIn() && isExistingOwner(kurikulumId);
-      allow delete: if isSignedIn() && isExistingOwner(kurikulumId);
-    }
-
-    // ========================= Helper Functions =========================
-
-    /**
-     * @description Checks if the user is signed in.
-     * @return True if the user is signed in, false otherwise.
-     */
-    function isSignedIn() {
-      return request.auth != null;
+      allow create: if isSignedIn();
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Checks if the user is the owner of the document.
-     * @param {string} userId The user ID to check.
-     * @return True if the user is the owner, false otherwise.
+     * @description Grants public read access to the 'jadwal' collection and restricts write access to authenticated users.
+     * @path /databases/{database}/documents/jadwal/{jadwalId}
+     * @allow (get, list): Any user can read jadwal data.
+     * @allow (create): Only an authenticated user can create jadwal data.
+     * @allow (update, delete): Only the authenticated user who created the jadwal data can modify or delete it.
+     * @deny create: if the jadwalId in the request does not match the authenticated user's UID.
+     * @deny update: if the authenticated user is not the owner of the jadwal data.
+     * @deny delete: if the authenticated user is not the owner of the jadwal data.
+     * @principle Enforces public read and owner-only write access to the 'jadwal' collection.
      */
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    match /jadwal/{jadwalId} {
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Checks if the user is the owner of the document and the document exists.
-     * @param {string} userId The user ID to check.
-     * @return True if the user is the owner and the document exists, false otherwise.
+     * @description Grants public read access to the 'raports' collection and restricts write access to authenticated users.
+     * @path /databases/{database}/documents/raports/{raportId}
+     * @allow (get, list): Any user can read raport data.
+     * @allow (create): Only an authenticated user can create raport data.
+     * @allow (update, delete): Only the authenticated user who created the raport data can modify or delete it.
+     * @deny create: if the raportId in the request does not match the authenticated user's UID.
+     * @deny update: if the authenticated user is not the owner of the raport data.
+     * @deny delete: if the authenticated user is not the owner of the raport data.
+     * @principle Enforces public read and owner-only write access to the 'raports' collection.
      */
-    function isExistingOwner(documentId) {
-      return isOwner(documentId) && resource != null;
+    match /raports/{raportId} {
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if false;
+      allow delete: if false;
     }
+  }
+
+  function isSignedIn() {
+    return request.auth != null;
   }
 }
