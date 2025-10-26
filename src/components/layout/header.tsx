@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Menu, School, UserCircle } from 'lucide-react';
+import { Menu, School, UserCircle, Users, GraduationCap } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,8 @@ const navLinks = [
   { href: '/', label: 'Dasbor' },
   { href: '/guru', label: 'Data Guru' },
   { href: '/siswa', label: 'Data Siswa' },
+  { href: '/kelas', label: 'Data Kelas' },
+  { href: '/alumni', label: 'Data Alumni' },
   { href: '/kurikulum', label: 'Kurikulum' },
 ];
 

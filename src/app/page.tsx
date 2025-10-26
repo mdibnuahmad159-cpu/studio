@@ -3,17 +3,18 @@
 
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowUpRight, BookOpen, Users, UserCircle } from 'lucide-react';
-import { teachers, students, kitabPelajaran } from '@/lib/data';
+import { ArrowUpRight, BookOpen, Users, UserCircle, GraduationCap } from 'lucide-react';
+import { teachers, detailedStudents, kitabPelajaran, alumni } from '@/lib/data';
 
 export default function DashboardPage() {
-  const totalStudents = students.length;
+  const totalStudents = detailedStudents.filter(s => s.status === 'Aktif').length;
   const totalTeachers = teachers.length;
   const totalSubjects = kitabPelajaran.length;
+  const totalAlumni = alumni.length;
 
   const stats = [
     {
-      title: 'Total Siswa',
+      title: 'Total Siswa Aktif',
       value: `${totalStudents} Siswa`,
       icon: UserCircle,
       href: '/siswa',
@@ -33,11 +34,18 @@ export default function DashboardPage() {
       href: '/kurikulum',
       description: 'Jumlah kitab yang dipelajari',
     },
+     {
+      title: 'Total Alumni',
+      value: `${totalAlumni} Lulusan`,
+      icon: GraduationCap,
+      href: '/alumni',
+      description: 'Jumlah alumni yang telah lulus',
+    },
   ];
 
   return (
     <div className="bg-gray-50 dark:bg-gray-900 md:bg-background">
-      <div className="container mx-auto max-w-4xl py-8 md:py-12">
+      <div className="container mx-auto max-w-5xl py-8 md:py-12">
         {/* Header */}
         <div className="mb-8 text-center">
              <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Statistik Sekolah</h1>
@@ -47,7 +55,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 px-4 md:px-0">
           {stats.map((stat, index) => (
             <Card key={index} className="bg-card shadow-lg hover:shadow-xl transition-shadow rounded-2xl md:rounded-lg flex flex-col">
               <CardHeader className="flex flex-row items-center justify-between pb-2">

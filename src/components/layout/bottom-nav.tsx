@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, BookMarked, UserCircle } from 'lucide-react';
+import { Home, Users, BookMarked, UserCircle, GraduationCap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
@@ -11,6 +11,7 @@ const navLinks = [
   { href: '/kurikulum', label: 'Kurikulum', icon: BookMarked },
   { href: '/guru', label: 'Guru', icon: Users },
   { href: '/siswa', label: 'Siswa', icon: UserCircle },
+  { href: '/kelas', label: 'Kelas', icon: GraduationCap },
 ];
 
 export function BottomNav() {
