@@ -115,7 +115,7 @@ export default function SiswaPage() {
               Data Siswa
             </h1>
             <p className="mt-4 max-w-4xl mx-auto sm:mx-0 text-lg text-muted-foreground">
-              Informasi detail mengenai siswa yang terdaftar di VibrantEdu.
+              Informasi detail mengenai siswa yang terdaftar di IBNU AHMAD APP.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -232,5 +232,3 @@ export default function SiswaPage() {
     </div>
   );
 }
-
-    

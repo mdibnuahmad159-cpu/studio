@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { BottomNav } from '@/components/layout/bottom-nav';
 
 export const metadata: Metadata = {
-  title: 'VibrantEdu',
+  title: 'IBNU AHMAD APP',
   description: 'Sekolah Modern dan Inovatif',
 };
 

@@ -35,7 +35,7 @@ export function Header() {
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-2">
             <School className="h-6 w-6 text-primary" />
-            <span className="font-headline text-xl font-bold text-primary sr-only md:not-sr-only">VibrantEdu</span>
+            <span className="font-headline text-xl font-bold text-primary sr-only md:not-sr-only">IBNU AHMAD APP</span>
           </Link>
           <nav className="flex items-center gap-6">
             {navLinks.map((link) => (
@@ -54,7 +54,7 @@ export function Header() {
         </div>
         
         <div className="absolute left-1/2 -translate-x-1/2">
-            <span className="font-headline text-xl font-bold text-primary">VibrantEdu</span>
+            <span className="font-headline text-xl font-bold text-primary">IBNU AHMAD APP</span>
         </div>
 
         <div className="hidden md:block">
@@ -86,7 +86,7 @@ export function Header() {
             <div className="flex flex-col p-6">
               <Link href="/" className="mb-8 flex items-center gap-2" onClick={() => setIsOpen(false)}>
                 <School className="h-6 w-6 text-primary" />
-                <span className="font-headline text-xl font-bold text-primary">VibrantEdu</span>
+                <span className="font-headline text-xl font-bold text-primary">IBNU AHMAD APP</span>
               </Link>
               <nav className="flex flex-col gap-4">
                 {navLinks.map((link) => (
@@ -111,7 +111,7 @@ export function Header() {
         </Sheet>
         
         <div className="font-headline text-xl font-bold text-primary">
-          VibrantEdu
+          IBNU AHMAD APP
         </div>
 
         <Button asChild size="icon" variant="ghost">

@@ -42,7 +42,7 @@ export default function DashboardPage() {
         <div className="mb-8 text-center">
              <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Statistik Sekolah</h1>
              <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
-                Ringkasan data terkini dari sistem informasi sekolah VibrantEdu.
+                Ringkasan data terkini dari sistem informasi sekolah IBNU AHMAD APP.
              </p>
         </div>
 
@@ -56,7 +56,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent className="flex flex-col flex-grow justify-between">
                 <div>
-                    <div className="text-2xl font-bold text-primary">{stat.value}</div>
+                    <div className="text-2xl font-bold bg-gradient-primary text-transparent bg-clip-text">{stat.value}</div>
                     <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
                 </div>
                 <Link href={stat.href} className="flex items-center gap-1 text-xs text-primary hover:underline mt-4">

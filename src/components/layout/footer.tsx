@@ -10,7 +10,7 @@ export function Footer() {
           <div className="md:col-span-1">
             <Link href="/" className="flex items-center gap-2">
               <School className="h-8 w-8 text-primary" />
-              <span className="font-headline text-2xl font-bold text-primary">VibrantEdu</span>
+              <span className="font-headline text-2xl font-bold text-primary">IBNU AHMAD APP</span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground">Membentuk masa depan cerah melalui pendidikan berkualitas.</p>
           </div>
@@ -27,7 +27,7 @@ export function Footer() {
             <h3 className="font-headline font-semibold">Hubungi Kami</h3>
             <address className="mt-4 not-italic text-sm space-y-2 text-muted-foreground">
               <p>Jl. Pendidikan No. 123, Jakarta</p>
-              <p>Email: <a href="mailto:info@vibrantedu.sch.id" className="hover:text-primary">info@vibrantedu.sch.id</a></p>
+              <p>Email: <a href="mailto:info@ibnuahmadapp.sch.id" className="hover:text-primary">info@ibnuahmadapp.sch.id</a></p>
               <p>Telp: (021) 123-4567</p>
             </address>
           </div>
@@ -41,7 +41,7 @@ export function Footer() {
           </div>
         </div>
         <div className="mt-8 border-t border-border pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} VibrantEdu. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} IBNU AHMAD APP. All rights reserved.</p>
         </div>
       </div>
     </footer>
