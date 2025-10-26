@@ -15,7 +15,15 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, FileDown } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 export default function GuruPage() {
   const [teachers, setTeachers] = useState<Teacher[]>(initialTeachers);
@@ -48,6 +56,16 @@ export default function GuruPage() {
     );
   };
 
+  const handleExportPdf = () => {
+    const doc = new jsPDF();
+    doc.text('Data Tenaga Pendidik', 20, 10);
+    doc.autoTable({
+      head: [['Nama', 'Jabatan', 'No. WhatsApp']],
+      body: teachers.map((teacher: Teacher) => [teacher.name, teacher.position, teacher.whatsapp]),
+    });
+    doc.save('data-guru.pdf');
+  };
+
   return (
     <div className="bg-background">
       <div className="container py-12 md:py-20">
@@ -58,9 +76,15 @@ export default function GuruPage() {
               Bertemu dengan tim profesional yang berdedikasi untuk kesuksesan akademis dan personal siswa.
             </p>
           </div>
-          <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
-            <PlusCircle className="mr-2 h-4 w-4" /> Tambah Guru
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
+              <PlusCircle className="mr-2 h-4 w-4" /> Tambah Guru
+            </Button>
+            <Button onClick={handleExportPdf} variant="outline" className="w-full sm:w-auto">
+              <FileDown className="mr-2 h-4 w-4" />
+              Ekspor PDF
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
