@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { DetailedStudent, alumni as initialAlumni } from '@/lib/data';
+import { DetailedStudent, alumni as initialAlumni, detailedStudents } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { FileDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -43,10 +43,27 @@ interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
+// This is a mock in-memory store to sync data across pages.
+// In a real app, you would use a proper database or state management solution.
+let dataStore = {
+    alumni: initialAlumni,
+    students: detailedStudents
+};
+
 export default function AlumniPage() {
-  const [alumni, setAlumni] = useState<DetailedStudent[]>(initialAlumni);
+  const [alumni, setAlumni] = useState<DetailedStudent[]>(dataStore.alumni);
   const [selectedYear, setSelectedYear] = useState('all');
   const [alumnusToDelete, setAlumnusToDelete] = useState<DetailedStudent | null>(null);
+
+  // Effect to sync state with the mock data store on component mount and updates
+  useEffect(() => {
+    setAlumni(dataStore.alumni);
+  }, []); 
+
+  const updateAlumni = (newAlumni: DetailedStudent[]) => {
+      dataStore.alumni = newAlumni;
+      setAlumni(newAlumni);
+  };
 
   const availableYears = useMemo(() => {
     const years = new Set(alumni.map(a => a.tahunLulus).filter(Boolean));
@@ -84,7 +101,8 @@ export default function AlumniPage() {
 
   const confirmDelete = () => {
     if (alumnusToDelete) {
-      setAlumni(prev => prev.filter(s => s.nis !== alumnusToDelete.nis));
+      const newAlumni = alumni.filter(s => s.nis !== alumnusToDelete.nis);
+      updateAlumni(newAlumni);
       setAlumnusToDelete(null);
     }
   };
@@ -192,3 +210,5 @@ export default function AlumniPage() {
     </div>
   );
 }
+
+    

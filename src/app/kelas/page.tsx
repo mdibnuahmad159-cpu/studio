@@ -46,13 +46,30 @@ interface jsPDFWithAutoTable extends jsPDF {
 
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
+// This is a mock in-memory store.
+// In a real app, you'd use a database or a state management library.
+let studentDataStore = {
+  students: initialStudents.filter(s => s.status === 'Aktif'),
+  alumni: initialAlumni
+};
+
 export default function KelasPage() {
-  const [students, setStudents] = useState<DetailedStudent[]>(initialStudents.filter(s => s.status === 'Aktif'));
-  const [alumni, setAlumni] = useState<DetailedStudent[]>(initialAlumni);
+  const [students, setStudents] = useState<DetailedStudent[]>(studentDataStore.students);
+  const [alumni, setAlumni] = useState<DetailedStudent[]>(studentDataStore.alumni);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [filterKelas, setFilterKelas] = useState('all');
   const [alertInfo, setAlertInfo] = useState<{ title: string; description: string; onConfirm: () => void } | null>(null);
   const { toast } = useToast();
+
+  const updateStudents = (newStudents: DetailedStudent[]) => {
+    studentDataStore.students = newStudents;
+    setStudents(newStudents);
+  };
+  
+  const updateAlumni = (newAlumni: DetailedStudent[]) => {
+    studentDataStore.alumni = newAlumni;
+    setAlumni(newAlumni);
+  }
 
   const filteredStudents = useMemo(() => {
     let studentList = [...students];
@@ -108,7 +125,8 @@ export default function KelasPage() {
       'Naik Kelas',
       `Anda yakin ingin menaikkan ${selectedStudents.length} siswa (${studentNames}) ke kelas ${currentKelas + 1}?`,
       () => {
-        setStudents(prev => prev.map(s => selectedStudents.includes(s.nis) ? { ...s, kelas: s.kelas + 1 } : s));
+        const newStudents = students.map(s => selectedStudents.includes(s.nis) ? { ...s, kelas: s.kelas + 1 } : s);
+        updateStudents(newStudents);
         setSelectedStudents([]);
         toast({ title: 'Berhasil!', description: `${selectedStudents.length} siswa telah dinaikkan kelas.` });
       }
@@ -123,7 +141,8 @@ export default function KelasPage() {
       'Turun Kelas',
       `Anda yakin ingin menurunkan ${selectedStudents.length} siswa (${studentNames}) ke kelas ${currentKelas - 1}?`,
       () => {
-        setStudents(prev => prev.map(s => selectedStudents.includes(s.nis) ? { ...s, kelas: s.kelas - 1 } : s));
+        const newStudents = students.map(s => selectedStudents.includes(s.nis) ? { ...s, kelas: s.kelas - 1 } : s)
+        updateStudents(newStudents);
         setSelectedStudents([]);
         toast({ title: 'Berhasil!', description: `${selectedStudents.length} siswa telah diturunkan kelas.` });
       }
@@ -142,8 +161,12 @@ export default function KelasPage() {
           .filter(s => selectedStudents.includes(s.nis))
           .map(s => ({ ...s, status: 'Lulus' as const, tahunLulus: year }));
         
-        setAlumni(prev => [...prev, ...graduatedStudents]);
-        setStudents(prev => prev.filter(s => !selectedStudents.includes(s.nis)));
+        const newAlumni = [...alumni, ...graduatedStudents];
+        updateAlumni(newAlumni);
+
+        const newStudents = students.filter(s => !selectedStudents.includes(s.nis));
+        updateStudents(newStudents);
+
         setSelectedStudents([]);
         toast({ title: 'Berhasil!', description: `${graduatedStudents.length} siswa telah diluluskan.` });
       }
@@ -224,8 +247,9 @@ export default function KelasPage() {
               <TableRow>
                 <TableHead className="w-[50px]">
                   <Checkbox
-                    checked={selectedStudents.length > 0 && selectedStudents.length === filteredStudents.length}
+                    checked={filteredStudents.length > 0 && selectedStudents.length === filteredStudents.length}
                     onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
+                    disabled={filteredStudents.length === 0}
                   />
                 </TableHead>
                 <TableHead className="font-headline">Kelas</TableHead>
