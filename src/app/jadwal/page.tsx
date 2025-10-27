@@ -43,6 +43,15 @@ import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, u
 import { collection, doc } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -88,10 +97,10 @@ export default function JadwalPage() {
   const [jadwalToDelete, setJadwalToDelete] = useState<Jadwal | null>(null);
   const [formData, setFormData] = useState<Omit<Jadwal, 'id'>>(emptyJadwal);
 
-  const [selectedKelas, setSelectedKelas] = useState('0');
+  const [selectedKelas, setSelectedKelas] = useState('all');
 
   const jadwalGrid = useMemo(() => {
-    if (!jadwal) return {};
+    if (!jadwal || selectedKelas === 'all') return {};
     const grid: { [key: string]: Jadwal | null } = {};
     const filtered = jadwal.filter(item => item.kelas === selectedKelas);
 
@@ -101,6 +110,18 @@ export default function JadwalPage() {
     });
 
     return grid;
+  }, [jadwal, selectedKelas]);
+
+  const filteredJadwalList = useMemo(() => {
+    if (!jadwal) return [];
+    if (selectedKelas === 'all') {
+      return [...jadwal].sort((a, b) => 
+        Number(a.kelas) - Number(b.kelas) || 
+        HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari) ||
+        a.jam.localeCompare(b.jam)
+      );
+    }
+    return jadwal.filter(j => j.kelas === selectedKelas);
   }, [jadwal, selectedKelas]);
 
   const handleSelectChange = (name: string, value: string) => {
@@ -113,7 +134,8 @@ export default function JadwalPage() {
     if (item) {
       setFormData({ ...item });
     } else {
-      setFormData({ ...emptyJadwal, kelas: selectedKelas, ...defaultData });
+      const defaultKelas = selectedKelas === 'all' ? '0' : selectedKelas;
+      setFormData({ ...emptyJadwal, kelas: defaultKelas, ...defaultData });
     }
     setIsDialogOpen(true);
   };
@@ -152,21 +174,32 @@ export default function JadwalPage() {
 
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
-    doc.text(`Jadwal Pelajaran - Kelas ${selectedKelas}`, 20, 10);
+    doc.text(`Jadwal Pelajaran - ${selectedKelas === 'all' ? 'Semua Kelas' : `Kelas ${selectedKelas}`}`, 20, 10);
     const body: any[] = [];
-    JAM_PELAJARAN.forEach(jam => {
-        HARI_OPERASIONAL.forEach(hari => {
-            const item = jadwalGrid[`${hari}-${jam}`];
-            if (item) {
-                 body.push([hari, jam, item.mataPelajaran, getTeacherName(item.guruId)]);
-            }
-        });
-    });
     
-    doc.autoTable({
-        head: [['Hari', 'Jam', 'Mata Pelajaran', 'Guru']],
+    if (selectedKelas === 'all') {
+      filteredJadwalList.forEach(item => {
+        body.push([`Kelas ${item.kelas}`, item.hari, item.jam, item.mataPelajaran, getTeacherName(item.guruId)]);
+      });
+      doc.autoTable({
+        head: [['Kelas', 'Hari', 'Jam', 'Mata Pelajaran', 'Guru']],
         body: body,
-    });
+      });
+    } else {
+      JAM_PELAJARAN.forEach(jam => {
+          HARI_OPERASIONAL.forEach(hari => {
+              const item = jadwalGrid[`${hari}-${jam}`];
+              if (item) {
+                   body.push([hari, jam, item.mataPelajaran, getTeacherName(item.guruId)]);
+              }
+          });
+      });
+      doc.autoTable({
+          head: [['Hari', 'Jam', 'Mata Pelajaran', 'Guru']],
+          body: body,
+      });
+    }
+    
     doc.save(`jadwal-pelajaran-kelas-${selectedKelas}.pdf`);
   };
 
@@ -184,10 +217,17 @@ export default function JadwalPage() {
               Kelola jadwal pelajaran untuk setiap kelas dalam tampilan grid yang mudah digunakan.
             </p>
           </div>
-          <Button onClick={handleExportPdf} variant="outline" size="sm">
-              <FileDown className="mr-2 h-4 w-4" />
-              Ekspor PDF
-          </Button>
+           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            {isAdmin && (
+                <Button onClick={() => handleOpenDialog()} size="sm">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal
+                </Button>
+            )}
+            <Button onClick={handleExportPdf} variant="outline" size="sm">
+                <FileDown className="mr-2 h-4 w-4" />
+                Ekspor PDF
+            </Button>
+           </div>
         </div>
 
         <div className="mb-6 flex justify-start gap-4">
@@ -198,6 +238,7 @@ export default function JadwalPage() {
                         <SelectValue placeholder="Pilih Kelas" />
                     </SelectTrigger>
                     <SelectContent>
+                        <SelectItem value="all">Semua Kelas</SelectItem>
                         {KELAS_OPTIONS.map(kelas => (
                             <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
                         ))}
@@ -206,69 +247,123 @@ export default function JadwalPage() {
             </div>
         </div>
         
-        <div className="border rounded-lg overflow-hidden bg-card">
-          <div className="relative w-full overflow-auto">
-            <div className="grid grid-cols-[1fr_repeat(6,_minmax(180px,_1fr))]">
-              {/* Header Row */}
-              <div className="p-3 font-headline text-muted-foreground border-b border-r sticky left-0 bg-card z-10">Jam</div>
-              {HARI_OPERASIONAL.map(hari => (
-                <div key={hari} className="p-3 font-headline text-center text-muted-foreground border-b">{hari}</div>
-              ))}
+        {selectedKelas !== 'all' ? (
+          <div className="border rounded-lg overflow-hidden bg-card">
+            <div className="relative w-full overflow-auto">
+              <div className="grid grid-cols-[1fr_repeat(6,_minmax(180px,_1fr))]">
+                {/* Header Row */}
+                <div className="p-3 font-headline text-muted-foreground border-b border-r sticky left-0 bg-card z-10">Jam</div>
+                {HARI_OPERASIONAL.map(hari => (
+                  <div key={hari} className="p-3 font-headline text-center text-muted-foreground border-b">{hari}</div>
+                ))}
 
-              {/* Data Rows */}
-              {JAM_PELAJARAN.map(jam => (
-                <React.Fragment key={jam}>
-                  <div className="p-3 font-medium border-r sticky left-0 bg-card z-10 flex items-center justify-center text-center">{jam}</div>
-                  {HARI_OPERASIONAL.map(hari => {
-                    const item = jadwalGrid[`${hari}-${jam}`];
-                    return (
-                      <div key={`${hari}-${jam}`} className="border-b p-2 min-h-[100px] flex items-center justify-center">
-                        {isLoading ? <p className='text-xs'>...</p> : item ? (
-                          <Card className="w-full h-full shadow-md bg-secondary/50 relative group">
-                            <CardContent className="p-3 text-center flex flex-col justify-center items-center h-full">
-                                <p className="font-bold text-sm text-secondary-foreground">{item.mataPelajaran}</p>
-                                <p className="text-xs text-muted-foreground mt-1">{getTeacherName(item.guruId)}</p>
-                            </CardContent>
-                            {isAdmin && (
-                                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-7 w-7 p-0">
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleOpenDialog(item)}>
-                                            <Pencil className="mr-2 h-4 w-4" />
-                                            <span>Edit</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            onClick={() => handleDeleteJadwal(item)}
-                                            className="text-red-600"
-                                        >
-                                            <Trash2 className="mr-2 h-4 w-4" />
-                                            <span>Hapus</span>
-                                        </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                            )}
-                          </Card>
-                        ) : (
-                            isAdmin ? (
-                                <Button variant="ghost" size="icon" className="w-full h-full" onClick={() => handleOpenDialog(null, { hari, jam })}>
-                                    <PlusCircle className="h-6 w-6 text-muted-foreground/50" />
-                                </Button>
-                            ) : <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </React.Fragment>
-              ))}
+                {/* Data Rows */}
+                {JAM_PELAJARAN.map(jam => (
+                  <React.Fragment key={jam}>
+                    <div className="p-3 font-medium border-r sticky left-0 bg-card z-10 flex items-center justify-center text-center">{jam}</div>
+                    {HARI_OPERASIONAL.map(hari => {
+                      const item = jadwalGrid[`${hari}-${jam}`];
+                      return (
+                        <div key={`${hari}-${jam}`} className="border-b p-2 min-h-[100px] flex items-center justify-center">
+                          {isLoading ? <p className='text-xs'>...</p> : item ? (
+                            <Card className="w-full h-full shadow-md bg-secondary/50 relative group">
+                              <CardContent className="p-3 text-center flex flex-col justify-center items-center h-full">
+                                  <p className="font-bold text-sm text-secondary-foreground">{item.mataPelajaran}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">{getTeacherName(item.guruId)}</p>
+                              </CardContent>
+                              {isAdmin && (
+                                  <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" className="h-7 w-7 p-0">
+                                              <MoreHorizontal className="h-4 w-4" />
+                                          </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end">
+                                          <DropdownMenuItem onClick={() => handleOpenDialog(item)}>
+                                              <Pencil className="mr-2 h-4 w-4" />
+                                              <span>Edit</span>
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem
+                                              onClick={() => handleDeleteJadwal(item)}
+                                              className="text-red-600"
+                                          >
+                                              <Trash2 className="mr-2 h-4 w-4" />
+                                              <span>Hapus</span>
+                                          </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                      </DropdownMenu>
+                                  </div>
+                              )}
+                            </Card>
+                          ) : (
+                              isAdmin ? (
+                                  <Button variant="ghost" size="icon" className="w-full h-full" onClick={() => handleOpenDialog(null, { hari, jam })}>
+                                      <PlusCircle className="h-6 w-6 text-muted-foreground/50" />
+                                  </Button>
+                              ) : <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </React.Fragment>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+           <div className="border rounded-lg overflow-hidden bg-card">
+            <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="font-headline">Kelas</TableHead>
+                    <TableHead className="font-headline">Hari</TableHead>
+                    <TableHead className="font-headline">Jam</TableHead>
+                    <TableHead className="font-headline">Mata Pelajaran</TableHead>
+                    <TableHead className="font-headline">Guru</TableHead>
+                    {isAdmin && <TableHead className="font-headline text-right">Aksi</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading && <TableRow><TableCell colSpan={isAdmin ? 6 : 5}>Loading...</TableCell></TableRow>}
+                  {filteredJadwalList.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>Kelas {item.kelas}</TableCell>
+                      <TableCell>{item.hari}</TableCell>
+                      <TableCell>{item.jam}</TableCell>
+                      <TableCell className="font-medium">{item.mataPelajaran}</TableCell>
+                      <TableCell>{getTeacherName(item.guruId)}</TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Buka menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleOpenDialog(item)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                <span>Edit</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteJadwal(item)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Hapus</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+            </Table>
+           </div>
+        )}
         
       </div>
       {isAdmin && (
@@ -278,10 +373,49 @@ export default function JadwalPage() {
               <DialogHeader>
                 <DialogTitle>{jadwalToEdit ? 'Edit Jadwal' : 'Tambah Jadwal Baru'}</DialogTitle>
                 <DialogDescription>
-                  {jadwalToEdit ? 'Perbarui informasi jadwal di bawah ini.' : `Isi formulir untuk menambahkan jadwal Kelas ${formData.kelas} pada hari ${formData.hari}, jam ${formData.jam}.`}
+                  {jadwalToEdit ? 'Perbarui informasi jadwal di bawah ini.' : `Isi formulir untuk menambahkan jadwal baru.`}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                 <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="kelas" className="text-right">Kelas</Label>
+                  <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={formData.kelas}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Pilih Kelas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {KELAS_OPTIONS.map(kelas => (
+                            <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="hari" className="text-right">Hari</Label>
+                  <Select name="hari" onValueChange={(value) => handleSelectChange('hari', value)} value={formData.hari}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Pilih Hari" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HARI_OPERASIONAL.map(hari => (
+                            <SelectItem key={hari} value={hari}>{hari}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="jam" className="text-right">Jam</Label>
+                  <Select name="jam" onValueChange={(value) => handleSelectChange('jam', value)} value={formData.jam}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Pilih Jam" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {JAM_PELAJARAN.map(jam => (
+                            <SelectItem key={jam} value={jam}>{jam}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="mataPelajaran" className="text-right">Mata Pelajaran</Label>
                   <Select name="mataPelajaran" onValueChange={(value) => handleSelectChange('mataPelajaran', value)} value={formData.mataPelajaran}>
@@ -336,5 +470,3 @@ export default function JadwalPage() {
     </div>
   );
 }
-
-    
