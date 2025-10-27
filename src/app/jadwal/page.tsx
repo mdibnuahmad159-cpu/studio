@@ -109,10 +109,11 @@ export default function JadwalPage() {
 
   const filteredKelasOptions = useMemo(() => {
     if (selectedKelas === 'all') {
-      return KELAS_OPTIONS;
+      const uniqueKelasInJadwal = new Set(jadwal?.map(j => j.kelas) || []);
+      return KELAS_OPTIONS.filter(k => uniqueKelasInJadwal.has(k));
     }
     return [selectedKelas];
-  }, [selectedKelas]);
+  }, [selectedKelas, jadwal]);
   
 
   const handleSelectChange = (name: string, value: string) => {
@@ -193,32 +194,32 @@ export default function JadwalPage() {
   
   const renderInteractiveGrid = (kelas: string) => {
     return (
-      <Card key={kelas} className="mb-8">
+      <Card key={kelas} className="mb-8 overflow-hidden">
         <CardHeader>
           <CardTitle className="font-headline text-2xl text-primary">Kelas {kelas}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="relative overflow-x-auto">
-            <div className="flex space-x-4 pb-4">
+          <div className="relative overflow-x-auto -m-2 p-2">
+            <div className="flex space-x-4 pb-2">
               {HARI_OPERASIONAL.map(hari => (
-                <div key={hari} className="border rounded-lg p-4 flex-shrink-0 w-64">
+                <div key={hari} className="rounded-lg p-4 flex-shrink-0 w-56 bg-muted/30">
                   <h3 className="font-headline text-lg font-bold text-center mb-4">{hari}</h3>
                   <div className="space-y-2">
                     {JAM_PELAJARAN.map(jam => {
                       const key = `${kelas}-${hari}-${jam}`;
                       const jadwalItem = jadwalByKelasHariJam[key];
                       return (
-                        <div key={jam} className="border rounded-lg p-3 min-h-[90px] flex flex-col justify-between bg-muted/20">
+                        <div key={jam} className="border rounded-lg p-3 min-h-[90px] flex flex-col justify-between bg-card shadow-sm transition-shadow hover:shadow-md">
                           <p className="text-sm font-semibold text-muted-foreground">{jam}</p>
                           {jadwalItem ? (
-                            <div>
-                              <p className="font-bold text-primary">{jadwalItem.mataPelajaran}</p>
+                            <div className="mt-1">
+                              <p className="font-bold text-primary truncate">{jadwalItem.mataPelajaran}</p>
                               <div className="flex justify-between items-center mt-1">
-                                <p className="text-xs truncate">{getTeacherName(jadwalItem.guruId)}</p>
+                                <p className="text-xs truncate text-muted-foreground">{getTeacherName(jadwalItem.guruId)}</p>
                                 {isAdmin && (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
                                         <MoreHorizontal className="h-4 w-4" />
                                       </Button>
                                     </DropdownMenuTrigger>
@@ -238,7 +239,7 @@ export default function JadwalPage() {
                             <div className="flex items-center justify-center flex-grow">
                               {isAdmin ? (
                                 <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(null, { kelas, hari, jam })}>
-                                  <PlusCircle className="h-6 w-6 text-muted-foreground" />
+                                  <PlusCircle className="h-6 w-6 text-muted-foreground/50 hover:text-muted-foreground transition-colors" />
                                 </Button>
                               ) : <span className="text-xs text-muted-foreground">-</span>}
                             </div>
@@ -408,3 +409,5 @@ export default function JadwalPage() {
     </div>
   );
 }
+
+    
