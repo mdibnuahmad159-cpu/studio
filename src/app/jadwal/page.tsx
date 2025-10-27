@@ -96,6 +96,8 @@ export default function JadwalPage() {
   const [jadwalToDelete, setJadwalToDelete] = useState<Jadwal | null>(null);
   const [formData, setFormData] = useState<Omit<Jadwal, 'id'>>(emptyJadwal);
   const [selectedKelas, setSelectedKelas] = useState('all');
+  const [selectedHari, setSelectedHari] = useState('all');
+
 
   const jadwalByKelasHariJam = useMemo(() => {
     if (!jadwal) return {};
@@ -110,10 +112,17 @@ export default function JadwalPage() {
   const filteredKelasOptions = useMemo(() => {
     if (selectedKelas === 'all') {
       const uniqueKelasInJadwal = new Set(jadwal?.map(j => j.kelas) || []);
-      return KELAS_OPTIONS.filter(k => uniqueKelasInJadwal.has(k));
+      return KELAS_OPTIONS.filter(k => uniqueKelasInJadwal.has(k)).sort((a,b) => Number(a) - Number(b));
     }
     return [selectedKelas];
   }, [selectedKelas, jadwal]);
+
+  const filteredHariOperasional = useMemo(() => {
+    if (selectedHari === 'all') {
+      return HARI_OPERASIONAL;
+    }
+    return [selectedHari];
+  }, [selectedHari]);
   
 
   const handleSelectChange = (name: string, value: string) => {
@@ -170,9 +179,14 @@ export default function JadwalPage() {
     const head: any[] = [['Kelas', 'Hari', 'Jam', 'Pelajaran', 'Guru']];
     const body: any[] = [];
     
-    const jadwalToExport = selectedKelas === 'all' 
-      ? jadwal 
-      : jadwal?.filter(j => j.kelas === selectedKelas);
+    let jadwalToExport = jadwal;
+
+    if (selectedKelas !== 'all') {
+      jadwalToExport = jadwalToExport?.filter(j => j.kelas === selectedKelas);
+    }
+    if (selectedHari !== 'all') {
+      jadwalToExport = jadwalToExport?.filter(j => j.hari === selectedHari);
+    }
 
     (jadwalToExport || [])
       .sort((a,b) => Number(a.kelas) - Number(b.kelas) || HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari))
@@ -187,7 +201,7 @@ export default function JadwalPage() {
     });
 
     doc.autoTable({ head, body });
-    doc.save(`jadwal-pelajaran-${selectedKelas}.pdf`);
+    doc.save(`jadwal-pelajaran.pdf`);
   };
 
   const isLoading = jadwalLoading || teachersLoading || kurikulumLoading;
@@ -201,8 +215,8 @@ export default function JadwalPage() {
         <CardContent>
           <div className="relative overflow-x-auto -m-2 p-2">
             <div className="flex space-x-4 pb-2">
-              {HARI_OPERASIONAL.map(hari => (
-                <div key={hari} className="rounded-lg p-4 flex-shrink-0 w-56 bg-muted/30">
+              {filteredHariOperasional.map(hari => (
+                <div key={hari} className="rounded-lg p-4 flex-shrink-0 w-48 bg-muted/30 shadow-inner">
                   <h3 className="font-headline text-lg font-bold text-center mb-4">{hari}</h3>
                   <div className="space-y-2">
                     {JAM_PELAJARAN.map(jam => {
@@ -210,12 +224,12 @@ export default function JadwalPage() {
                       const jadwalItem = jadwalByKelasHariJam[key];
                       return (
                         <div key={jam} className="border rounded-lg p-3 min-h-[90px] flex flex-col justify-between bg-card shadow-sm transition-shadow hover:shadow-md">
-                          <p className="text-sm font-semibold text-muted-foreground">{jam}</p>
+                          <p className="text-xs font-semibold text-muted-foreground">{jam}</p>
                           {jadwalItem ? (
                             <div className="mt-1">
-                              <p className="font-bold text-primary truncate">{jadwalItem.mataPelajaran}</p>
+                              <p className="font-bold text-sm text-primary truncate" title={jadwalItem.mataPelajaran}>{jadwalItem.mataPelajaran}</p>
                               <div className="flex justify-between items-center mt-1">
-                                <p className="text-xs truncate text-muted-foreground">{getTeacherName(jadwalItem.guruId)}</p>
+                                <p className="text-xs truncate text-muted-foreground" title={getTeacherName(jadwalItem.guruId)}>{getTeacherName(jadwalItem.guruId)}</p>
                                 {isAdmin && (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -239,7 +253,7 @@ export default function JadwalPage() {
                             <div className="flex items-center justify-center flex-grow">
                               {isAdmin ? (
                                 <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(null, { kelas, hari, jam })}>
-                                  <PlusCircle className="h-6 w-6 text-muted-foreground/50 hover:text-muted-foreground transition-colors" />
+                                  <PlusCircle className="h-5 w-5 text-muted-foreground/50 hover:text-muted-foreground transition-colors" />
                                 </Button>
                               ) : <span className="text-xs text-muted-foreground">-</span>}
                             </div>
@@ -282,7 +296,7 @@ export default function JadwalPage() {
            </div>
         </div>
 
-        <div className="mb-6 flex justify-end">
+        <div className="mb-6 flex flex-col sm:flex-row justify-end gap-4">
             <Select value={selectedKelas} onValueChange={setSelectedKelas}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Filter Kelas" />
@@ -294,13 +308,27 @@ export default function JadwalPage() {
                     ))}
                 </SelectContent>
             </Select>
+            <Select value={selectedHari} onValueChange={setSelectedHari}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filter Hari" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Semua Hari</SelectItem>
+                    {HARI_OPERASIONAL.map(hari => (
+                        <SelectItem key={hari} value={hari}>{hari}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
         </div>
         
         {isLoading ? (
            <p className="text-center">Loading...</p>
         ) : (
            <div>
-            {filteredKelasOptions.map(kelas => renderInteractiveGrid(kelas))}
+            {filteredKelasOptions.length > 0 ? 
+              filteredKelasOptions.map(kelas => renderInteractiveGrid(kelas)) :
+              <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal untuk ditampilkan berdasarkan filter yang dipilih.</p>
+            }
            </div>
         )}
 
@@ -409,5 +437,3 @@ export default function JadwalPage() {
     </div>
   );
 }
-
-    
