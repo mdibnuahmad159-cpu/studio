@@ -40,6 +40,12 @@ interface jsPDFWithAutoTable extends jsPDF {
 
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
+interface StudentStats {
+  sum: number;
+  average: number;
+  rank: number;
+}
+
 export default function NilaiPage() {
   const firestore = useFirestore();
   const { user } = useUser();
@@ -80,12 +86,6 @@ export default function NilaiPage() {
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
   // --- Memoized Data Processing ---
-  const sortedStudents = useMemo(() => {
-    if (!students) return [];
-    let filtered = students.filter(s => s.nama.toLowerCase().includes(searchQuery.toLowerCase()) || s.nis.includes(searchQuery));
-    return filtered.sort((a, b) => a.nama.localeCompare(b.nama));
-  }, [students, searchQuery]);
-  
   const sortedSubjects = useMemo(() => {
     return subjects?.sort((a,b) => a.mataPelajaran.localeCompare(b.mataPelajaran)) || [];
   }, [subjects]);
@@ -98,6 +98,58 @@ export default function NilaiPage() {
     });
     return map;
   }, [grades]);
+  
+  const studentStats = useMemo(() => {
+    const stats = new Map<string, { sum: number; average: number }>();
+    if (!students || sortedSubjects.length === 0) return { stats, ranks: new Map() };
+
+    students.forEach(student => {
+      let sum = 0;
+      sortedSubjects.forEach(subject => {
+        const grade = gradesMap.get(`${student.id}-${subject.id}`);
+        if (grade) {
+          sum += grade.nilai;
+        }
+      });
+      const average = sum / sortedSubjects.length;
+      stats.set(student.id, { sum, average });
+    });
+
+    const sortedByAverage = [...students].sort((a, b) => {
+      const avgA = stats.get(a.id)?.average || 0;
+      const avgB = stats.get(b.id)?.average || 0;
+      return avgB - avgA;
+    });
+
+    const ranks = new Map<string, number>();
+    let rank = 1;
+    for (let i = 0; i < sortedByAverage.length; i++) {
+        const currentStudent = sortedByAverage[i];
+        if (i > 0) {
+            const prevStudent = sortedByAverage[i-1];
+            const currentAvg = stats.get(currentStudent.id)?.average || 0;
+            const prevAvg = stats.get(prevStudent.id)?.average || 0;
+            if (currentAvg < prevAvg) {
+                rank = i + 1;
+            }
+        }
+        ranks.set(currentStudent.id, rank);
+    }
+    
+    return { stats, ranks };
+  }, [students, sortedSubjects, gradesMap]);
+
+
+  const sortedStudents = useMemo(() => {
+    if (!students) return [];
+    let filtered = students.filter(s => s.nama.toLowerCase().includes(searchQuery.toLowerCase()) || s.nis.includes(searchQuery));
+    return filtered.sort((a, b) => {
+       const rankA = studentStats.ranks.get(a.id) || Infinity;
+       const rankB = studentStats.ranks.get(b.id) || Infinity;
+       if (rankA !== rankB) return rankA - rankB;
+       return a.nama.localeCompare(b.nama);
+    });
+  }, [students, searchQuery, studentStats.ranks]);
   
   useEffect(() => {
     if (sortedStudents && sortedStudents.length > 0) {
@@ -168,15 +220,19 @@ export default function NilaiPage() {
   };
   
   const handleExport = (format: 'pdf' | 'csv') => {
-    const head = ['Nama', 'NIS', ...sortedSubjects.map(s => s.mataPelajaran)];
+    const head = ['Peringkat', 'Nama', 'NIS', ...sortedSubjects.map(s => s.mataPelajaran), 'Jumlah', 'Rata-rata'];
     const body = sortedStudents.map(student => {
+        const stats = studentStats.stats.get(student.id);
         return [
+            studentStats.ranks.get(student.id) || '-',
             student.nama,
             student.nis,
             ...sortedSubjects.map(subject => {
                 const grade = gradesMap.get(`${student.id}-${subject.id}`);
                 return grade?.nilai ?? '';
-            })
+            }),
+            stats?.sum.toFixed(0) || '0',
+            stats?.average.toFixed(2) || '0.00',
         ];
     });
 
@@ -206,25 +262,37 @@ export default function NilaiPage() {
   const isLoading = studentsLoading || subjectsLoading || gradesLoading;
 
   const renderMobileView = () => (
-    <div className="flex flex-col md:flex-row h-[calc(100vh-250px)] gap-4">
+    <div className="flex flex-col md:flex-row gap-4 h-full md:h-[calc(100vh-280px)]">
       <Card className="w-full md:w-1/3 flex flex-col">
         <CardContent className="p-2 flex-grow">
           <ScrollArea className="h-full">
             {isLoading && <p className="p-4 text-center">Memuat siswa...</p>}
             {!isLoading && sortedStudents.length === 0 && <p className="p-4 text-center">Tidak ada siswa.</p>}
-            {sortedStudents.map(student => (
+            {sortedStudents.map(student => {
+              const rank = studentStats.ranks.get(student.id);
+              return (
               <button
                 key={student.id}
                 onClick={() => setSelectedStudent(student)}
                 className={cn(
-                  "w-full text-left p-3 rounded-md transition-colors",
+                  "w-full text-left p-3 rounded-md transition-colors flex justify-between items-center",
                   selectedStudent?.id === student.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"
                 )}
               >
-                <p className="font-semibold">{student.nama}</p>
-                <p className="text-xs text-muted-foreground">{student.nis}</p>
+                <div>
+                  <p className="font-semibold">{student.nama}</p>
+                  <p className="text-xs text-muted-foreground">{student.nis}</p>
+                </div>
+                 {rank && (
+                    <span className={cn(
+                        "text-sm font-bold w-8 h-8 flex items-center justify-center rounded-full",
+                        rank === 1 ? "bg-yellow-400 text-yellow-900" : "bg-muted text-muted-foreground"
+                    )}>
+                        {rank}
+                    </span>
+                 )}
               </button>
-            ))}
+            )})}
           </ScrollArea>
         </CardContent>
       </Card>
@@ -256,6 +324,18 @@ export default function NilaiPage() {
                     </div>
                   );
                 })}
+                {sortedSubjects.length > 0 && (
+                    <div className="mt-6 pt-4 border-t">
+                        <div className="flex justify-between font-medium">
+                            <span>Jumlah Nilai:</span>
+                            <span>{studentStats.stats.get(selectedStudent.id)?.sum.toFixed(0) || 0}</span>
+                        </div>
+                         <div className="flex justify-between font-medium text-muted-foreground">
+                            <span>Rata-rata:</span>
+                            <span>{studentStats.stats.get(selectedStudent.id)?.average.toFixed(2) || '0.00'}</span>
+                        </div>
+                    </div>
+                )}
               </div>
             )}
           </ScrollArea>
@@ -275,12 +355,18 @@ export default function NilaiPage() {
               {sortedSubjects.map(subject => (
                 <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
               ))}
+              <TableHead className="font-headline text-center">Jumlah Nilai</TableHead>
+              <TableHead className="font-headline text-center">Rata-rata</TableHead>
+              <TableHead className="font-headline text-center">Peringkat</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 2} className="text-center">Memuat data...</TableCell></TableRow>}
-            {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 2} className="text-center">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
-            {sortedStudents.map(student => (
+            {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center">Memuat data...</TableCell></TableRow>}
+            {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
+            {sortedStudents.map(student => {
+              const stats = studentStats.stats.get(student.id);
+              const rank = studentStats.ranks.get(student.id);
+              return (
               <TableRow key={student.id}>
                 <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
                 <TableCell>{student.nis}</TableCell>
@@ -299,8 +385,11 @@ export default function NilaiPage() {
                     </TableCell>
                   );
                 })}
+                <TableCell className="text-center font-medium">{stats?.sum.toFixed(0) || 0}</TableCell>
+                <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
+                <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
               </TableRow>
-            ))}
+            )})}
           </TableBody>
         </Table>
         <div className="h-1" />
@@ -369,5 +458,7 @@ export default function NilaiPage() {
     </div>
   );
 }
+
+    
 
     
