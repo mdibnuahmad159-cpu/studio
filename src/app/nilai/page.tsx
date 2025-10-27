@@ -504,11 +504,9 @@ export default function NilaiPage() {
             </p>
           </div>
            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                {isAdmin && (
-                  <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
-                    <Upload className="mr-2 h-4 w-4" /> Import CSV
-                  </Button>
-                )}
+                <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
+                  <Upload className="mr-2 h-4 w-4" /> Import CSV
+                </Button>
                 <Button onClick={() => handleExport('pdf')} variant="outline" size="sm">
                   <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
                 </Button>
@@ -555,41 +553,39 @@ export default function NilaiPage() {
           {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
 
-        {isAdmin && (
-          <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Import Nilai dari CSV</DialogTitle>
-                <DialogDescription>
-                  Pilih file CSV untuk import nilai. Pastikan NIS dan nama mata pelajaran sesuai.
-                  Data nilai yang sudah ada akan diperbarui.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="py-4 space-y-4">
-                <div className="flex items-center gap-4">
-                  <Input 
-                    id="import-file" 
-                    type="file" 
-                    accept=".csv"
-                    onChange={handleImportFileChange}
-                    ref={importInputRef} 
-                  />
-                </div>
-                  <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate} disabled={!students || !sortedSubjects}>
-                    <FileDown className="mr-2 h-4 w-4" />
-                    Unduh Template CSV untuk Kelas {selectedKelas}
-                  </Button>
+        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Import Nilai dari CSV</DialogTitle>
+              <DialogDescription>
+                Pilih file CSV untuk import nilai. Pastikan NIS dan nama mata pelajaran sesuai.
+                Data nilai yang sudah ada akan diperbarui.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div className="flex items-center gap-4">
+                <Input 
+                  id="import-file" 
+                  type="file" 
+                  accept=".csv"
+                  onChange={handleImportFileChange}
+                  ref={importInputRef} 
+                />
               </div>
-              <DialogFooter>
-                <Button variant="secondary" onClick={() => setIsImportDialogOpen(false)}>Batal</Button>
-                <Button onClick={handleImport} disabled={!importFile}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Import
+                <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate} disabled={!students || !sortedSubjects}>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Unduh Template CSV untuk Kelas {selectedKelas}
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
+            </div>
+            <DialogFooter>
+              <Button variant="secondary" onClick={() => setIsImportDialogOpen(false)}>Batal</Button>
+              <Button onClick={handleImport} disabled={!importFile}>
+                <Upload className="mr-2 h-4 w-4" />
+                Import
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
