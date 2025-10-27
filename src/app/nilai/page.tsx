@@ -31,6 +31,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Papa from 'papaparse';
+import { cn } from '@/lib/utils';
 
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -44,10 +45,12 @@ export default function NilaiPage() {
   const { user } = useUser();
   const { isAdmin } = useAdmin();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const [selectedKelas, setSelectedKelas] = useState('1');
   const [selectedSemester, setSelectedSemester] = useState<'ganjil' | 'genap'>('ganjil');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<Siswa | null>(null);
   
   // --- Data Fetching ---
   const siswaQuery = useMemoFirebase(() => {
@@ -97,6 +100,15 @@ export default function NilaiPage() {
     });
     return map;
   }, [grades]);
+
+  // Set first student as default on mobile
+  useEffect(() => {
+    if (isMobile && sortedStudents.length > 0) {
+      setSelectedStudent(sortedStudents[0]);
+    } else {
+      setSelectedStudent(null);
+    }
+  }, [isMobile, sortedStudents]);
 
 
   // --- Event Handlers ---
@@ -225,9 +237,66 @@ export default function NilaiPage() {
     </div>
   );
 
+  const renderMobileView = () => (
+    <div className="flex flex-1 gap-2 overflow-hidden">
+      <ScrollArea className="w-1/3 border rounded-lg">
+        <div className="p-2 space-y-1">
+          {isLoading && <p className="p-2 text-xs text-muted-foreground">Loading...</p>}
+          {sortedStudents.map(student => (
+            <Button
+              key={student.id}
+              variant={selectedStudent?.id === student.id ? 'secondary' : 'ghost'}
+              className="w-full justify-start text-left h-auto py-2 px-3"
+              onClick={() => setSelectedStudent(student)}
+            >
+              <div className="flex flex-col">
+                <span className="text-sm font-medium leading-tight">{student.nama}</span>
+                <span className="text-xs text-muted-foreground">{student.nis}</span>
+              </div>
+            </Button>
+          ))}
+        </div>
+      </ScrollArea>
+      <ScrollArea className="w-2/3 border rounded-lg">
+        <div className="p-4">
+          {selectedStudent ? (
+            <div className="space-y-4">
+              <h3 className="font-bold">{selectedStudent.nama}</h3>
+              {sortedSubjects.length > 0 ? (
+                sortedSubjects.map(subject => {
+                  const grade = gradesMap.get(`${selectedStudent.id}-${subject.id}`);
+                  return (
+                    <div key={subject.id} className="grid grid-cols-3 items-center gap-2">
+                      <label className="text-sm col-span-2 truncate">{subject.mataPelajaran}</label>
+                      <Input
+                        type="number"
+                        defaultValue={grade?.nilai}
+                        onBlur={(e) => handleSaveGrade(selectedStudent.id, subject.id, e.target.value)}
+                        disabled={!isAdmin}
+                        className="text-center"
+                        placeholder="-"
+                      />
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-muted-foreground">Tidak ada mata pelajaran untuk kelas ini.</p>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-sm text-muted-foreground">Pilih siswa untuk input nilai.</p>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+
+
   return (
     <div className="bg-background">
-      <div className="container py-12 md:py-20 h-full flex flex-col">
+      <div className={cn("container py-12 md:py-20 h-full flex flex-col", isMobile && "h-[calc(100vh-8rem)] pb-4 md:pb-20")}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
@@ -256,7 +325,7 @@ export default function NilaiPage() {
             />
           </div>
           <div className="flex gap-4">
-            <Select value={selectedKelas} onValueChange={setSelectedKelas}>
+            <Select value={selectedKelas} onValueChange={(v) => { setSelectedKelas(v); setSelectedStudent(null);}}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Pilih Kelas" />
               </SelectTrigger>
@@ -278,13 +347,11 @@ export default function NilaiPage() {
           </div>
         </div>
         
-        <div className="flex-grow">
-          {renderTableView()}
+        <div className="flex-grow overflow-hidden">
+          {isMobile ? renderMobileView() : renderTableView()}
         </div>
 
       </div>
     </div>
   );
 }
-
-    
