@@ -163,7 +163,7 @@ export default function NilaiPage() {
 
   // --- Event Handlers ---
   const handleSaveGrade = async (siswaId: string, kurikulumId: string, value: string) => {
-    if (!isAdmin || !firestore) return;
+    if (!firestore) return;
     if (value.trim() === '') {
         // Handle deletion if value is cleared.
         const grade = gradesMap.get(`${siswaId}-${kurikulumId}`);
@@ -317,7 +317,6 @@ export default function NilaiPage() {
                         type="number"
                         defaultValue={grade?.nilai}
                         onBlur={(e) => handleSaveGrade(selectedStudent.id, subject.id, e.target.value)}
-                        disabled={!isAdmin}
                         className="w-24 text-center"
                         placeholder="-"
                       />
@@ -378,7 +377,6 @@ export default function NilaiPage() {
                         type="number"
                         defaultValue={grade?.nilai}
                         onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
-                        disabled={!isAdmin}
                         className="min-w-[70px] text-center mx-auto"
                         placeholder="-"
                       />
