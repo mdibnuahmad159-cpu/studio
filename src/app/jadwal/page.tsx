@@ -208,73 +208,75 @@ export default function JadwalPage() {
         {selectedKelas === 'all' && (
           <h2 className="font-headline text-2xl font-bold text-primary mt-8 mb-4">Kelas {kelas}</h2>
         )}
-        <div className="grid grid-cols-7 gap-px bg-border rounded-lg border overflow-hidden">
-          {/* Header */}
-          <div className="bg-card p-2 text-center font-headline font-semibold text-muted-foreground">Waktu</div>
-          {HARI_OPERASIONAL.map(hari => (
-            <div key={hari} className="bg-card p-2 text-center font-headline font-semibold text-muted-foreground">{hari}</div>
-          ))}
-          
-          {/* Rows */}
-          {JAM_PELAJARAN.map((jam, index) => (
-            <React.Fragment key={jam}>
-              <div className={cn("p-2 text-center font-semibold flex items-center justify-center", index % 2 === 0 ? "bg-card" : "bg-muted/50")}>
-                <div>
-                  <p>{jam}</p>
-                  <p className="text-xs font-normal text-muted-foreground">{index === 0 ? 'Jam Pertama' : 'Jam Kedua'}</p>
-                </div>
-              </div>
-              {HARI_OPERASIONAL.map(hari => {
-                const itemJadwal = jadwalKelas.find(j => j.hari === hari && j.jam === jam);
-                return (
-                  <div key={`${hari}-${jam}`} className={cn("p-2 min-h-[120px]", index % 2 === 0 ? "bg-card" : "bg-muted/50")}>
-                    {itemJadwal ? (
-                      <Card className="h-full flex flex-col justify-between bg-secondary/30 group relative">
-                         <CardHeader className="p-2 pb-0">
-                            <CardTitle className="text-sm font-semibold">{itemJadwal.mataPelajaran}</CardTitle>
-                         </CardHeader>
-                         <CardContent className="p-2 text-xs text-muted-foreground">
-                            <p>{getTeacherName(itemJadwal.guruId)}</p>
-                         </CardContent>
-                         {isAdmin && (
-                          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-6 w-6 p-0">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleOpenDialog(itemJadwal)}>
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    <span>Edit</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => handleDeleteJadwal(itemJadwal)}
-                                    className="text-red-600"
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    <span>Hapus</span>
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                          </div>
-                         )}
-                      </Card>
-                    ) : (
-                      isAdmin ? (
-                        <Button variant="outline" className="h-full w-full" onClick={() => handleOpenDialog(null, { hari, jam, kelas })}>
-                          <PlusCircle className="h-5 w-5 text-muted-foreground" />
-                        </Button>
-                      ) : (
-                        <div className="h-full w-full"></div>
-                      )
-                    )}
+        <div className="relative w-full overflow-auto">
+          <div className="grid grid-cols-7 gap-px bg-border rounded-lg border overflow-hidden min-w-[800px]">
+            {/* Header */}
+            <div className="bg-card p-2 text-center font-headline font-semibold text-muted-foreground">Waktu</div>
+            {HARI_OPERASIONAL.map(hari => (
+              <div key={hari} className="bg-card p-2 text-center font-headline font-semibold text-muted-foreground">{hari}</div>
+            ))}
+            
+            {/* Rows */}
+            {JAM_PELAJARAN.map((jam, index) => (
+              <React.Fragment key={jam}>
+                <div className={cn("p-2 text-center font-semibold flex items-center justify-center", index % 2 === 0 ? "bg-card" : "bg-muted/50")}>
+                  <div>
+                    <p>{jam}</p>
+                    <p className="text-xs font-normal text-muted-foreground">{index === 0 ? 'Jam Pertama' : 'Jam Kedua'}</p>
                   </div>
-                );
-              })}
-            </React.Fragment>
-          ))}
+                </div>
+                {HARI_OPERASIONAL.map(hari => {
+                  const itemJadwal = jadwalKelas.find(j => j.hari === hari && j.jam === jam);
+                  return (
+                    <div key={`${hari}-${jam}`} className={cn("p-2 min-h-[120px]", index % 2 === 0 ? "bg-card" : "bg-muted/50")}>
+                      {itemJadwal ? (
+                        <Card className="h-full flex flex-col justify-between bg-secondary/30 group relative">
+                           <CardHeader className="p-2 pb-0">
+                              <CardTitle className="text-sm font-semibold">{itemJadwal.mataPelajaran}</CardTitle>
+                           </CardHeader>
+                           <CardContent className="p-2 text-xs text-muted-foreground">
+                              <p>{getTeacherName(itemJadwal.guruId)}</p>
+                           </CardContent>
+                           {isAdmin && (
+                            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-6 w-6 p-0">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleOpenDialog(itemJadwal)}>
+                                      <Pencil className="mr-2 h-4 w-4" />
+                                      <span>Edit</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => handleDeleteJadwal(itemJadwal)}
+                                      className="text-red-600"
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      <span>Hapus</span>
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                           )}
+                        </Card>
+                      ) : (
+                        isAdmin ? (
+                          <Button variant="outline" className="h-full w-full" onClick={() => handleOpenDialog(null, { hari, jam, kelas })}>
+                            <PlusCircle className="h-5 w-5 text-muted-foreground" />
+                          </Button>
+                        ) : (
+                          <div className="h-full w-full"></div>
+                        )
+                      )}
+                    </div>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       </div>
     );
