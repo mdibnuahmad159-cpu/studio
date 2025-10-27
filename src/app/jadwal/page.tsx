@@ -198,56 +198,58 @@ export default function JadwalPage() {
           <CardTitle className="font-headline text-2xl text-primary">Kelas {kelas}</CardTitle>
         </CardHeader>
         <CardContent>
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {HARI_OPERASIONAL.map(hari => (
-              <div key={hari} className="border rounded-lg p-4">
-                <h3 className="font-headline text-lg font-bold text-center mb-4">{hari}</h3>
-                <div className="space-y-2">
-                  {JAM_PELAJARAN.map(jam => {
-                    const key = `${kelas}-${hari}-${jam}`;
-                    const jadwalItem = jadwalByKelasHariJam[key];
-                    return (
-                      <div key={jam} className="border rounded-lg p-3 min-h-[90px] flex flex-col justify-between bg-muted/20">
-                        <p className="text-sm font-semibold text-muted-foreground">{jam}</p>
-                        {jadwalItem ? (
-                          <div>
-                            <p className="font-bold text-primary">{jadwalItem.mataPelajaran}</p>
-                            <div className="flex justify-between items-center mt-1">
-                              <p className="text-xs">{getTeacherName(jadwalItem.guruId)}</p>
-                              {isAdmin && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6">
-                                      <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleOpenDialog(jadwalItem)}>
-                                      <Pencil className="mr-2 h-4 w-4" /> Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDeleteJadwal(jadwalItem)} className="text-red-500">
-                                      <Trash2 className="mr-2 h-4 w-4" /> Hapus
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              )}
+          <div className="relative overflow-x-auto">
+            <div className="flex space-x-4 pb-4">
+              {HARI_OPERASIONAL.map(hari => (
+                <div key={hari} className="border rounded-lg p-4 flex-shrink-0 w-64">
+                  <h3 className="font-headline text-lg font-bold text-center mb-4">{hari}</h3>
+                  <div className="space-y-2">
+                    {JAM_PELAJARAN.map(jam => {
+                      const key = `${kelas}-${hari}-${jam}`;
+                      const jadwalItem = jadwalByKelasHariJam[key];
+                      return (
+                        <div key={jam} className="border rounded-lg p-3 min-h-[90px] flex flex-col justify-between bg-muted/20">
+                          <p className="text-sm font-semibold text-muted-foreground">{jam}</p>
+                          {jadwalItem ? (
+                            <div>
+                              <p className="font-bold text-primary">{jadwalItem.mataPelajaran}</p>
+                              <div className="flex justify-between items-center mt-1">
+                                <p className="text-xs truncate">{getTeacherName(jadwalItem.guruId)}</p>
+                                {isAdmin && (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => handleOpenDialog(jadwalItem)}>
+                                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleDeleteJadwal(jadwalItem)} className="text-red-500">
+                                        <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center flex-grow">
-                            {isAdmin ? (
-                              <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(null, { kelas, hari, jam })}>
-                                <PlusCircle className="h-6 w-6 text-muted-foreground" />
-                              </Button>
-                            ) : <span className="text-xs text-muted-foreground">-</span>}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                          ) : (
+                            <div className="flex items-center justify-center flex-grow">
+                              {isAdmin ? (
+                                <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(null, { kelas, hari, jam })}>
+                                  <PlusCircle className="h-6 w-6 text-muted-foreground" />
+                                </Button>
+                              ) : <span className="text-xs text-muted-foreground">-</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -281,7 +283,7 @@ export default function JadwalPage() {
 
         <div className="mb-6 flex justify-end">
             <Select value={selectedKelas} onValueChange={setSelectedKelas}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Filter Kelas" />
                 </SelectTrigger>
                 <SelectContent>
@@ -406,5 +408,3 @@ export default function JadwalPage() {
     </div>
   );
 }
-
-    
