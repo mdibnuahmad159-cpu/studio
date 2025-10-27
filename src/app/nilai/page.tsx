@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Table,
   TableBody,
@@ -23,8 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Siswa, Kurikulum, Nilai } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
-import { useAdmin } from '@/context/AdminProvider';
-import { Search, FileDown } from 'lucide-react';
+import { Search, FileDown, Upload } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -32,6 +31,7 @@ import Papa from 'papaparse';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -49,7 +49,6 @@ interface StudentStats {
 export default function NilaiPage() {
   const firestore = useFirestore();
   const { user } = useUser();
-  const { isAdmin } = useAdmin();
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
@@ -57,6 +56,9 @@ export default function NilaiPage() {
   const [selectedSemester, setSelectedSemester] = useState<'ganjil' | 'genap'>('ganjil');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Siswa | null>(null);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   
   // --- Data Fetching ---
   const siswaQuery = useMemoFirebase(() => {
@@ -259,10 +261,103 @@ export default function NilaiPage() {
     }
   };
 
+  const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setImportFile(event.target.files[0]);
+    }
+  };
+
+  const downloadTemplate = () => {
+    if (!students || !sortedSubjects) return;
+    const headers = ["nis", "nama_siswa", ...sortedSubjects.map(s => s.mataPelajaran)];
+    const sampleData = students.slice(0, 2).map(s => {
+        const row: {[key: string]: any} = { nis: s.nis, nama_siswa: s.nama };
+        sortedSubjects.forEach(sub => row[sub.mataPelajaran] = '');
+        return row;
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + Papa.unparse(sampleData, {header: true});
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `template_nilai_kelas_${selectedKelas}_${selectedSemester}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
+  const handleImport = () => {
+    if (!importFile || !firestore || !students || !sortedSubjects) return;
+
+    Papa.parse(importFile, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const importedData = results.data as any[];
+        if (importedData.length === 0) {
+          toast({ variant: "destructive", title: "File Kosong", description: "File CSV tidak berisi data." });
+          return;
+        }
+
+        const batch = writeBatch(firestore);
+        const subjectMap = new Map(sortedSubjects.map(s => [s.mataPelajaran, s.id]));
+        const studentMap = new Map(students.map(s => [s.nis, s.id]));
+
+        importedData.forEach(row => {
+          const nis = row.nis;
+          const siswaId = studentMap.get(nis);
+
+          if (siswaId) {
+            Object.keys(row).forEach(header => {
+              const kurikulumId = subjectMap.get(header);
+              if (kurikulumId) {
+                const nilaiStr = row[header];
+                if (nilaiStr && nilaiStr.trim() !== '') {
+                  const nilai = parseInt(nilaiStr, 10);
+                  if (!isNaN(nilai) && nilai >= 0 && nilai <= 100) {
+                    const existingGrade = gradesMap.get(`${siswaId}-${kurikulumId}`);
+                    if (existingGrade) {
+                      const gradeRef = doc(firestore, 'nilai', existingGrade.id);
+                      batch.update(gradeRef, { nilai });
+                    } else {
+                      const newGradeRef = doc(collection(firestore, 'nilai'));
+                      const newGradeData: Omit<Nilai, 'id'> = {
+                        siswaId,
+                        kurikulumId,
+                        kelas: Number(selectedKelas),
+                        semester: selectedSemester,
+                        nilai,
+                      };
+                      batch.set(newGradeRef, newGradeData);
+                    }
+                  }
+                }
+              }
+            });
+          }
+        });
+
+        try {
+          await batch.commit();
+          toast({ title: 'Import Berhasil!', description: `Nilai berhasil diperbarui dari file.` });
+          setIsImportDialogOpen(false);
+          setImportFile(null);
+        } catch (error) {
+          console.error("Error importing grades:", error);
+          toast({ variant: "destructive", title: 'Gagal', description: "Terjadi kesalahan saat mengimpor nilai." });
+        }
+      },
+      error: (error) => {
+        console.error("Error parsing CSV:", error);
+        toast({ variant: "destructive", title: 'Gagal Parsing', description: 'Tidak dapat memproses file CSV.' });
+      }
+    });
+  };
+
   const isLoading = studentsLoading || subjectsLoading || gradesLoading;
 
   const renderMobileView = () => (
-    <div className="flex flex-col md:flex-row gap-4 h-full md:h-[calc(100vh-280px)]">
+    <div className="flex flex-col md:flex-row gap-4 flex-grow">
       <Card className="w-full md:w-1/3 flex flex-col">
         <CardContent className="p-2 flex-grow">
           <ScrollArea className="h-full">
@@ -398,7 +493,7 @@ export default function NilaiPage() {
 
   return (
     <div className="bg-background">
-      <div className="container py-12 md:py-20 flex flex-col h-full">
+      <div className="container py-12 md:py-20 flex flex-col flex-grow">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
@@ -407,6 +502,9 @@ export default function NilaiPage() {
             </p>
           </div>
            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
+                  <Upload className="mr-2 h-4 w-4" /> Import CSV
+                </Button>
                 <Button onClick={() => handleExport('pdf')} variant="outline" size="sm">
                   <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
                 </Button>
@@ -452,6 +550,40 @@ export default function NilaiPage() {
         <div className="flex-grow">
           {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
+
+        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Import Nilai dari CSV</DialogTitle>
+              <DialogDescription>
+                Pilih file CSV untuk import nilai. Pastikan NIS dan nama mata pelajaran sesuai.
+                Data nilai yang sudah ada akan diperbarui.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div className="flex items-center gap-4">
+                <Input 
+                  id="import-file" 
+                  type="file" 
+                  accept=".csv"
+                  onChange={handleImportFileChange}
+                  ref={importInputRef} 
+                />
+              </div>
+                <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate} disabled={!students || !sortedSubjects}>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Unduh Template CSV untuk Kelas {selectedKelas}
+                </Button>
+            </div>
+            <DialogFooter>
+              <Button variant="secondary" onClick={() => setIsImportDialogOpen(false)}>Batal</Button>
+              <Button onClick={handleImport} disabled={!importFile}>
+                <Upload className="mr-2 h-4 w-4" />
+                Import
+              </Button>
+            </DialogFooter>
+          </Dialog>
+        </Dialog>
       </div>
     </div>
   );
@@ -460,3 +592,4 @@ export default function NilaiPage() {
     
 
     
+
