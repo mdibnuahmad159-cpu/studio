@@ -33,8 +33,8 @@ export function BottomNav() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
         <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: isVisible ? 0 : "calc(100% - 2rem)" }}
+            initial={{ y: 0 }}
+            animate={{ y: isVisible ? 0 : "100%" }}
             transition={{ type: "tween", duration: 0.3, ease: "easeInOut" }}
             className="relative"
         >
@@ -51,7 +51,7 @@ export function BottomNav() {
             <div
                 className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
             >
-                <nav className="grid grid-cols-5 items-center h-16">
+                <nav className="flex justify-center items-center h-16">
                     {topRowLinks.map((link) => {
                     const isActive = pathname === link.href;
                     return (
@@ -59,7 +59,7 @@ export function BottomNav() {
                         key={link.href}
                         href={link.href}
                         className={cn(
-                            'flex flex-col items-center justify-center text-muted-foreground transition-colors w-full h-full pt-2 pb-1',
+                            'flex flex-col items-center justify-center text-muted-foreground transition-colors w-1/5 h-full pt-2 pb-1',
                             isActive ? 'text-primary' : 'hover:text-primary'
                         )}
                         >
@@ -69,7 +69,7 @@ export function BottomNav() {
                     );
                     })}
                 </nav>
-                <nav className="grid grid-cols-5 items-center h-16 border-t">
+                <nav className="flex justify-center items-center h-16 border-t">
                     {bottomRowLinks.map((link) => {
                         const isActive = pathname === link.href;
                         return (
@@ -77,7 +77,7 @@ export function BottomNav() {
                             key={link.href}
                             href={link.href}
                             className={cn(
-                            'flex flex-col items-center justify-center text-muted-foreground transition-colors w-full h-full pt-2 pb-1',
+                            'flex flex-col items-center justify-center text-muted-foreground transition-colors w-1/4 h-full pt-2 pb-1',
                             isActive ? 'text-primary' : 'hover:text-primary'
                             )}
                         >
