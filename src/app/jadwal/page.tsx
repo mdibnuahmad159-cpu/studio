@@ -50,7 +50,7 @@ import { Jadwal, Guru, Kurikulum } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -107,14 +107,13 @@ export default function JadwalPage() {
     return grouped;
   }, [jadwal]);
 
-  const filteredJadwalForTable = useMemo(() => {
-    if (!jadwal) return [];
-    const filtered = selectedKelas === 'all'
-      ? jadwal
-      : jadwal.filter(item => item.kelas === selectedKelas);
-    
-    return filtered.sort((a,b) => Number(a.kelas) - Number(b.kelas) || HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari) || a.jam.localeCompare(b.jam));
-  }, [jadwal, selectedKelas]);
+  const filteredKelasOptions = useMemo(() => {
+    if (selectedKelas === 'all') {
+      return KELAS_OPTIONS;
+    }
+    return [selectedKelas];
+  }, [selectedKelas]);
+  
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -126,8 +125,7 @@ export default function JadwalPage() {
     if (item) {
       setFormData({ ...item });
     } else {
-      const defaultKelas = selectedKelas === 'all' ? '0' : selectedKelas;
-      setFormData({ ...emptyJadwal, kelas: defaultKelas, ...defaults });
+      setFormData({ ...emptyJadwal, ...defaults });
     }
     setIsDialogOpen(true);
   };
@@ -167,138 +165,93 @@ export default function JadwalPage() {
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
     doc.text(`Jadwal Pelajaran - ${selectedKelas === 'all' ? 'Semua Kelas' : `Kelas ${selectedKelas}`}`, 20, 10);
+    
+    const head: any[] = [['Kelas', 'Hari', 'Jam', 'Pelajaran', 'Guru']];
     const body: any[] = [];
     
-    filteredJadwalForTable.forEach(item => {
-      body.push([`Kelas ${item.kelas}`, item.hari, item.jam, item.mataPelajaran, getTeacherName(item.guruId)]);
+    const jadwalToExport = selectedKelas === 'all' 
+      ? jadwal 
+      : jadwal?.filter(j => j.kelas === selectedKelas);
+
+    (jadwalToExport || [])
+      .sort((a,b) => Number(a.kelas) - Number(b.kelas) || HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari))
+      .forEach(item => {
+        body.push([
+          `Kelas ${item.kelas}`,
+          item.hari,
+          item.jam,
+          item.mataPelajaran,
+          getTeacherName(item.guruId)
+        ]);
     });
 
-    doc.autoTable({
-      head: [['Kelas', 'Hari', 'Jam', 'Mata Pelajaran', 'Guru']],
-      body: body,
-    });
-    
-    doc.save(`jadwal-pelajaran-kelas-${selectedKelas}.pdf`);
+    doc.autoTable({ head, body });
+    doc.save(`jadwal-pelajaran-${selectedKelas}.pdf`);
   };
 
   const isLoading = jadwalLoading || teachersLoading || kurikulumLoading;
   
-  const renderInteractiveGrid = () => {
-    if (isLoading) return <p className="text-center">Loading...</p>;
-
+  const renderInteractiveGrid = (kelas: string) => {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {HARI_OPERASIONAL.map(hari => (
-          <Card key={hari}>
-            <CardContent className="p-4">
-              <h3 className="font-headline text-lg font-bold text-center mb-4">{hari}</h3>
-              <div className="space-y-2">
-                {JAM_PELAJARAN.map(jam => {
-                  const key = `${selectedKelas}-${hari}-${jam}`;
-                  const jadwalItem = jadwalByKelasHariJam[key];
-                  return (
-                    <div key={jam} className="border rounded-lg p-3 min-h-[90px] flex flex-col justify-between bg-muted/20">
-                      <p className="text-sm font-semibold text-muted-foreground">{jam}</p>
-                      {jadwalItem ? (
-                        <div>
-                          <p className="font-bold text-primary">{jadwalItem.mataPelajaran}</p>
-                          <div className="flex justify-between items-center mt-1">
-                            <p className="text-xs">{getTeacherName(jadwalItem.guruId)}</p>
-                            {isAdmin && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleOpenDialog(jadwalItem)}>
-                                    <Pencil className="mr-2 h-4 w-4" /> Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleDeleteJadwal(jadwalItem)} className="text-red-500">
-                                    <Trash2 className="mr-2 h-4 w-4" /> Hapus
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
+      <Card key={kelas} className="mb-8">
+        <CardHeader>
+          <CardTitle className="font-headline text-2xl text-primary">Kelas {kelas}</CardTitle>
+        </CardHeader>
+        <CardContent>
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {HARI_OPERASIONAL.map(hari => (
+              <div key={hari} className="border rounded-lg p-4">
+                <h3 className="font-headline text-lg font-bold text-center mb-4">{hari}</h3>
+                <div className="space-y-2">
+                  {JAM_PELAJARAN.map(jam => {
+                    const key = `${kelas}-${hari}-${jam}`;
+                    const jadwalItem = jadwalByKelasHariJam[key];
+                    return (
+                      <div key={jam} className="border rounded-lg p-3 min-h-[90px] flex flex-col justify-between bg-muted/20">
+                        <p className="text-sm font-semibold text-muted-foreground">{jam}</p>
+                        {jadwalItem ? (
+                          <div>
+                            <p className="font-bold text-primary">{jadwalItem.mataPelajaran}</p>
+                            <div className="flex justify-between items-center mt-1">
+                              <p className="text-xs">{getTeacherName(jadwalItem.guruId)}</p>
+                              {isAdmin && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleOpenDialog(jadwalItem)}>
+                                      <Pencil className="mr-2 h-4 w-4" /> Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDeleteJadwal(jadwalItem)} className="text-red-500">
+                                      <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center flex-grow">
-                          {isAdmin ? (
-                            <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(null, { hari, jam })}>
-                              <PlusCircle className="h-6 w-6 text-muted-foreground" />
-                            </Button>
-                          ) : <span className="text-xs text-muted-foreground">-</span>}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
-
-  const renderTable = () => {
-     return (
-        <div className="border rounded-lg overflow-hidden bg-card">
-            <div className="relative w-full overflow-auto">
-                <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead className="font-headline">Kelas</TableHead>
-                    <TableHead className="font-headline">Hari</TableHead>
-                    <TableHead className="font-headline">Jam</TableHead>
-                    <TableHead className="font-headline">Mata Pelajaran</TableHead>
-                    <TableHead className="font-headline">Guru</TableHead>
-                    {isAdmin && <TableHead className="text-right font-headline">Aksi</TableHead>}
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {isLoading && <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center">Loading...</TableCell></TableRow>}
-                    {filteredJadwalForTable.map((item) => (
-                    <TableRow key={item.id}>
-                        <TableCell>Kelas {item.kelas}</TableCell>
-                        <TableCell>{item.hari}</TableCell>
-                        <TableCell>{item.jam}</TableCell>
-                        <TableCell>{item.mataPelajaran}</TableCell>
-                        <TableCell>{getTeacherName(item.guruId)}</TableCell>
-                        {isAdmin && (
-                        <TableCell className="text-right">
-                            <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Buka menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleOpenDialog(item)}>
-                                <Pencil className="mr-2 h-4 w-4" />
-                                <span>Edit</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                onClick={() => handleDeleteJadwal(item)}
-                                className="text-red-600"
-                                >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                <span>Hapus</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                            </DropdownMenu>
-                        </TableCell>
+                        ) : (
+                          <div className="flex items-center justify-center flex-grow">
+                            {isAdmin ? (
+                              <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(null, { kelas, hari, jam })}>
+                                <PlusCircle className="h-6 w-6 text-muted-foreground" />
+                              </Button>
+                            ) : <span className="text-xs text-muted-foreground">-</span>}
+                          </div>
                         )}
-                    </TableRow>
-                    ))}
-                </TableBody>
-                </Table>
-            </div>
-        </div>
-     )
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -310,16 +263,16 @@ export default function JadwalPage() {
               Jadwal Pelajaran
             </h1>
             <p className="mt-4 max-w-2xl mx-auto sm:mx-0 text-lg text-muted-foreground">
-              Kelola jadwal pelajaran untuk setiap kelas. Pilih kelas untuk tampilan interaktif.
+              Kelola jadwal pelajaran untuk setiap kelas secara interaktif.
             </p>
           </div>
            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {isAdmin && (
-                <Button onClick={() => handleOpenDialog()} size="sm">
+                <Button onClick={() => handleOpenDialog(null, { kelas: selectedKelas === 'all' ? '0' : selectedKelas })} size="sm">
                     <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal
                 </Button>
             )}
-            <Button onClick={handleExportPdf} variant="outline" size="sm" disabled={selectedKelas === 'all'}>
+            <Button onClick={handleExportPdf} variant="outline" size="sm">
                 <FileDown className="mr-2 h-4 w-4" />
                 Ekspor PDF
             </Button>
@@ -340,7 +293,14 @@ export default function JadwalPage() {
             </Select>
         </div>
         
-        {selectedKelas === 'all' ? renderTable() : renderInteractiveGrid()}
+        {isLoading ? (
+           <p className="text-center">Loading...</p>
+        ) : (
+           <div>
+            {filteredKelasOptions.map(kelas => renderInteractiveGrid(kelas))}
+           </div>
+        )}
+
       </div>
       {isAdmin && (
         <>
@@ -355,7 +315,7 @@ export default function JadwalPage() {
               <div className="grid gap-4 py-4">
                  <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="kelas" className="text-right">Kelas</Label>
-                  <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={formData.kelas} disabled={selectedKelas !== 'all'}>
+                  <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={formData.kelas}>
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Pilih Kelas" />
                     </SelectTrigger>
@@ -446,3 +406,5 @@ export default function JadwalPage() {
     </div>
   );
 }
+
+    
