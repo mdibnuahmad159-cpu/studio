@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Siswa as DetailedStudent } from '@/lib/data';
 import { Button } from '@/components/ui/button';
-import { FileDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { FileDown, MoreHorizontal, Pencil, Search, Trash2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import {
@@ -41,6 +41,7 @@ import {
 import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
+import { Input } from '@/components/ui/input';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -57,6 +58,7 @@ export default function AlumniPage() {
   const { isAdmin } = useAdmin();
   
   const [selectedYear, setSelectedYear] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [alumnusToDelete, setAlumnusToDelete] = useState<DetailedStudent | null>(null);
 
   const availableYears = useMemo(() => {
@@ -67,12 +69,21 @@ export default function AlumniPage() {
 
   const filteredAlumni = useMemo(() => {
     if (!alumni) return [];
-    let sortedAlumni = [...alumni].sort((a, b) => (b.tahunLulus || 0) - (a.tahunLulus || 0));
-    if (selectedYear === 'all') {
-      return sortedAlumni;
+    let filtered = [...alumni];
+
+    if (selectedYear !== 'all') {
+      filtered = filtered.filter(item => String(item.tahunLulus) === selectedYear);
     }
-    return sortedAlumni.filter(item => String(item.tahunLulus) === selectedYear);
-  }, [alumni, selectedYear]);
+
+    if (searchQuery) {
+        filtered = filtered.filter(item => 
+            item.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            item.nis.includes(searchQuery)
+        );
+    }
+    
+    return filtered.sort((a, b) => (b.tahunLulus || 0) - (a.tahunLulus || 0));
+  }, [alumni, selectedYear, searchQuery]);
 
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
@@ -97,9 +108,7 @@ export default function AlumniPage() {
   };
 
   const confirmDelete = () => {
-    if (alumnusToDelete) {
-      // This is a "soft delete" for alumni, we move them back to "Aktif"
-      // In a real app, you might have a different logic, like a "Pindah" status.
+    if (alumnusToDelete && firestore) {
       const studentDocRef = doc(firestore, 'siswa', alumnusToDelete.id);
       updateDocumentNonBlocking(studentDocRef, { status: 'Aktif', tahunLulus: null });
       setAlumnusToDelete(null);
@@ -124,9 +133,18 @@ export default function AlumniPage() {
             </Button>
         </div>
 
-        <div className="mb-6 flex justify-end">
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    placeholder="Cari Nama atau NIS..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                />
+            </div>
             <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Filter Tahun Lulus" />
                 </SelectTrigger>
                 <SelectContent>

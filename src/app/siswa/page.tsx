@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Siswa as DetailedStudent } from '@/lib/data';
-import { Download, PlusCircle, FileDown, MoreHorizontal, Pencil, Trash2, BookCopy } from 'lucide-react';
+import { Download, PlusCircle, FileDown, MoreHorizontal, Pencil, Trash2, BookCopy, Search } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -92,7 +92,18 @@ export default function SiswaPage() {
   const [formData, setFormData] = useState({ ...emptyStudent });
   const [file, setFile] = useState<File | null>(null);
   const [selectedClass, setSelectedClass] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
+  
+  const filteredStudents = useMemo(() => {
+    if (!activeStudents) return [];
+    if (!searchQuery) return activeStudents;
+    
+    return activeStudents.filter(student => 
+        student.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        student.nis.includes(searchQuery)
+    );
+  }, [activeStudents, searchQuery]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -134,6 +145,7 @@ export default function SiswaPage() {
   };
   
   const handleSaveStudent = () => {
+    if (!firestore) return;
     // In a real app, file upload would be handled via Firebase Storage
     // For this prototype, we are skipping the actual upload and just using a placeholder
     const fileUrl = file ? URL.createObjectURL(file) : (typeof formData.fileDokumen === 'string' ? formData.fileDokumen : '/path/to/default.pdf');
@@ -189,7 +201,7 @@ export default function SiswaPage() {
   };
 
   const confirmDelete = () => {
-    if(studentToDelete) {
+    if(studentToDelete && firestore) {
         const studentDocRef = doc(firestore, 'siswa', studentToDelete.id);
         deleteDocumentNonBlocking(studentDocRef);
 
@@ -209,7 +221,7 @@ export default function SiswaPage() {
   };
 
   const handleAssignClass = () => {
-    if (studentToAssign) {
+    if (studentToAssign && firestore) {
       const studentDocRef = doc(firestore, 'siswa', studentToAssign.id);
       updateDocumentNonBlocking(studentDocRef, { kelas: Number(selectedClass) });
       
@@ -227,7 +239,7 @@ export default function SiswaPage() {
     doc.text('Data Siswa', 20, 10);
     doc.autoTable({
       head: [['Nama', 'NIS', 'Kelas', 'Jenis Kelamin', 'TTL', 'Nama Ayah', 'Nama Ibu', 'Alamat']],
-      body: (activeStudents || []).map((student: DetailedStudent) => [
+      body: (filteredStudents || []).map((student: DetailedStudent) => [
         student.nama,
         student.nis,
         student.kelas,
@@ -244,7 +256,7 @@ export default function SiswaPage() {
   return (
     <div className="bg-background">
       <div className="container py-12 md:py-20">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-12 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">
               Data Siswa
@@ -266,6 +278,18 @@ export default function SiswaPage() {
           </div>
         </div>
 
+        <div className="mb-6 flex justify-end">
+            <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    placeholder="Cari Nama atau NIS..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                />
+            </div>
+        </div>
+
         <div className="border rounded-lg overflow-hidden bg-card">
           <Table>
             <TableHeader>
@@ -284,7 +308,7 @@ export default function SiswaPage() {
             </TableHeader>
             <TableBody>
               {isLoading && <TableRow><TableCell colSpan={isAdmin ? 10 : 9}>Loading...</TableCell></TableRow>}
-              {activeStudents?.map((student) => (
+              {filteredStudents?.map((student) => (
                 <TableRow key={student.nis}>
                   <TableCell className="font-medium">{student.nama}</TableCell>
                   <TableCell>{student.nis}</TableCell>
