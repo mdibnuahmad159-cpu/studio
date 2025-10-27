@@ -24,10 +24,18 @@ import { Siswa, Kurikulum, Nilai } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
-import { Search, Save, X } from 'lucide-react';
+import { Search, Save, FileDown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import Papa from 'papaparse';
+
+
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: any) => jsPDF;
+}
 
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
@@ -123,6 +131,8 @@ export default function NilaiPage() {
   // --- Event Handlers ---
   const handleSaveGrade = async (siswaId: string, kurikulumId: string, value: string) => {
     if (!isAdmin || !firestore) return;
+    if (value.trim() === '') return true; // Skip saving if value is empty
+
     const newNilai = parseInt(value, 10);
     if (isNaN(newNilai) || newNilai < 0 || newNilai > 100) {
       toast({ variant: 'destructive', title: 'Nilai tidak valid', description: 'Masukkan angka antara 0 dan 100.' });
@@ -169,18 +179,56 @@ export default function NilaiPage() {
     if (!selectedStudent || !isAdmin) return;
 
     const promises = Object.entries(mobileGrades).map(([kurikulumId, value]) => {
-      if (value.trim() === '') return Promise.resolve(true); // Skip empty values
+      // No need to check for empty string here, handleSaveGrade does it.
       return handleSaveGrade(selectedStudent.id, kurikulumId, value);
     });
 
     const results = await Promise.all(promises);
-    if (results.every(res => res)) {
-       toast({ title: 'Sukses!', description: `Semua nilai untuk ${selectedStudent.nama} telah disimpan.`});
+    const allSucceeded = results.every(res => res);
+    
+    if (allSucceeded) {
+       toast({ title: 'Sukses!', description: `Nilai untuk ${selectedStudent.nama} telah disimpan.`});
     } else {
-       toast({ variant: 'destructive', title: 'Gagal!', description: 'Beberapa nilai gagal disimpan.'});
+       toast({ variant: 'destructive', title: 'Gagal Sebagian!', description: 'Beberapa nilai gagal disimpan. Periksa kembali nilai yang Anda masukkan.'});
     }
   };
   
+  const handleExport = (format: 'pdf' | 'csv') => {
+    const head = ['Nama', 'NIS', ...sortedSubjects.map(s => s.mataPelajaran)];
+    const body = sortedStudents.map(student => {
+        return [
+            student.nama,
+            student.nis,
+            ...sortedSubjects.map(subject => {
+                const grade = gradesMap.get(`${student.id}-${subject.id}`);
+                return grade?.nilai ?? '';
+            })
+        ];
+    });
+
+    const filename = `Nilai_Kelas_${selectedKelas}_Semester_${selectedSemester}`;
+
+    if (format === 'pdf') {
+        const doc = new jsPDF({ orientation: 'landscape' }) as jsPDFWithAutoTable;
+        doc.text(`Data Nilai Kelas ${selectedKelas} - Semester ${selectedSemester}`, 14, 10);
+        doc.autoTable({
+            head: [head],
+            body: body,
+        });
+        doc.save(`${filename}.pdf`);
+    } else {
+        const csvContent = Papa.unparse({ fields: head, data: body });
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `${filename}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+  };
+
   const isLoading = studentsLoading || subjectsLoading || gradesLoading;
 
   // --- RENDER LOGIC ---
@@ -306,6 +354,14 @@ export default function NilaiPage() {
               Kelola nilai siswa per mata pelajaran secara interaktif.
             </p>
           </div>
+           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Button onClick={() => handleExport('pdf')} variant="outline" size="sm">
+                  <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
+                </Button>
+                <Button onClick={() => handleExport('csv')} variant="outline" size="sm">
+                  <FileDown className="mr-2 h-4 w-4" /> Ekspor CSV
+                </Button>
+            </div>
         </div>
 
         <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -350,4 +406,5 @@ export default function NilaiPage() {
   );
 }
 
+    
     
