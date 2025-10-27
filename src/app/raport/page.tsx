@@ -51,9 +51,10 @@ export default function RaportPage() {
 
   const filteredStudents = useMemo(() => {
     if (!activeStudents) return [];
-    if (!searchQuery) return activeStudents;
+    let sorted = [...activeStudents].sort((a,b) => a.nama.localeCompare(b.nama));
+    if (!searchQuery) return sorted;
     
-    return activeStudents.filter(student => 
+    return sorted.filter(student => 
         student.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
         student.nis.includes(searchQuery)
     );
@@ -68,25 +69,28 @@ export default function RaportPage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && uploadTarget && firestore) {
-      // In a real app, you would upload this file to Firebase Storage
-      // and then save the gs:// URL to Firestore.
-      // For this prototype, we'll use a local blob URL.
       const { nis, raportKey } = uploadTarget;
-      const fileUrl = URL.createObjectURL(file);
       
-      const raportDocRef = doc(firestore, 'raports', nis);
-      const updateData = { [`raports.${raportKey}`]: fileUrl };
-      
-      updateDocumentNonBlocking(raportDocRef, updateData);
+      // Convert file to a base64 Data URL to store it in Firestore
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const fileUrl = reader.result as string;
+        
+        const raportDocRef = doc(firestore, 'raports', nis);
+        const updateData = { [`raports.${raportKey}`]: fileUrl };
+        
+        updateDocumentNonBlocking(raportDocRef, updateData);
 
-      toast({
-        title: 'Upload Berhasil!',
-        description: `Raport untuk siswa NIS ${nis} telah diunggah.`,
-      });
-      
-      // Reset after upload
-      setUploadTarget(null);
-      if(fileInputRef.current) fileInputRef.current.value = '';
+        toast({
+          title: 'Upload Berhasil!',
+          description: `Raport untuk siswa NIS ${nis} telah diunggah.`,
+        });
+        
+        // Reset after upload
+        setUploadTarget(null);
+        if(fileInputRef.current) fileInputRef.current.value = '';
+      };
+      reader.readAsDataURL(file);
     }
   };
 
