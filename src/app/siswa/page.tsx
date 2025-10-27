@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   Table,
   TableBody,
@@ -11,8 +11,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Siswa as DetailedStudent } from '@/lib/data';
-import { Download, PlusCircle, FileDown, MoreHorizontal, Pencil, Trash2, BookCopy, Search } from 'lucide-react';
+import { Siswa as DetailedStudent, Raport } from '@/lib/data';
+import { Upload, PlusCircle, FileDown, MoreHorizontal, Pencil, Trash2, BookCopy, Search } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,8 +50,9 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
+import Papa from 'papaparse';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 
 
@@ -84,22 +85,27 @@ export default function SiswaPage() {
   const { data: activeStudents, isLoading } = useCollection<DetailedStudent>(siswaAktifQuery);
   const { isAdmin } = useAdmin();
   
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isAssignClassDialogOpen, setIsAssignClassDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [studentToEdit, setStudentToEdit] = useState<DetailedStudent | null>(null);
   const [studentToAssign, setStudentToAssign] = useState<DetailedStudent | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<DetailedStudent | null>(null);
   const [formData, setFormData] = useState({ ...emptyStudent });
   const [file, setFile] = useState<File | null>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   
+  const importInputRef = useRef<HTMLInputElement>(null);
+
   const filteredStudents = useMemo(() => {
     if (!activeStudents) return [];
-    if (!searchQuery) return activeStudents;
+    let sorted = [...activeStudents].sort((a,b) => a.nama.localeCompare(b.nama));
+    if (!searchQuery) return sorted;
     
-    return activeStudents.filter(student => 
+    return sorted.filter(student => 
         student.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
         student.nis.includes(searchQuery)
     );
@@ -141,10 +147,10 @@ export default function SiswaPage() {
       setFormData({ ...emptyStudent });
       setFile(null);
     }
-    setIsDialogOpen(true);
+    setIsFormDialogOpen(true);
   };
   
-  const handleSaveStudent = () => {
+  const handleSaveStudent = async () => {
     if (!firestore) return;
     // In a real app, file upload would be handled via Firebase Storage
     // For this prototype, we are skipping the actual upload and just using a placeholder
@@ -163,19 +169,21 @@ export default function SiswaPage() {
       kelas: studentToEdit ? studentToEdit.kelas : 0,
       status: 'Aktif',
     };
+    
+    const batch = writeBatch(firestore);
 
     if (studentToEdit) {
       // Edit
       const studentDocRef = doc(firestore, 'siswa', studentToEdit.id);
-      updateDocumentNonBlocking(studentDocRef, studentData);
+      batch.update(studentDocRef, studentData);
     } else {
       // Add a new student. We use NIS as the document ID.
       const studentDocRef = doc(firestore, 'siswa', formData.nis);
-      setDocumentNonBlocking(studentDocRef, studentData, { merge: false });
+      batch.set(studentDocRef, studentData);
 
       // Also create a corresponding raport document
       const raportDocRef = doc(firestore, 'raports', formData.nis);
-      const newRaport = {
+      const newRaport: Omit<Raport, 'id'> = {
         nis: formData.nis,
         raports: {
           kelas_0_ganjil: null, kelas_0_genap: null,
@@ -187,11 +195,14 @@ export default function SiswaPage() {
           kelas_6_ganjil: null, kelas_6_genap: null,
         }
       };
-      setDocumentNonBlocking(raportDocRef, newRaport, { merge: false });
+      batch.set(raportDocRef, newRaport);
     }
+    
+    await batch.commit();
 
-    setIsDialogOpen(false);
+    setIsFormDialogOpen(false);
     setStudentToEdit(null);
+    toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
   };
 
 
@@ -200,16 +211,19 @@ export default function SiswaPage() {
     setStudentToDelete(student);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if(studentToDelete && firestore) {
+        const batch = writeBatch(firestore);
         const studentDocRef = doc(firestore, 'siswa', studentToDelete.id);
-        deleteDocumentNonBlocking(studentDocRef);
+        batch.delete(studentDocRef);
 
         // Also delete the corresponding raport document
         const raportDocRef = doc(firestore, 'raports', studentToDelete.nis);
-        deleteDocumentNonBlocking(raportDocRef);
-
+        batch.delete(raportDocRef);
+        
+        await batch.commit();
         setStudentToDelete(null);
+        toast({ title: 'Sukses!', description: 'Data siswa berhasil dihapus.' });
     }
   };
 
@@ -220,10 +234,12 @@ export default function SiswaPage() {
     setIsAssignClassDialogOpen(true);
   };
 
-  const handleAssignClass = () => {
+  const handleAssignClass = async () => {
     if (studentToAssign && firestore) {
       const studentDocRef = doc(firestore, 'siswa', studentToAssign.id);
-      updateDocumentNonBlocking(studentDocRef, { kelas: Number(selectedClass) });
+      const batch = writeBatch(firestore);
+      batch.update(studentDocRef, { kelas: Number(selectedClass) });
+      await batch.commit();
       
       toast({
         title: 'Berhasil!',
@@ -253,6 +269,92 @@ export default function SiswaPage() {
     doc.save('data-siswa.pdf');
   };
 
+  const downloadTemplate = () => {
+    const headers = "nis,nama,jenisKelamin,tempatLahir,tanggalLahir,namaAyah,namaIbu,alamat,kelas,status";
+    const csvContent = "data:text/csv;charset=utf-8," + headers + "\n";
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "template_siswa.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setImportFile(event.target.files[0]);
+    }
+  };
+
+  const handleImport = () => {
+    if (!importFile || !firestore) return;
+
+    Papa.parse(importFile, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const newStudents = results.data as any[];
+
+        if (newStudents.length === 0) {
+          toast({ variant: 'destructive', title: 'Gagal', description: 'File CSV kosong atau format tidak sesuai.' });
+          return;
+        }
+
+        try {
+          const batch = writeBatch(firestore);
+          newStudents.forEach(student => {
+            if (student.nis && student.nama) {
+              const studentDocRef = doc(firestore, 'siswa', student.nis);
+              const raportDocRef = doc(firestore, 'raports', student.nis);
+
+              const studentData: Omit<DetailedStudent, 'id'> = {
+                nis: student.nis,
+                nama: student.nama,
+                jenisKelamin: student.jenisKelamin || 'Laki-laki',
+                tempatLahir: student.tempatLahir || '',
+                tanggalLahir: student.tanggalLahir || '',
+                namaAyah: student.namaAyah || '',
+                namaIbu: student.namaIbu || '',
+                alamat: student.alamat || '',
+                fileDokumen: '/path/to/default.pdf', // default placeholder
+                kelas: student.kelas ? Number(student.kelas) : 0,
+                status: student.status || 'Aktif',
+              };
+              batch.set(studentDocRef, studentData);
+
+              const newRaport: Omit<Raport, 'id'> = {
+                nis: student.nis,
+                raports: {
+                  kelas_0_ganjil: null, kelas_0_genap: null,
+                  kelas_1_ganjil: null, kelas_1_genap: null,
+                  kelas_2_ganjil: null, kelas_2_genap: null,
+                  kelas_3_ganjil: null, kelas_3_genap: null,
+                  kelas_4_ganjil: null, kelas_4_genap: null,
+                  kelas_5_ganjil: null, kelas_5_genap: null,
+                  kelas_6_ganjil: null, kelas_6_genap: null,
+                }
+              };
+              batch.set(raportDocRef, newRaport);
+            }
+          });
+
+          await batch.commit();
+          toast({ title: 'Import Berhasil!', description: `${newStudents.length} data siswa berhasil ditambahkan/diperbarui.` });
+          setIsImportDialogOpen(false);
+          setImportFile(null);
+        } catch (error) {
+          console.error("Error importing students: ", error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Terjadi kesalahan saat mengimpor data.' });
+        }
+      },
+      error: (error) => {
+        console.error("Error parsing CSV: ", error);
+        toast({ variant: 'destructive', title: 'Error Parsing', description: 'Gagal memproses file CSV.' });
+      }
+    });
+  };
+
   return (
     <div className="bg-background">
       <div className="container py-12 md:py-20">
@@ -271,10 +373,16 @@ export default function SiswaPage() {
                 <PlusCircle className="mr-2 h-4 w-4" /> Tambah Siswa
               </Button>
             )}
-            <Button onClick={handleExportPdf} variant="outline" size="sm">
-              <FileDown className="mr-2 h-4 w-4" />
-              Ekspor PDF
-            </Button>
+             <div className="flex gap-2">
+                {isAdmin && (
+                  <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
+                    <Upload className="mr-2 h-4 w-4" /> Import CSV
+                  </Button>
+                )}
+                <Button onClick={handleExportPdf} variant="outline" size="sm">
+                  <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
+                </Button>
+            </div>
           </div>
         </div>
 
@@ -321,7 +429,7 @@ export default function SiswaPage() {
                   <TableCell>
                     <Button variant="outline" size="sm" asChild>
                       <a href={student.fileDokumen} download>
-                        <Download className="mr-2 h-4 w-4" />
+                        <FileDown className="mr-2 h-4 w-4" />
                         Unduh
                       </a>
                     </Button>
@@ -364,7 +472,7 @@ export default function SiswaPage() {
       
       {isAdmin && (
         <>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
             <DialogContent className="sm:max-w-4xl">
               <DialogHeader>
                 <DialogTitle>{studentToEdit ? 'Edit Data Siswa' : 'Tambah Data Siswa'}</DialogTitle>
@@ -423,7 +531,7 @@ export default function SiswaPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
+                <Button type="button" variant="secondary" onClick={() => setIsFormDialogOpen(false)}>Batal</Button>
                 <Button type="submit" onClick={handleSaveStudent}>Simpan</Button>
               </DialogFooter>
             </DialogContent>
@@ -473,6 +581,39 @@ export default function SiswaPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          
+           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Import Data Siswa dari CSV</DialogTitle>
+                <DialogDescription>
+                  Pilih file CSV untuk mengimpor data siswa. NIS akan digunakan sebagai ID unik. Data yang sudah ada dengan NIS yang sama akan diperbarui.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                <div className="flex items-center gap-4">
+                  <Input 
+                    id="import-file" 
+                    type="file" 
+                    accept=".csv"
+                    onChange={handleImportFileChange}
+                    ref={importInputRef} 
+                  />
+                </div>
+                 <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Unduh Template CSV
+                  </Button>
+              </div>
+              <DialogFooter>
+                <Button variant="secondary" onClick={() => setIsImportDialogOpen(false)}>Batal</Button>
+                <Button onClick={handleImport} disabled={!importFile}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>

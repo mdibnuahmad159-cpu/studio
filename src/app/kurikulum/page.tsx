@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   Table,
   TableBody,
@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Kurikulum as Kitab } from '@/lib/data';
 import { Button } from '@/components/ui/button';
-import { FileDown, PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { FileDown, PlusCircle, MoreHorizontal, Pencil, Trash2, Upload } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,9 +48,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import Papa from 'papaparse';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { collection, doc, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
+import { useToast } from '@/hooks/use-toast';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -73,12 +75,17 @@ export default function KurikulumPage() {
   }, [firestore, user]);
   const { data: kitabPelajaran, isLoading } = useCollection<Kitab>(kurikulumRef);
   const { isAdmin } = useAdmin();
+  const { toast } = useToast();
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [kurikulumToEdit, setKurikulumToEdit] = useState<Kitab | null>(null);
   const [kurikulumToDelete, setKurikulumToDelete] = useState<Kitab | null>(null);
   const [formData, setFormData] = useState(emptyKurikulum);
   const [selectedKelas, setSelectedKelas] = useState('all');
+  const [importFile, setImportFile] = useState<File | null>(null);
+  
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -93,19 +100,23 @@ export default function KurikulumPage() {
     if (!isAdmin) return;
     setKurikulumToEdit(item);
     setFormData(item ? { kelas: item.kelas, mataPelajaran: item.mataPelajaran, kitab: item.kitab } : emptyKurikulum);
-    setIsDialogOpen(true);
+    setIsFormDialogOpen(true);
   };
 
-  const handleSaveKurikulum = () => {
-    if (formData.kelas && formData.mataPelajaran && formData.kitab && kurikulumRef) {
+  const handleSaveKurikulum = async () => {
+    if (formData.kelas && formData.mataPelajaran && formData.kitab && kurikulumRef && firestore) {
+      const batch = writeBatch(firestore);
       if (kurikulumToEdit) {
         const kurikulumDocRef = doc(firestore, 'kurikulum', kurikulumToEdit.id);
-        updateDocumentNonBlocking(kurikulumDocRef, formData);
+        batch.update(kurikulumDocRef, formData);
       } else {
-        addDocumentNonBlocking(kurikulumRef, formData);
+        const newKurikulumRef = doc(kurikulumRef);
+        batch.set(newKurikulumRef, formData);
       }
-      setIsDialogOpen(false);
+      await batch.commit();
+      setIsFormDialogOpen(false);
       setKurikulumToEdit(null);
+      toast({ title: 'Sukses!', description: 'Data kurikulum berhasil disimpan.' });
     }
   };
 
@@ -114,20 +125,24 @@ export default function KurikulumPage() {
     setKurikulumToDelete(item);
   };
 
-  const confirmDelete = () => {
-    if (kurikulumToDelete) {
+  const confirmDelete = async () => {
+    if (kurikulumToDelete && firestore) {
       const kurikulumDocRef = doc(firestore, 'kurikulum', kurikulumToDelete.id);
-      deleteDocumentNonBlocking(kurikulumDocRef);
+      const batch = writeBatch(firestore);
+      batch.delete(kurikulumDocRef);
+      await batch.commit();
       setKurikulumToDelete(null);
+      toast({ title: 'Sukses!', description: 'Data kurikulum berhasil dihapus.' });
     }
   };
 
   const filteredKitabPelajaran = useMemo(() => {
     if (!kitabPelajaran) return [];
-    if (selectedKelas === 'all') {
-      return kitabPelajaran;
+    let filtered = kitabPelajaran;
+    if (selectedKelas !== 'all') {
+      filtered = filtered.filter(item => item.kelas === selectedKelas);
     }
-    return kitabPelajaran.filter(item => item.kelas === selectedKelas);
+    return filtered.sort((a,b) => Number(a.kelas) - Number(b.kelas) || a.mataPelajaran.localeCompare(b.mataPelajaran));
   }, [kitabPelajaran, selectedKelas]);
 
   const handleExportPdf = () => {
@@ -138,6 +153,60 @@ export default function KurikulumPage() {
       body: filteredKitabPelajaran.map((item: Kitab) => [`Kelas ${item.kelas}`, item.mataPelajaran, item.kitab]),
     });
     doc.save('data-kurikulum.pdf');
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = "data:text/csv;charset=utf-8," + "kelas,mataPelajaran,kitab\n";
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "template_kurikulum.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setImportFile(event.target.files[0]);
+    }
+  };
+
+  const handleImport = () => {
+    if (!importFile || !firestore || !kurikulumRef) return;
+    
+    Papa.parse(importFile, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const newKurikulum = results.data as Omit<Kitab, 'id'>[];
+        if (newKurikulum.length === 0) {
+          toast({ variant: 'destructive', title: 'Gagal', description: 'File CSV kosong atau format tidak sesuai.' });
+          return;
+        }
+
+        try {
+          const batch = writeBatch(firestore);
+          newKurikulum.forEach(item => {
+            if (item.kelas && item.mataPelajaran && item.kitab) {
+               const newKurikulumRef = doc(kurikulumRef);
+               batch.set(newKurikulumRef, item);
+            }
+          });
+          await batch.commit();
+          toast({ title: 'Import Berhasil!', description: `${newKurikulum.length} data kurikulum berhasil ditambahkan.` });
+          setIsImportDialogOpen(false);
+          setImportFile(null);
+        } catch (error) {
+          console.error("Error importing curriculum: ", error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Terjadi kesalahan saat mengimpor data.' });
+        }
+      },
+      error: (error) => {
+        console.error("Error parsing CSV: ", error);
+        toast({ variant: 'destructive', title: 'Error Parsing', description: 'Gagal memproses file CSV.' });
+      }
+    });
   };
 
   return (
@@ -159,16 +228,22 @@ export default function KurikulumPage() {
                 <PlusCircle className="mr-2 h-4 w-4" /> Tambah Kurikulum
               </Button>
             )}
-            <Button onClick={handleExportPdf} variant="outline" size="sm">
-              <FileDown className="mr-2 h-4 w-4" />
-              Ekspor PDF
-            </Button>
+             <div className="flex gap-2">
+                {isAdmin && (
+                  <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
+                    <Upload className="mr-2 h-4 w-4" /> Import CSV
+                  </Button>
+                )}
+                <Button onClick={handleExportPdf} variant="outline" size="sm">
+                  <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
+                </Button>
+            </div>
           </div>
         </div>
 
         <div className="mb-6 flex justify-end">
             <Select value={selectedKelas} onValueChange={setSelectedKelas}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Filter Kelas" />
                 </SelectTrigger>
                 <SelectContent>
@@ -232,7 +307,7 @@ export default function KurikulumPage() {
       
       {isAdmin && (
         <>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>{kurikulumToEdit ? 'Edit Kurikulum' : 'Tambah Data Kurikulum'}</DialogTitle>
@@ -270,7 +345,7 @@ export default function KurikulumPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
+                <Button type="button" variant="secondary" onClick={() => setIsFormDialogOpen(false)}>Batal</Button>
                 <Button type="submit" onClick={handleSaveKurikulum}>Simpan</Button>
               </DialogFooter>
             </DialogContent>
@@ -291,6 +366,38 @@ export default function KurikulumPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Import Data Kurikulum dari CSV</DialogTitle>
+                <DialogDescription>
+                  Pilih file CSV untuk mengimpor data kurikulum. Pastikan format file sesuai dengan template.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                <div className="flex items-center gap-4">
+                  <Input 
+                    id="import-file" 
+                    type="file" 
+                    accept=".csv"
+                    onChange={handleImportFileChange}
+                    ref={importInputRef} 
+                  />
+                </div>
+                 <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Unduh Template CSV
+                  </Button>
+              </div>
+              <DialogFooter>
+                <Button variant="secondary" onClick={() => setIsImportDialogOpen(false)}>Batal</Button>
+                <Button onClick={handleImport} disabled={!importFile}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>

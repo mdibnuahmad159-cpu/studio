@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Guru } from '@/lib/data';
 import { TeacherCard } from '@/components/teacher-card';
 import { Button } from '@/components/ui/button';
@@ -15,9 +15,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, FileDown } from 'lucide-react';
+import { PlusCircle, FileDown, Upload } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import Papa from 'papaparse';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,9 +29,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { collection, doc, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
+import { useToast } from '@/hooks/use-toast';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -61,11 +63,16 @@ export default function GuruPage() {
   }, [firestore, user]);
   const { data: teachers, isLoading } = useCollection<Guru>(teachersRef);
   const { isAdmin } = useAdmin();
+  const { toast } = useToast();
   
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [teacherToEdit, setTeacherToEdit] = useState<Guru | null>(null);
   const [teacherToDelete, setTeacherToDelete] = useState<Guru | null>(null);
   const [formData, setFormData] = useState(emptyTeacher);
+  const [importFile, setImportFile] = useState<File | null>(null);
+
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const sortedTeachers = useMemo(() => {
     if (!teachers) return [];
@@ -85,32 +92,38 @@ export default function GuruPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleOpenDialog = (teacher: Guru | null = null) => {
+  const handleOpenFormDialog = (teacher: Guru | null = null) => {
     if (!isAdmin) return;
     setTeacherToEdit(teacher);
     setFormData(teacher ? { name: teacher.name, position: teacher.position, whatsapp: teacher.whatsapp } : emptyTeacher);
-    setIsDialogOpen(true);
+    setIsFormDialogOpen(true);
   };
 
-  const handleSaveTeacher = () => {
-    if (formData.name && formData.position && formData.whatsapp && teachersRef) {
+  const handleSaveTeacher = async () => {
+    if (!firestore || !teachersRef) return;
+    if (formData.name && formData.position && formData.whatsapp) {
+      const batch = writeBatch(firestore);
       if (teacherToEdit) {
-        // Edit
         const teacherDocRef = doc(firestore, 'gurus', teacherToEdit.id);
-        updateDocumentNonBlocking(teacherDocRef, { ...formData });
+        batch.update(teacherDocRef, { ...formData });
       } else {
-        // Add
-        addDocumentNonBlocking(teachersRef, { ...formData, imageId: null });
+        const newTeacherRef = doc(teachersRef);
+        batch.set(newTeacherRef, { ...formData, imageId: null });
       }
-      setIsDialogOpen(false);
+      await batch.commit();
+      setIsFormDialogOpen(false);
       setTeacherToEdit(null);
       setFormData(emptyTeacher);
+      toast({ title: 'Sukses!', description: 'Data guru berhasil disimpan.' });
     }
   };
   
-  const handleImageChange = (teacherId: string, image: string | null) => {
+  const handleImageChange = async (teacherId: string, image: string | null) => {
+    if (!firestore) return;
     const teacherDocRef = doc(firestore, 'gurus', teacherId);
-    updateDocumentNonBlocking(teacherDocRef, { imageId: image });
+    const batch = writeBatch(firestore);
+    batch.update(teacherDocRef, { imageId: image });
+    await batch.commit();
   };
 
   const handleDeleteTeacher = (teacher: Guru) => {
@@ -118,11 +131,14 @@ export default function GuruPage() {
     setTeacherToDelete(teacher);
   };
 
-  const confirmDelete = () => {
-    if (teacherToDelete) {
+  const confirmDelete = async () => {
+    if (teacherToDelete && firestore) {
       const teacherDocRef = doc(firestore, 'gurus', teacherToDelete.id);
-      deleteDocumentNonBlocking(teacherDocRef);
+      const batch = writeBatch(firestore);
+      batch.delete(teacherDocRef);
+      await batch.commit();
       setTeacherToDelete(null);
+      toast({ title: 'Sukses!', description: 'Data guru berhasil dihapus.' });
     }
   };
 
@@ -134,6 +150,60 @@ export default function GuruPage() {
       body: sortedTeachers?.map((teacher: Guru) => [teacher.name, teacher.position, teacher.whatsapp]),
     });
     doc.save('data-guru.pdf');
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = "data:text/csv;charset=utf-8," + "name,position,whatsapp\n";
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "template_guru.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setImportFile(event.target.files[0]);
+    }
+  };
+
+  const handleImport = () => {
+    if (!importFile || !firestore || !teachersRef) return;
+    
+    Papa.parse(importFile, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const newTeachers = results.data as Omit<Guru, 'id' | 'imageId'>[];
+        if (newTeachers.length === 0) {
+          toast({ variant: 'destructive', title: 'Gagal', description: 'File CSV kosong atau format tidak sesuai.' });
+          return;
+        }
+
+        try {
+          const batch = writeBatch(firestore);
+          newTeachers.forEach(teacher => {
+            if (teacher.name && teacher.position && teacher.whatsapp) {
+               const newTeacherRef = doc(teachersRef);
+               batch.set(newTeacherRef, { ...teacher, imageId: null });
+            }
+          });
+          await batch.commit();
+          toast({ title: 'Import Berhasil!', description: `${newTeachers.length} data guru berhasil ditambahkan.` });
+          setIsImportDialogOpen(false);
+          setImportFile(null);
+        } catch (error) {
+          console.error("Error importing teachers: ", error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Terjadi kesalahan saat mengimpor data.' });
+        }
+      },
+      error: (error) => {
+        console.error("Error parsing CSV: ", error);
+        toast({ variant: 'destructive', title: 'Error Parsing', description: 'Gagal memproses file CSV.' });
+      }
+    });
   };
 
   return (
@@ -148,14 +218,20 @@ export default function GuruPage() {
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {isAdmin && (
-              <Button onClick={() => handleOpenDialog()} size="sm">
+              <Button onClick={() => handleOpenFormDialog()} size="sm">
                 <PlusCircle className="mr-2 h-4 w-4" /> Tambah Guru
               </Button>
             )}
-            <Button onClick={handleExportPdf} variant="outline" size="sm">
-              <FileDown className="mr-2 h-4 w-4" />
-              Ekspor PDF
-            </Button>
+             <div className="flex gap-2">
+                {isAdmin && (
+                  <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
+                    <Upload className="mr-2 h-4 w-4" /> Import CSV
+                  </Button>
+                )}
+                <Button onClick={handleExportPdf} variant="outline" size="sm">
+                  <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
+                </Button>
+            </div>
           </div>
         </div>
 
@@ -166,7 +242,7 @@ export default function GuruPage() {
               key={teacher.id} 
               teacher={teacher} 
               onImageChange={handleImageChange} 
-              onEdit={handleOpenDialog}
+              onEdit={handleOpenFormDialog}
               onDelete={handleDeleteTeacher}
               isAdmin={isAdmin}
             />
@@ -176,7 +252,7 @@ export default function GuruPage() {
 
       {isAdmin && (
         <>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>{teacherToEdit ? 'Edit Data Guru' : 'Tambah Data Guru'}</DialogTitle>
@@ -205,7 +281,7 @@ export default function GuruPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Batal</Button>
+                <Button type="button" variant="secondary" onClick={() => setIsFormDialogOpen(false)}>Batal</Button>
                 <Button type="submit" onClick={handleSaveTeacher}>Simpan</Button>
               </DialogFooter>
             </DialogContent>
@@ -227,6 +303,39 @@ export default function GuruPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Import Data Guru dari CSV</DialogTitle>
+                <DialogDescription>
+                  Pilih file CSV untuk mengimpor data guru secara massal. Pastikan format file sesuai dengan template.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                <div className="flex items-center gap-4">
+                  <Input 
+                    id="import-file" 
+                    type="file" 
+                    accept=".csv"
+                    onChange={handleImportFileChange}
+                    ref={importInputRef} 
+                  />
+                </div>
+                 <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Unduh Template CSV
+                  </Button>
+              </div>
+              <DialogFooter>
+                <Button variant="secondary" onClick={() => setIsImportDialogOpen(false)}>Batal</Button>
+                <Button onClick={handleImport} disabled={!importFile}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>
