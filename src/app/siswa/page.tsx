@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Siswa as DetailedStudent, Raport } from '@/lib/data';
-import { Upload, PlusCircle, FileDown, MoreHorizontal, Pencil, Trash2, BookCopy, Search, Eye } from 'lucide-react';
+import { Upload, PlusCircle, FileDown, MoreHorizontal, Pencil, Trash2, BookCopy, Search, Eye, Download } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -641,3 +641,5 @@ export default function SiswaPage() {
     </div>
   );
 }
+
+    
