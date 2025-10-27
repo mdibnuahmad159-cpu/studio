@@ -160,7 +160,7 @@ export default function JadwalPage() {
   };
   
   const confirmDelete = () => {
-    if (jadwalToDelete) {
+    if (jadwalToDelete && firestore) {
         const jadwalDocRef = doc(firestore, 'jadwal', jadwalToDelete.id);
         deleteDocumentNonBlocking(jadwalDocRef);
         setJadwalToDelete(null);
