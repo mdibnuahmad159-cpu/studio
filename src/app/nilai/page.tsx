@@ -47,19 +47,19 @@ export default function NilaiPage() {
 
   // --- Data Fetching ---
   const siswaQuery = useMemoFirebase(() => {
-    if (!user || selectedKelas === 'all') return null;
+    if (!user) return null;
     return query(collection(firestore, 'siswa'), where('status', '==', 'Aktif'), where('kelas', '==', Number(selectedKelas)));
   }, [firestore, user, selectedKelas]);
   const { data: students, isLoading: studentsLoading } = useCollection<Siswa>(siswaQuery);
 
   const kurikulumQuery = useMemoFirebase(() => {
-    if (!user || selectedKelas === 'all') return null;
+    if (!user) return null;
     return query(collection(firestore, 'kurikulum'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
   const { data: subjects, isLoading: subjectsLoading } = useCollection<Kurikulum>(kurikulumQuery);
 
   const nilaiQuery = useMemoFirebase(() => {
-    if (!user || selectedKelas === 'all') return null;
+    if (!user) return null;
     return query(
       collection(firestore, 'nilai'),
       where('kelas', '==', Number(selectedKelas)),
