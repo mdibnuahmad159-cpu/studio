@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -29,6 +29,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Papa from 'papaparse';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -42,10 +45,12 @@ export default function NilaiPage() {
   const { user } = useUser();
   const { isAdmin } = useAdmin();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const [selectedKelas, setSelectedKelas] = useState('1');
   const [selectedSemester, setSelectedSemester] = useState<'ganjil' | 'genap'>('ganjil');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<Siswa | null>(null);
   
   // --- Data Fetching ---
   const siswaQuery = useMemoFirebase(() => {
@@ -93,6 +98,16 @@ export default function NilaiPage() {
     });
     return map;
   }, [grades]);
+  
+  useEffect(() => {
+    if (sortedStudents && sortedStudents.length > 0) {
+      if (!selectedStudent || !sortedStudents.find(s => s.id === selectedStudent.id)) {
+        setSelectedStudent(sortedStudents[0]);
+      }
+    } else {
+      setSelectedStudent(null);
+    }
+  }, [sortedStudents, selectedStudent]);
 
   // --- Event Handlers ---
   const handleSaveGrade = async (siswaId: string, kurikulumId: string, value: string) => {
@@ -190,9 +205,113 @@ export default function NilaiPage() {
 
   const isLoading = studentsLoading || subjectsLoading || gradesLoading;
 
+  const renderMobileView = () => (
+    <div className="flex flex-col md:flex-row h-[calc(100vh-250px)] gap-4">
+      <Card className="w-full md:w-1/3 flex flex-col">
+        <CardContent className="p-2 flex-grow">
+          <ScrollArea className="h-full">
+            {isLoading && <p className="p-4 text-center">Memuat siswa...</p>}
+            {!isLoading && sortedStudents.length === 0 && <p className="p-4 text-center">Tidak ada siswa.</p>}
+            {sortedStudents.map(student => (
+              <button
+                key={student.id}
+                onClick={() => setSelectedStudent(student)}
+                className={cn(
+                  "w-full text-left p-3 rounded-md transition-colors",
+                  selectedStudent?.id === student.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                )}
+              >
+                <p className="font-semibold">{student.nama}</p>
+                <p className="text-xs text-muted-foreground">{student.nis}</p>
+              </button>
+            ))}
+          </ScrollArea>
+        </CardContent>
+      </Card>
+      <Card className="w-full md:w-2/3 flex-1 flex flex-col">
+        <CardContent className="p-2 flex-grow">
+          <ScrollArea className="h-full">
+            {isLoading && <p className="p-4 text-center">Memuat mata pelajaran...</p>}
+            {!selectedStudent && !isLoading && <p className="p-4 text-center">Pilih siswa untuk melihat nilai.</p>}
+            {selectedStudent && (
+              <div className="p-2 space-y-3">
+                 <h3 className="font-bold text-lg text-center mb-4">{selectedStudent.nama}</h3>
+                 {sortedSubjects.length === 0 && <p className="text-center text-muted-foreground">Tidak ada mata pelajaran untuk kelas ini.</p>}
+                {sortedSubjects.map(subject => {
+                  const grade = gradesMap.get(`${selectedStudent.id}-${subject.id}`);
+                  return (
+                    <div key={subject.id} className="flex items-center justify-between gap-4">
+                      <label className="flex-1 truncate" htmlFor={`${selectedStudent.id}-${subject.id}`}>
+                        {subject.mataPelajaran}
+                      </label>
+                      <Input
+                        id={`${selectedStudent.id}-${subject.id}`}
+                        type="number"
+                        defaultValue={grade?.nilai}
+                        onBlur={(e) => handleSaveGrade(selectedStudent.id, subject.id, e.target.value)}
+                        disabled={!isAdmin}
+                        className="w-24 text-center"
+                        placeholder="-"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderDesktopView = () => (
+    <div className="border rounded-lg overflow-hidden bg-card">
+      <ScrollArea className="w-full whitespace-nowrap">
+        <Table className="min-w-[1000px]">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="font-headline sticky left-0 bg-card z-10 w-[200px] shadow-sm">Nama Siswa</TableHead>
+              <TableHead className="font-headline w-[120px]">NIS</TableHead>
+              {sortedSubjects.map(subject => (
+                <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 2} className="text-center">Memuat data...</TableCell></TableRow>}
+            {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 2} className="text-center">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
+            {sortedStudents.map(student => (
+              <TableRow key={student.id}>
+                <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
+                <TableCell>{student.nis}</TableCell>
+                {sortedSubjects.map(subject => {
+                  const grade = gradesMap.get(`${student.id}-${subject.id}`);
+                  return (
+                    <TableCell key={subject.id} className="text-center">
+                      <Input
+                        type="number"
+                        defaultValue={grade?.nilai}
+                        onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
+                        disabled={!isAdmin}
+                        className="min-w-[70px] text-center mx-auto"
+                        placeholder="-"
+                      />
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div className="h-1" />
+      </ScrollArea>
+    </div>
+  );
+
+
   return (
     <div className="bg-background">
-      <div className="container py-12 md:py-20">
+      <div className="container py-12 md:py-20 flex flex-col h-full">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
@@ -243,48 +362,12 @@ export default function NilaiPage() {
           </div>
         </div>
         
-         <div className="border rounded-lg overflow-hidden bg-card">
-            <ScrollArea className="w-full whitespace-nowrap">
-                <Table className="min-w-[1000px]">
-                <TableHeader>
-                    <TableRow>
-                    <TableHead className="font-headline sticky left-0 bg-card z-10 w-[200px] shadow-sm">Nama Siswa</TableHead>
-                    <TableHead className="font-headline w-[120px]">NIS</TableHead>
-                    {sortedSubjects.map(subject => (
-                        <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
-                    ))}
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 2} className="text-center">Memuat data...</TableCell></TableRow>}
-                    {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 2} className="text-center">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
-                    {sortedStudents.map(student => (
-                    <TableRow key={student.id}>
-                        <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
-                        <TableCell>{student.nis}</TableCell>
-                        {sortedSubjects.map(subject => {
-                        const grade = gradesMap.get(`${student.id}-${subject.id}`);
-                        return (
-                            <TableCell key={subject.id} className="text-center">
-                                <Input
-                                    type="number"
-                                    defaultValue={grade?.nilai}
-                                    onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
-                                    disabled={!isAdmin}
-                                    className="min-w-[70px] text-center mx-auto"
-                                    placeholder="-"
-                                />
-                            </TableCell>
-                        );
-                        })}
-                    </TableRow>
-                    ))}
-                </TableBody>
-                </Table>
-                <div className="h-1" /> 
-            </ScrollArea>
+        <div className="flex-grow">
+          {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
       </div>
     </div>
   );
 }
+
+    
