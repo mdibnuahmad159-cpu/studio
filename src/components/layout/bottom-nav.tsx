@@ -4,10 +4,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, BookMarked, UserCircle, GraduationCap, CalendarDays, FileText, ClipboardCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { Home, Users, BookMarked, UserCircle, GraduationCap, CalendarDays, FileText, ClipboardCheck, ChevronDown, ChevronUp, BookCopy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const navLinks = [
   { href: '/', label: 'Home', icon: Home },
@@ -15,6 +15,7 @@ const navLinks = [
   { href: '/guru', label: 'Guru', icon: Users },
   { href: '/siswa', label: 'Siswa', icon: UserCircle },
   { href: '/alumni', label: 'Alumni', icon: GraduationCap },
+  { href: '/kelas', label: 'Kelas', icon: BookCopy },
   { href: '/jadwal', label: 'Jadwal', icon: CalendarDays },
   { href: '/nilai', label: 'Nilai', icon: ClipboardCheck },
   { href: '/raport', label: 'Raport', icon: FileText },
@@ -24,8 +25,8 @@ export function BottomNav() {
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
 
-  const topRowLinks = navLinks.slice(0, 4);
-  const bottomRowLinks = navLinks.slice(4);
+  const topRowLinks = navLinks.slice(0, 5);
+  const bottomRowLinks = navLinks.slice(5);
 
   const toggleVisibility = () => setIsVisible(!isVisible);
 
@@ -50,7 +51,7 @@ export function BottomNav() {
             <div
                 className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
             >
-                <nav className="grid grid-cols-4 items-center h-16">
+                <nav className="grid grid-cols-5 items-center h-16">
                     {topRowLinks.map((link) => {
                     const isActive = pathname === link.href;
                     return (
@@ -68,7 +69,7 @@ export function BottomNav() {
                     );
                     })}
                 </nav>
-                <nav className="grid grid-cols-4 items-center h-16 border-t">
+                <nav className="grid grid-cols-5 items-center h-16 border-t">
                     {bottomRowLinks.map((link) => {
                         const isActive = pathname === link.href;
                         return (
