@@ -51,7 +51,7 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Papa from 'papaparse';
-import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 
@@ -168,13 +168,12 @@ export default function SiswaPage() {
             status: 'Aktif',
         };
 
-        const batch = writeBatch(firestore);
         const studentDocRef = doc(firestore, 'siswa', formData.nis);
 
         if (studentToEdit) {
-            batch.update(studentDocRef, studentData);
+            updateDocumentNonBlocking(studentDocRef, studentData);
         } else {
-            batch.set(studentDocRef, studentData);
+            setDocumentNonBlocking(studentDocRef, studentData, { merge: true });
             const raportDocRef = doc(firestore, 'raports', formData.nis);
             const newRaport: Omit<Raport, 'id'> = {
                 nis: formData.nis,
@@ -188,17 +187,12 @@ export default function SiswaPage() {
                   kelas_6_ganjil: null, kelas_6_genap: null,
                 }
             };
-            batch.set(raportDocRef, newRaport);
+            setDocumentNonBlocking(raportDocRef, newRaport, { merge: true });
         }
         
-        batch.commit().then(() => {
-            setIsFormDialogOpen(false);
-            setStudentToEdit(null);
-            toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
-        }).catch(error => {
-            console.error("Error saving student: ", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Gagal menyimpan data siswa.' });
-        });
+        setIsFormDialogOpen(false);
+        setStudentToEdit(null);
+        toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
     };
 
     if (file) {
@@ -222,13 +216,9 @@ export default function SiswaPage() {
 
   const confirmDelete = async () => {
     if(studentToDelete && firestore) {
-        const batch = writeBatch(firestore);
         const studentDocRef = doc(firestore, 'siswa', studentToDelete.id);
-        batch.delete(studentDocRef);
-
-        // We no longer delete the raport document to preserve student's report history
+        deleteDocumentNonBlocking(studentDocRef);
         
-        await batch.commit();
         setStudentToDelete(null);
         toast({ title: 'Sukses!', description: 'Data siswa berhasil dihapus.' });
     }
@@ -244,9 +234,7 @@ export default function SiswaPage() {
   const handleAssignClass = async () => {
     if (studentToAssign && firestore) {
       const studentDocRef = doc(firestore, 'siswa', studentToAssign.id);
-      const batch = writeBatch(firestore);
-      batch.update(studentDocRef, { kelas: Number(selectedClass) });
-      await batch.commit();
+      updateDocumentNonBlocking(studentDocRef, { kelas: Number(selectedClass) });
       
       toast({
         title: 'Berhasil!',
@@ -342,7 +330,7 @@ export default function SiswaPage() {
                   kelas_6_ganjil: null, kelas_6_genap: null,
                 }
               };
-              batch.set(raportDocRef, newRaport);
+              batch.set(raportDocRef, newRaport, { merge: true });
             }
           });
 
@@ -360,6 +348,24 @@ export default function SiswaPage() {
         toast({ variant: 'destructive', title: 'Error Parsing', description: 'Gagal memproses file CSV.' });
       }
     });
+  };
+
+  const viewFile = (dataUrl: string) => {
+    if (!dataUrl || !dataUrl.startsWith('data:')) return;
+    try {
+      const byteCharacters = atob(dataUrl.split(',')[1]);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    } catch (e) {
+      console.error("Error opening file:", e);
+      toast({ variant: 'destructive', title: 'Gagal Membuka File', description: 'File mungkin rusak atau format tidak didukung.' });
+    }
   };
 
   return (
@@ -441,11 +447,9 @@ export default function SiswaPage() {
                           </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                         <DropdownMenuItem asChild>
-                           <a href={student.fileDokumen} target="_blank" rel="noopener noreferrer">
+                         <DropdownMenuItem onClick={() => viewFile(student.fileDokumen)}>
                               <Eye className="mr-2 h-4 w-4" />
                               <span>Lihat</span>
-                           </a>
                          </DropdownMenuItem>
                          <DropdownMenuItem asChild>
                             <a href={student.fileDokumen} download={`Dokumen_${student.nis}.pdf`}>
@@ -548,7 +552,7 @@ export default function SiswaPage() {
                     <Label htmlFor="fileDokumen">File Dokumen</Label>
                     <Input id="fileDokumen" name="fileDokumen" type="file" accept=".pdf" onChange={handleFileChange} />
                     {studentToEdit && typeof formData.fileDokumen === 'string' && !formData.fileDokumen.startsWith('/path/to/') && (
-                        <p className="text-sm text-muted-foreground mt-1">Dokumen saat ini: <a href={formData.fileDokumen} target="_blank" rel="noopener noreferrer" className="text-primary underline">Lihat</a></p>
+                        <p className="text-sm text-muted-foreground mt-1">Dokumen saat ini: <button onClick={() => viewFile(formData.fileDokumen as string)} className="text-primary underline">Lihat</button></p>
                     )}
                 </div>
               </div>
