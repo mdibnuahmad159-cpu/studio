@@ -217,9 +217,7 @@ export default function SiswaPage() {
         const studentDocRef = doc(firestore, 'siswa', studentToDelete.id);
         batch.delete(studentDocRef);
 
-        // Also delete the corresponding raport document
-        const raportDocRef = doc(firestore, 'raports', studentToDelete.nis);
-        batch.delete(raportDocRef);
+        // We no longer delete the raport document to preserve student's report history
         
         await batch.commit();
         setStudentToDelete(null);
@@ -619,3 +617,5 @@ export default function SiswaPage() {
     </div>
   );
 }
+
+    
