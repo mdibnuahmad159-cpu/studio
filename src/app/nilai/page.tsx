@@ -110,7 +110,7 @@ export default function NilaiPage() {
         if(!studentStillExists) {
             setSelectedStudent(sortedStudents[0]);
         }
-    } else {
+    } else if (!isMobile) {
       setSelectedStudent(null);
     }
   }, [isMobile, sortedStudents, selectedStudent]);
@@ -120,8 +120,19 @@ export default function NilaiPage() {
   const handleSaveGrade = async (siswaId: string, kurikulumId: string, value: string) => {
     if (!isAdmin || !firestore) return;
     if (value.trim() === '') {
-        // Handle deletion if value is cleared. This is optional.
-        // For now, we just skip saving.
+        // Handle deletion if value is cleared.
+        const grade = gradesMap.get(`${siswaId}-${kurikulumId}`);
+        if(grade) {
+          const gradeRef = doc(firestore, 'nilai', grade.id);
+          const batch = writeBatch(firestore);
+          batch.delete(gradeRef);
+          try {
+            await batch.commit();
+            toast({ title: 'Sukses!', description: 'Nilai berhasil dihapus.'});
+          } catch(error) {
+             toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat menghapus nilai.'});
+          }
+        }
         return true;
     }
 
@@ -307,7 +318,7 @@ export default function NilaiPage() {
 
   return (
     <div className="bg-background">
-      <div className={cn("container py-12 md:py-20 flex flex-col", isMobile ? "h-[calc(100vh-8rem)] pb-4 md:pb-20" : "")}>
+      <div className={cn("container py-12 md:py-20 flex flex-col", isMobile ? "h-[calc(100vh-8rem-3rem)] md:h-auto pb-4 md:pb-20" : "")}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
@@ -366,3 +377,5 @@ export default function NilaiPage() {
     </div>
   );
 }
+
+    
