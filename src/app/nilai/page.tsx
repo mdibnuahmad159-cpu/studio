@@ -70,8 +70,6 @@ export default function NilaiPage() {
     const studentIds = students.map(s => s.id);
     if(studentIds.length === 0) return null;
     
-    // Firestore 'in' query is limited to 30 items. 
-    // If you have more students, you'd need to batch the queries.
     return query(
       collection(firestore, 'nilai'),
       where('kelas', '==', Number(selectedKelas)),
@@ -216,7 +214,7 @@ export default function NilaiPage() {
 
   const renderTableView = () => (
      <div className="border rounded-lg overflow-hidden bg-card">
-        <div className="relative w-full overflow-auto">
+        <ScrollArea className="w-full whitespace-nowrap">
             <Table className="min-w-[1000px]">
             <TableHeader>
                 <TableRow>
@@ -253,7 +251,8 @@ export default function NilaiPage() {
                 ))}
             </TableBody>
             </Table>
-        </div>
+            <div className="h-4" /> 
+          </ScrollArea>
     </div>
   );
 
@@ -377,5 +376,6 @@ export default function NilaiPage() {
     </div>
   );
 }
+
 
     
