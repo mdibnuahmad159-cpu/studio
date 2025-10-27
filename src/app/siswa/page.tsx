@@ -51,7 +51,7 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Papa from 'papaparse';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 
@@ -152,57 +152,66 @@ export default function SiswaPage() {
   
   const handleSaveStudent = async () => {
     if (!firestore) return;
-    // In a real app, file upload would be handled via Firebase Storage
-    // For this prototype, we are skipping the actual upload and just using a placeholder
-    const fileUrl = file ? URL.createObjectURL(file) : (typeof formData.fileDokumen === 'string' ? formData.fileDokumen : '/path/to/default.pdf');
-    
-    const studentData: Omit<DetailedStudent, 'id'> = {
-      nis: formData.nis,
-      nama: formData.nama,
-      jenisKelamin: formData.jenisKelamin,
-      tempatLahir: formData.tempatLahir,
-      tanggalLahir: formData.tanggalLahir,
-      namaAyah: formData.namaAyah,
-      namaIbu: formData.namaIbu,
-      alamat: formData.alamat,
-      fileDokumen: fileUrl,
-      kelas: studentToEdit ? studentToEdit.kelas : 0,
-      status: 'Aktif',
-    };
-    
-    const batch = writeBatch(firestore);
 
-    if (studentToEdit) {
-      // Edit
-      const studentDocRef = doc(firestore, 'siswa', studentToEdit.id);
-      batch.update(studentDocRef, studentData);
-    } else {
-      // Add a new student. We use NIS as the document ID.
-      const studentDocRef = doc(firestore, 'siswa', formData.nis);
-      batch.set(studentDocRef, studentData);
+    const processSave = (fileUrl: string) => {
+        const studentData: Omit<DetailedStudent, 'id'> = {
+            nis: formData.nis,
+            nama: formData.nama,
+            jenisKelamin: formData.jenisKelamin,
+            tempatLahir: formData.tempatLahir,
+            tanggalLahir: formData.tanggalLahir,
+            namaAyah: formData.namaAyah,
+            namaIbu: formData.namaIbu,
+            alamat: formData.alamat,
+            fileDokumen: fileUrl,
+            kelas: studentToEdit ? studentToEdit.kelas : 0,
+            status: 'Aktif',
+        };
 
-      // Also create a corresponding raport document
-      const raportDocRef = doc(firestore, 'raports', formData.nis);
-      const newRaport: Omit<Raport, 'id'> = {
-        nis: formData.nis,
-        raports: {
-          kelas_0_ganjil: null, kelas_0_genap: null,
-          kelas_1_ganjil: null, kelas_1_genap: null,
-          kelas_2_ganjil: null, kelas_2_genap: null,
-          kelas_3_ganjil: null, kelas_3_genap: null,
-          kelas_4_ganjil: null, kelas_4_genap: null,
-          kelas_5_ganjil: null, kelas_5_genap: null,
-          kelas_6_ganjil: null, kelas_6_genap: null,
+        const batch = writeBatch(firestore);
+        const studentDocRef = doc(firestore, 'siswa', formData.nis);
+
+        if (studentToEdit) {
+            batch.update(studentDocRef, studentData);
+        } else {
+            batch.set(studentDocRef, studentData);
+            const raportDocRef = doc(firestore, 'raports', formData.nis);
+            const newRaport: Omit<Raport, 'id'> = {
+                nis: formData.nis,
+                raports: {
+                  kelas_0_ganjil: null, kelas_0_genap: null,
+                  kelas_1_ganjil: null, kelas_1_genap: null,
+                  kelas_2_ganjil: null, kelas_2_genap: null,
+                  kelas_3_ganjil: null, kelas_3_genap: null,
+                  kelas_4_ganjil: null, kelas_4_genap: null,
+                  kelas_5_ganjil: null, kelas_5_genap: null,
+                  kelas_6_ganjil: null, kelas_6_genap: null,
+                }
+            };
+            batch.set(raportDocRef, newRaport);
         }
-      };
-      batch.set(raportDocRef, newRaport);
-    }
-    
-    await batch.commit();
+        
+        batch.commit().then(() => {
+            setIsFormDialogOpen(false);
+            setStudentToEdit(null);
+            toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
+        }).catch(error => {
+            console.error("Error saving student: ", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Gagal menyimpan data siswa.' });
+        });
+    };
 
-    setIsFormDialogOpen(false);
-    setStudentToEdit(null);
-    toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
+    if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const fileAsDataUrl = reader.result as string;
+            processSave(fileAsDataUrl);
+        };
+        reader.readAsDataURL(file);
+    } else {
+        const existingFileUrl = typeof formData.fileDokumen === 'string' ? formData.fileDokumen : '/path/to/default.pdf';
+        processSave(existingFileUrl);
+    }
   };
 
 
@@ -426,7 +435,7 @@ export default function SiswaPage() {
                   <TableCell>{student.alamat}</TableCell>
                   <TableCell>
                     <Button variant="outline" size="sm" asChild>
-                      <a href={student.fileDokumen} download>
+                      <a href={student.fileDokumen} download={`Dokumen_${student.nis}.pdf`}>
                         <FileDown className="mr-2 h-4 w-4" />
                         Unduh
                       </a>
@@ -522,8 +531,8 @@ export default function SiswaPage() {
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="fileDokumen">File Dokumen</Label>
-                    <Input id="fileDokumen" name="fileDokumen" type="file" onChange={handleFileChange} />
-                    {studentToEdit && typeof formData.fileDokumen === 'string' && (
+                    <Input id="fileDokumen" name="fileDokumen" type="file" accept=".pdf" onChange={handleFileChange} />
+                    {studentToEdit && typeof formData.fileDokumen === 'string' && formData.fileDokumen.startsWith('data:') && (
                         <p className="text-sm text-muted-foreground mt-1">Dokumen saat ini: <a href={formData.fileDokumen} target="_blank" rel="noopener noreferrer" className="text-primary underline">Lihat</a></p>
                     )}
                 </div>
@@ -617,5 +626,3 @@ export default function SiswaPage() {
     </div>
   );
 }
-
-    
