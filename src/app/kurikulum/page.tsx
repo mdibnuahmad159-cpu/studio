@@ -308,7 +308,7 @@ export default function KurikulumPage() {
       {isAdmin && (
         <>
           <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>{kurikulumToEdit ? 'Edit Kurikulum' : 'Tambah Data Kurikulum'}</DialogTitle>
                 <DialogDescription>
@@ -316,12 +316,10 @@ export default function KurikulumPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="kelas" className="text-right">
-                    Kelas
-                  </Label>
+                <div className="space-y-2">
+                  <Label htmlFor="kelas">Kelas</Label>
                   <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={formData.kelas}>
-                    <SelectTrigger className="col-span-3">
+                    <SelectTrigger>
                       <SelectValue placeholder="Pilih Kelas" />
                     </SelectTrigger>
                     <SelectContent>
@@ -331,17 +329,13 @@ export default function KurikulumPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="mataPelajaran" className="text-right">
-                    Mata Pelajaran
-                  </Label>
-                  <Input id="mataPelajaran" name="mataPelajaran" value={formData.mataPelajaran} onChange={handleInputChange} className="col-span-3" />
+                <div className="space-y-2">
+                  <Label htmlFor="mataPelajaran">Mata Pelajaran</Label>
+                  <Input id="mataPelajaran" name="mataPelajaran" value={formData.mataPelajaran} onChange={handleInputChange} />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="kitab" className="text-right">
-                    Kitab
-                  </Label>
-                  <Input id="kitab" name="kitab" value={formData.kitab} onChange={handleInputChange} className="col-span-3" />
+                <div className="space-y-2">
+                  <Label htmlFor="kitab">Kitab</Label>
+                  <Input id="kitab" name="kitab" value={formData.kitab} onChange={handleInputChange} />
                 </div>
               </div>
               <DialogFooter>

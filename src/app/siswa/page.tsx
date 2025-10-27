@@ -480,7 +480,7 @@ export default function SiswaPage() {
                   {studentToEdit ? 'Perbarui informasi siswa di bawah ini.' : 'Isi formulir di bawah ini untuk menambahkan data siswa baru.'}
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4 max-h-[70vh] overflow-y-auto px-2">
                 <div className="space-y-2">
                     <Label htmlFor="nama">Nama Lengkap</Label>
                     <Input id="nama" name="nama" value={formData.nama} onChange={handleInputChange} />

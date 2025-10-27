@@ -336,7 +336,7 @@ export default function JadwalPage() {
       {isAdmin && (
         <>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>{jadwalToEdit ? 'Edit Jadwal' : 'Tambah Jadwal Baru'}</DialogTitle>
                 <DialogDescription>
@@ -344,10 +344,10 @@ export default function JadwalPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="kelas" className="text-right">Kelas</Label>
+                 <div className="space-y-2">
+                  <Label htmlFor="kelas">Kelas</Label>
                   <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={formData.kelas}>
-                    <SelectTrigger className="col-span-3">
+                    <SelectTrigger>
                       <SelectValue placeholder="Pilih Kelas" />
                     </SelectTrigger>
                     <SelectContent>
@@ -357,10 +357,10 @@ export default function JadwalPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="hari" className="text-right">Hari</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="hari">Hari</Label>
                   <Select name="hari" onValueChange={(value) => handleSelectChange('hari', value)} value={formData.hari}>
-                    <SelectTrigger className="col-span-3">
+                    <SelectTrigger>
                       <SelectValue placeholder="Pilih Hari" />
                     </SelectTrigger>
                     <SelectContent>
@@ -370,10 +370,10 @@ export default function JadwalPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="jam" className="text-right">Jam</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="jam">Jam</Label>
                   <Select name="jam" onValueChange={(value) => handleSelectChange('jam', value)} value={formData.jam}>
-                    <SelectTrigger className="col-span-3">
+                    <SelectTrigger>
                       <SelectValue placeholder="Pilih Jam" />
                     </SelectTrigger>
                     <SelectContent>
@@ -383,10 +383,10 @@ export default function JadwalPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="mataPelajaran" className="text-right">Mata Pelajaran</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="mataPelajaran">Mata Pelajaran</Label>
                   <Select name="mataPelajaran" onValueChange={(value) => handleSelectChange('mataPelajaran', value)} value={formData.mataPelajaran}>
-                    <SelectTrigger className="col-span-3">
+                    <SelectTrigger>
                       <SelectValue placeholder="Pilih Mata Pelajaran" />
                     </SelectTrigger>
                     <SelectContent>
@@ -396,10 +396,10 @@ export default function JadwalPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="guruId" className="text-right">Guru</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="guruId">Guru</Label>
                   <Select name="guruId" onValueChange={(value) => handleSelectChange('guruId', String(value))} value={String(formData.guruId)}>
-                    <SelectTrigger className="col-span-3">
+                    <SelectTrigger>
                       <SelectValue placeholder="Pilih Guru" />
                     </SelectTrigger>
                     <SelectContent>

@@ -253,7 +253,7 @@ export default function GuruPage() {
       {isAdmin && (
         <>
           <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>{teacherToEdit ? 'Edit Data Guru' : 'Tambah Data Guru'}</DialogTitle>
                 <DialogDescription>
@@ -261,23 +261,17 @@ export default function GuruPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">
-                    Nama
-                  </Label>
-                  <Input id="name" name="name" value={formData.name} onChange={handleInputChange} className="col-span-3" />
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nama</Label>
+                  <Input id="name" name="name" value={formData.name} onChange={handleInputChange} />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="position" className="text-right">
-                    Jabatan
-                  </Label>
-                  <Input id="position" name="position" value={formData.position} onChange={handleInputChange} className="col-span-3" />
+                <div className="space-y-2">
+                  <Label htmlFor="position">Jabatan</Label>
+                  <Input id="position" name="position" value={formData.position} onChange={handleInputChange} />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="whatsapp" className="text-right">
-                    No. WhatsApp
-                  </Label>
-                  <Input id="whatsapp" name="whatsapp" type="tel" value={formData.whatsapp} onChange={handleInputChange} className="col-span-3" />
+                <div className="space-y-2">
+                  <Label htmlFor="whatsapp">No. WhatsApp</Label>
+                  <Input id="whatsapp" name="whatsapp" type="tel" value={formData.whatsapp} onChange={handleInputChange} />
                 </div>
               </div>
               <DialogFooter>

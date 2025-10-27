@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Siswa } from '@/lib/data';
 import { useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { doc } from 'firebase/firestore';
+import { Textarea } from '@/components/ui/textarea';
 
 const initialFormState = {
     nis: '',
@@ -42,7 +43,7 @@ export default function PendaftaranPage() {
   const { toast } = useToast();
   const [formData, setFormData] = useState(initialFormState);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -56,6 +57,15 @@ export default function PendaftaranPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!firestore) {
+      toast({
+        variant: "destructive",
+        title: "Koneksi Gagal!",
+        description: "Tidak dapat terhubung ke database.",
+      });
+      return;
+    }
 
     if (!formData.nis || !formData.fullName) {
       toast({
@@ -121,7 +131,7 @@ export default function PendaftaranPage() {
             <form onSubmit={handleSubmit} className="space-y-8">
               <div className="space-y-4">
                  <h3 className="font-headline text-xl font-semibold border-b pb-2">Data Calon Siswa</h3>
-                 <div className="grid sm:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="nis">NIS (Nomor Induk Siswa)</Label>
                         <Input id="nis" name="nis" value={formData.nis} onChange={handleChange} required />
@@ -131,7 +141,7 @@ export default function PendaftaranPage() {
                         <Input id="fullName" name="fullName" value={formData.fullName} onChange={handleChange} required />
                     </div>
                  </div>
-                 <div className="grid sm:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="nickname">Nama Panggilan</Label>
                         <Input id="nickname" name="nickname" value={formData.nickname} onChange={handleChange} required />
@@ -150,7 +160,7 @@ export default function PendaftaranPage() {
                         </RadioGroup>
                     </div>
                  </div>
-                 <div className="grid sm:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="birthPlace">Tempat Lahir</Label>
                         <Input id="birthPlace" name="birthPlace" value={formData.birthPlace} onChange={handleChange} required />
@@ -181,7 +191,7 @@ export default function PendaftaranPage() {
                         </Popover>
                     </div>
                  </div>
-                 <div className="grid sm:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="religion">Agama</Label>
                         <Select name="religion" onValueChange={(value) => handleSelectChange('religion', value)} value={formData.religion}>
@@ -198,16 +208,16 @@ export default function PendaftaranPage() {
                           </SelectContent>
                         </Select>
                     </div>
-                     <div className="space-y-2">
+                     <div className="space-y-2 sm:col-span-2">
                         <Label htmlFor="address">Alamat Lengkap</Label>
-                        <Input id="address" name="address" value={formData.address} onChange={handleChange} required />
+                        <Textarea id="address" name="address" value={formData.address} onChange={handleChange} required />
                      </div>
                  </div>
               </div>
 
               <div className="space-y-4">
                  <h3 className="font-headline text-xl font-semibold border-b pb-2">Data Orang Tua/Wali</h3>
-                 <div className="grid sm:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="fatherName">Nama Ayah</Label>
                         <Input id="fatherName" name="fatherName" value={formData.fatherName} onChange={handleChange} required />
@@ -217,7 +227,7 @@ export default function PendaftaranPage() {
                         <Input id="motherName" name="motherName" value={formData.motherName} onChange={handleChange} required />
                     </div>
                  </div>
-                 <div className="grid sm:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="fatherOccupation">Pekerjaan Ayah</Label>
                         <Input id="fatherOccupation" name="fatherOccupation" value={formData.fatherOccupation} onChange={handleChange} required />
@@ -231,16 +241,17 @@ export default function PendaftaranPage() {
 
               <div className="space-y-4">
                  <h3 className="font-headline text-xl font-semibold border-b pb-2">Kontak & Pendidikan</h3>
-                  <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                           <Label htmlFor="phone">No. Telepon Aktif</Label>
                           <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} required />
                       </div>
                       <div className="space-y-2">
-                          <Label htmlFor="email">Alamat Email</Label>                          <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
+                          <Label htmlFor="email">Alamat Email</Label>
+                          <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
                       </div>
                   </div>
-                  <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                           <Label htmlFor="previousSchool">Asal Sekolah</Label>
                           <Input id="previousSchool" name="previousSchool" value={formData.previousSchool} />
