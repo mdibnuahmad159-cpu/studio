@@ -52,3 +52,12 @@ export type Raport = {
   nis: string;
   raports: RaportFile;
 };
+
+export type Nilai = {
+    id: string; // Document ID from Firestore
+    siswaId: string; // Reference to Siswa ID
+    kurikulumId: string; // Reference to Kurikulum ID
+    kelas: number;
+    semester: 'ganjil' | 'genap';
+    nilai: number;
+};

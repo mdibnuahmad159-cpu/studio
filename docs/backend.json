@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Guru": {
@@ -140,6 +141,35 @@
         }
       },
       "required": ["nis", "raports"]
+    },
+    "Nilai": {
+      "title": "Nilai",
+      "type": "object",
+      "description": "Represents a student's grade for a specific subject in a term.",
+      "properties": {
+        "siswaId": {
+          "type": "string",
+          "description": "Reference to the Siswa document ID (using the auto-generated ID, not NIS)."
+        },
+        "kurikulumId": {
+          "type": "string",
+          "description": "Reference to the Kurikulum document ID."
+        },
+        "kelas": {
+          "type": "number",
+          "description": "The class level when the grade was given."
+        },
+        "semester": {
+          "type": "string",
+          "enum": ["ganjil", "genap"],
+          "description": "The semester for the grade."
+        },
+        "nilai": {
+          "type": "number",
+          "description": "The numerical score."
+        }
+      },
+      "required": ["siswaId", "kurikulumId", "kelas", "semester", "nilai"]
     }
   },
   "auth": {
@@ -165,6 +195,10 @@
     "/raports/{raportId}": {
       "schema": { "$ref": "#/entities/Raport" },
       "description": "Stores student report card data. The document ID should be the student's NIS."
+    },
+    "/nilai/{nilaiId}": {
+      "schema": { "$ref": "#/entities/Nilai" },
+      "description": "Stores individual student grades for subjects."
     }
   }
 }
