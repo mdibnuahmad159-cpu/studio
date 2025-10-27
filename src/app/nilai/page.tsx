@@ -24,12 +24,10 @@ import { Siswa, Kurikulum, Nilai } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
-import { Search } from 'lucide-react';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Search, Save, X } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
@@ -38,12 +36,15 @@ export default function NilaiPage() {
   const { user } = useUser();
   const { isAdmin } = useAdmin();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const [selectedKelas, setSelectedKelas] = useState('1');
   const [selectedSemester, setSelectedSemester] = useState<'ganjil' | 'genap'>('ganjil');
   const [searchQuery, setSearchQuery] = useState('');
-  const [editingCell, setEditingCell] = useState<{ siswaId: string; kurikulumId: string; initialValue: number } | null>(null);
-  const [editValue, setEditValue] = useState<string>('');
+  
+  // State for mobile view
+  const [selectedStudent, setSelectedStudent] = useState<Siswa | null>(null);
+  const [mobileGrades, setMobileGrades] = useState<Record<string, string>>({});
 
   // --- Data Fetching ---
   const siswaQuery = useMemoFirebase(() => {
@@ -59,13 +60,19 @@ export default function NilaiPage() {
   const { data: subjects, isLoading: subjectsLoading } = useCollection<Kurikulum>(kurikulumQuery);
 
   const nilaiQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || !students) return null;
+    const studentIds = students.map(s => s.id);
+    if(studentIds.length === 0) return null;
+    
+    // Firestore 'in' query is limited to 30 items. 
+    // If you have more students, you'd need to batch the queries.
     return query(
       collection(firestore, 'nilai'),
       where('kelas', '==', Number(selectedKelas)),
-      where('semester', '==', selectedSemester)
+      where('semester', '==', selectedSemester),
+      where('siswaId', 'in', studentIds.slice(0, 30))
     );
-  }, [firestore, user, selectedKelas, selectedSemester]);
+  }, [firestore, user, selectedKelas, selectedSemester, students]);
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
   // --- Memoized Data Processing ---
@@ -88,34 +95,51 @@ export default function NilaiPage() {
     return map;
   }, [grades]);
 
-  // --- Event Handlers ---
-  const handleCellClick = (siswaId: string, kurikulumId: string) => {
-    if (!isAdmin) return;
-    const grade = gradesMap.get(`${siswaId}-${kurikulumId}`);
-    const initialValue = grade?.nilai ?? 0;
-    setEditingCell({ siswaId, kurikulumId, initialValue });
-    setEditValue(String(initialValue));
-  };
-  
-  const handleSaveGrade = async () => {
-    if (!editingCell || !firestore) return;
+  // --- Effects ---
+  useEffect(() => {
+    // Select the first student by default on mobile if the list is available
+    if (isMobile && sortedStudents.length > 0 && !selectedStudent) {
+      setSelectedStudent(sortedStudents[0]);
+    }
+    // If the selected student is no longer in the filtered list, deselect them
+    if (isMobile && selectedStudent && !sortedStudents.find(s => s.id === selectedStudent.id)) {
+        setSelectedStudent(sortedStudents.length > 0 ? sortedStudents[0] : null);
+    }
+  }, [sortedStudents, isMobile, selectedStudent]);
 
-    const { siswaId, kurikulumId } = editingCell;
-    const newNilai = parseInt(editValue, 10);
+  useEffect(() => {
+    // Populate mobile grades when a student is selected
+    if (selectedStudent) {
+      const newMobileGrades: Record<string, string> = {};
+      sortedSubjects.forEach(subject => {
+        const grade = gradesMap.get(`${selectedStudent.id}-${subject.id}`);
+        newMobileGrades[subject.id] = String(grade?.nilai ?? '');
+      });
+      setMobileGrades(newMobileGrades);
+    }
+  }, [selectedStudent, gradesMap, sortedSubjects]);
+
+
+  // --- Event Handlers ---
+  const handleSaveGrade = async (siswaId: string, kurikulumId: string, value: string) => {
+    if (!isAdmin || !firestore) return;
+    const newNilai = parseInt(value, 10);
     if (isNaN(newNilai) || newNilai < 0 || newNilai > 100) {
       toast({ variant: 'destructive', title: 'Nilai tidak valid', description: 'Masukkan angka antara 0 dan 100.' });
-      return;
+      return false;
     }
 
     const grade = gradesMap.get(`${siswaId}-${kurikulumId}`);
     const batch = writeBatch(firestore);
 
     if (grade) {
-      // Update existing grade
-      const gradeRef = doc(firestore, 'nilai', grade.id);
-      batch.update(gradeRef, { nilai: newNilai });
+      if (grade.nilai !== newNilai) {
+        const gradeRef = doc(firestore, 'nilai', grade.id);
+        batch.update(gradeRef, { nilai: newNilai });
+      } else {
+        return true; // No change needed
+      }
     } else {
-      // Create new grade
       const newGradeRef = doc(collection(firestore, 'nilai'));
       const newGradeData: Omit<Nilai, 'id'> = {
         siswaId,
@@ -130,25 +154,151 @@ export default function NilaiPage() {
     try {
         await batch.commit();
         toast({ title: 'Sukses!', description: 'Nilai berhasil disimpan.'});
-        setEditingCell(null);
+        return true;
     } catch (error) {
         toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat menyimpan nilai.'});
+        return false;
     }
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      handleSaveGrade();
-    } else if (event.key === 'Escape') {
-      setEditingCell(null);
-    }
+  const handleMobileGradeChange = (kurikulumId: string, value: string) => {
+    setMobileGrades(prev => ({...prev, [kurikulumId]: value}));
   };
 
+  const handleSaveMobileGrades = async () => {
+    if (!selectedStudent || !isAdmin) return;
+
+    const promises = Object.entries(mobileGrades).map(([kurikulumId, value]) => {
+      if (value.trim() === '') return Promise.resolve(true); // Skip empty values
+      return handleSaveGrade(selectedStudent.id, kurikulumId, value);
+    });
+
+    const results = await Promise.all(promises);
+    if (results.every(res => res)) {
+       toast({ title: 'Sukses!', description: `Semua nilai untuk ${selectedStudent.nama} telah disimpan.`});
+    } else {
+       toast({ variant: 'destructive', title: 'Gagal!', description: 'Beberapa nilai gagal disimpan.'});
+    }
+  };
+  
   const isLoading = studentsLoading || subjectsLoading || gradesLoading;
+
+  // --- RENDER LOGIC ---
+
+  const renderMobileView = () => (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[calc(100vh-22rem)]">
+      <Card className="col-span-1 md:col-span-1 h-full">
+        <CardContent className="p-2 h-full">
+          <ScrollArea className="h-full">
+            {sortedStudents.map(student => (
+              <button
+                key={student.id}
+                className={`w-full text-left p-3 rounded-md transition-colors ${selectedStudent?.id === student.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                onClick={() => setSelectedStudent(student)}
+              >
+                <p className="font-medium truncate">{student.nama}</p>
+                <p className={`text-xs ${selectedStudent?.id === student.id ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{student.nis}</p>
+              </button>
+            ))}
+            {isLoading && <p className="p-3 text-sm text-muted-foreground">Memuat siswa...</p>}
+            {!isLoading && sortedStudents.length === 0 && <p className="p-3 text-sm text-muted-foreground">Tidak ada siswa.</p>}
+          </ScrollArea>
+        </CardContent>
+      </Card>
+
+      <Card className="col-span-1 md:col-span-2 h-full">
+        <CardContent className="p-0 h-full flex flex-col">
+          {selectedStudent ? (
+            <>
+              <div className="p-4 border-b">
+                <h3 className="font-bold">{selectedStudent.nama}</h3>
+                <p className="text-sm text-muted-foreground">Input nilai untuk semester {selectedSemester}</p>
+              </div>
+              <ScrollArea className="flex-grow p-4">
+                <div className="space-y-4">
+                  {sortedSubjects.map(subject => (
+                    <div key={subject.id} className="grid grid-cols-3 items-center gap-2">
+                      <label htmlFor={`grade-${subject.id}`} className="col-span-2 text-sm font-medium truncate" title={subject.mataPelajaran}>
+                        {subject.mataPelajaran}
+                      </label>
+                      <Input
+                        id={`grade-${subject.id}`}
+                        type="number"
+                        placeholder="0-100"
+                        value={mobileGrades[subject.id] ?? ''}
+                        onChange={(e) => handleMobileGradeChange(subject.id, e.target.value)}
+                        disabled={!isAdmin}
+                        className="text-center"
+                      />
+                    </div>
+                  ))}
+                  {sortedSubjects.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Tidak ada mata pelajaran.</p>}
+                </div>
+              </ScrollArea>
+              {isAdmin && (
+                <div className="p-4 border-t">
+                  <Button onClick={handleSaveMobileGrades} className="w-full">
+                    <Save className="mr-2 h-4 w-4" /> Simpan Nilai
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
+             <div className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground">Pilih siswa untuk input nilai.</p>
+             </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderDesktopView = () => (
+     <div className="border rounded-lg overflow-hidden bg-card">
+        <div className="relative w-full overflow-auto">
+            <Table className="min-w-[1000px]">
+            <TableHeader>
+                <TableRow>
+                <TableHead className="font-headline sticky left-0 bg-card z-10 w-[200px] shadow-sm">Nama Siswa</TableHead>
+                <TableHead className="font-headline w-[120px]">NIS</TableHead>
+                {sortedSubjects.map(subject => (
+                    <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
+                ))}
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 2} className="text-center">Memuat data...</TableCell></TableRow>}
+                {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 2} className="text-center">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
+                {sortedStudents.map(student => (
+                <TableRow key={student.id}>
+                    <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
+                    <TableCell>{student.nis}</TableCell>
+                    {sortedSubjects.map(subject => {
+                      const grade = gradesMap.get(`${student.id}-${subject.id}`);
+                      return (
+                        <TableCell key={subject.id} className="text-center">
+                            <Input
+                                type="number"
+                                defaultValue={grade?.nilai}
+                                onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
+                                disabled={!isAdmin}
+                                className="min-w-[70px] text-center mx-auto"
+                                placeholder="-"
+                            />
+                        </TableCell>
+                      );
+                    })}
+                </TableRow>
+                ))}
+            </TableBody>
+            </Table>
+        </div>
+    </div>
+  );
 
   return (
     <div className="bg-background">
-      <div className="container py-12 md:py-20">
+      <div className="container py-12 md:py-20 h-full flex flex-col">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
@@ -191,62 +341,13 @@ export default function NilaiPage() {
           </div>
         </div>
         
-        <div className="border rounded-lg overflow-hidden bg-card">
-          <div className="relative w-full overflow-auto">
-            <Table className="min-w-[1000px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="font-headline sticky left-0 bg-card z-10 w-[200px]">Nama Siswa</TableHead>
-                  <TableHead className="font-headline w-[120px]">NIS</TableHead>
-                  {sortedSubjects.map(subject => (
-                    <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 2} className="text-center">Memuat data...</TableCell></TableRow>}
-                {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 2} className="text-center">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
-                {sortedStudents.map(student => (
-                  <TableRow key={student.id}>
-                    <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
-                    <TableCell>{student.nis}</TableCell>
-                    {sortedSubjects.map(subject => {
-                      const grade = gradesMap.get(`${student.id}-${subject.id}`);
-                      const isEditing = editingCell?.siswaId === student.id && editingCell?.kurikulumId === subject.id;
-                      
-                      return (
-                        <TableCell key={subject.id} className="text-center cursor-pointer" onClick={() => handleCellClick(student.id, subject.id)}>
-                            {isEditing ? (
-                                <Popover open onOpenChange={() => setEditingCell(null)}>
-                                  <PopoverTrigger asChild>
-                                      <div className="font-bold text-lg">{grade?.nilai ?? '-'}</div>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-40 p-2" onOpenAutoFocus={(e) => e.preventDefault()}>
-                                      <Input 
-                                          type="number"
-                                          value={editValue}
-                                          onChange={(e) => setEditValue(e.target.value)}
-                                          onKeyDown={handleKeyDown}
-                                          onBlur={() => setEditingCell(null)} // Close if blurred
-                                          autoFocus
-                                          className="text-center"
-                                      />
-                                       <Button size="sm" onClick={handleSaveGrade} className="w-full mt-2">Simpan</Button>
-                                  </PopoverContent>
-                                </Popover>
-                            ) : (
-                                <div className="font-bold text-lg text-primary">{grade?.nilai ?? '-'}</div>
-                            )}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+        <div className="flex-grow">
+          {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
+
       </div>
     </div>
   );
 }
+
+    
