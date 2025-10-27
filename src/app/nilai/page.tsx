@@ -103,18 +103,27 @@ export default function NilaiPage() {
 
   // Set first student as default on mobile
   useEffect(() => {
-    if (isMobile && sortedStudents.length > 0) {
+    if (isMobile && sortedStudents.length > 0 && !selectedStudent) {
       setSelectedStudent(sortedStudents[0]);
+    } else if (isMobile && sortedStudents.length > 0 && selectedStudent) {
+        const studentStillExists = sortedStudents.find(s => s.id === selectedStudent.id);
+        if(!studentStillExists) {
+            setSelectedStudent(sortedStudents[0]);
+        }
     } else {
       setSelectedStudent(null);
     }
-  }, [isMobile, sortedStudents]);
+  }, [isMobile, sortedStudents, selectedStudent]);
 
 
   // --- Event Handlers ---
   const handleSaveGrade = async (siswaId: string, kurikulumId: string, value: string) => {
     if (!isAdmin || !firestore) return;
-    if (value.trim() === '') return true; // Skip saving if value is empty
+    if (value.trim() === '') {
+        // Handle deletion if value is cleared. This is optional.
+        // For now, we just skip saving.
+        return true;
+    }
 
     const newNilai = parseInt(value, 10);
     if (isNaN(newNilai) || newNilai < 0 || newNilai > 100) {
@@ -284,8 +293,10 @@ export default function NilaiPage() {
               )}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-sm text-muted-foreground">Pilih siswa untuk input nilai.</p>
+             <div className="flex items-center justify-center h-full">
+              <p className="text-sm text-muted-foreground text-center">
+                {sortedStudents.length > 0 ? 'Pilih siswa untuk input nilai.' : 'Tidak ada siswa di kelas ini.'}
+              </p>
             </div>
           )}
         </div>
@@ -296,7 +307,7 @@ export default function NilaiPage() {
 
   return (
     <div className="bg-background">
-      <div className={cn("container py-12 md:py-20 h-full flex flex-col", isMobile && "h-[calc(100vh-8rem)] pb-4 md:pb-20")}>
+      <div className={cn("container py-12 md:py-20 flex flex-col", isMobile ? "h-[calc(100vh-8rem)] pb-4 md:pb-20" : "")}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
@@ -325,7 +336,7 @@ export default function NilaiPage() {
             />
           </div>
           <div className="flex gap-4">
-            <Select value={selectedKelas} onValueChange={(v) => { setSelectedKelas(v); setSelectedStudent(null);}}>
+            <Select value={selectedKelas} onValueChange={(v) => { setSelectedKelas(v); setSelectedStudent(null); setSearchQuery('');}}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Pilih Kelas" />
               </SelectTrigger>
