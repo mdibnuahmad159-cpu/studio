@@ -32,6 +32,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useAdmin } from '@/context/AdminProvider';
 
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -51,6 +52,7 @@ export default function NilaiPage() {
   const { user } = useUser();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { isAdmin } = useAdmin();
 
   const [selectedKelas, setSelectedKelas] = useState('1');
   const [selectedSemester, setSelectedSemester] = useState<'ganjil' | 'genap'>('ganjil');
@@ -113,7 +115,7 @@ export default function NilaiPage() {
           sum += grade.nilai;
         }
       });
-      const average = sum / sortedSubjects.length;
+      const average = sortedSubjects.length > 0 ? sum / sortedSubjects.length : 0;
       stats.set(student.id, { sum, average });
     });
 
@@ -357,7 +359,7 @@ export default function NilaiPage() {
   const isLoading = studentsLoading || subjectsLoading || gradesLoading;
 
   const renderMobileView = () => (
-    <div className="flex flex-col md:flex-row gap-4 flex-grow">
+    <div className="flex flex-col md:flex-row gap-4 h-full">
       <Card className="w-full md:w-1/3 flex flex-col">
         <CardContent className="p-2 flex-grow">
           <ScrollArea className="h-full">
@@ -376,12 +378,12 @@ export default function NilaiPage() {
               >
                 <div>
                   <p className="font-semibold">{student.nama}</p>
-                  <p className="text-xs text-muted-foreground">{student.nis}</p>
+                  <p className={cn("text-xs", selectedStudent?.id === student.id ? "text-primary-foreground/80" : "text-muted-foreground")}>{student.nis}</p>
                 </div>
                  {rank && (
                     <span className={cn(
                         "text-sm font-bold w-8 h-8 flex items-center justify-center rounded-full",
-                        rank === 1 ? "bg-yellow-400 text-yellow-900" : "bg-muted text-muted-foreground"
+                        rank === 1 ? "bg-yellow-400 text-yellow-900" : (selectedStudent?.id === student.id ? "bg-white/20" : "bg-muted text-muted-foreground")
                     )}>
                         {rank}
                     </span>
@@ -493,7 +495,7 @@ export default function NilaiPage() {
 
   return (
     <div className="bg-background">
-      <div className="container py-12 md:py-20 flex flex-col flex-grow">
+      <div className="container py-12 md:py-20 flex flex-col h-[calc(100vh-8rem)]">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
@@ -502,9 +504,11 @@ export default function NilaiPage() {
             </p>
           </div>
            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
-                  <Upload className="mr-2 h-4 w-4" /> Import CSV
-                </Button>
+                {isAdmin && (
+                  <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
+                    <Upload className="mr-2 h-4 w-4" /> Import CSV
+                  </Button>
+                )}
                 <Button onClick={() => handleExport('pdf')} variant="outline" size="sm">
                   <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
                 </Button>
@@ -547,49 +551,46 @@ export default function NilaiPage() {
           </div>
         </div>
         
-        <div className="flex-grow">
+        <div className="flex-grow min-h-0">
           {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
 
-        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Import Nilai dari CSV</DialogTitle>
-              <DialogDescription>
-                Pilih file CSV untuk import nilai. Pastikan NIS dan nama mata pelajaran sesuai.
-                Data nilai yang sudah ada akan diperbarui.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-4">
-              <div className="flex items-center gap-4">
-                <Input 
-                  id="import-file" 
-                  type="file" 
-                  accept=".csv"
-                  onChange={handleImportFileChange}
-                  ref={importInputRef} 
-                />
+        {isAdmin && (
+          <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Import Nilai dari CSV</DialogTitle>
+                <DialogDescription>
+                  Pilih file CSV untuk import nilai. Pastikan NIS dan nama mata pelajaran sesuai.
+                  Data nilai yang sudah ada akan diperbarui.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                <div className="flex items-center gap-4">
+                  <Input 
+                    id="import-file" 
+                    type="file" 
+                    accept=".csv"
+                    onChange={handleImportFileChange}
+                    ref={importInputRef} 
+                  />
+                </div>
+                  <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate} disabled={!students || !sortedSubjects}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Unduh Template CSV untuk Kelas {selectedKelas}
+                  </Button>
               </div>
-                <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate} disabled={!students || !sortedSubjects}>
-                  <FileDown className="mr-2 h-4 w-4" />
-                  Unduh Template CSV untuk Kelas {selectedKelas}
+              <DialogFooter>
+                <Button variant="secondary" onClick={() => setIsImportDialogOpen(false)}>Batal</Button>
+                <Button onClick={handleImport} disabled={!importFile}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import
                 </Button>
-            </div>
-            <DialogFooter>
-              <Button variant="secondary" onClick={() => setIsImportDialogOpen(false)}>Batal</Button>
-              <Button onClick={handleImport} disabled={!importFile}>
-                <Upload className="mr-2 h-4 w-4" />
-                Import
-              </Button>
-            </DialogFooter>
+              </DialogFooter>
+            </DialogContent>
           </Dialog>
-        </Dialog>
+        )}
       </div>
     </div>
   );
 }
-
-    
-
-    
-
