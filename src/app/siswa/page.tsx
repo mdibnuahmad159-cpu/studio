@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Siswa as DetailedStudent, Raport } from '@/lib/data';
-import { Upload, PlusCircle, FileDown, MoreHorizontal, Pencil, Trash2, BookCopy, Search } from 'lucide-react';
+import { Upload, PlusCircle, FileDown, MoreHorizontal, Pencil, Trash2, BookCopy, Search, Eye } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,7 +60,7 @@ interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-const emptyStudent: Omit<DetailedStudent, 'id' | 'fileDokumen' | 'kelas' | 'status'> & { fileDokumen: File | null | string } = {
+const emptyStudent: Omit<DetailedStudent, 'id' | 'fileDokumen' | 'kelas' | 'status' | 'tahunLulus'> & { fileDokumen: File | null | string } = {
   nis: '',
   nama: '',
   jenisKelamin: 'Laki-laki',
@@ -154,7 +154,7 @@ export default function SiswaPage() {
     if (!firestore) return;
 
     const processSave = (fileUrl: string) => {
-        const studentData: Omit<DetailedStudent, 'id'> = {
+        const studentData: Omit<DetailedStudent, 'id' | 'tahunLulus'> = {
             nis: formData.nis,
             nama: formData.nama,
             jenisKelamin: formData.jenisKelamin,
@@ -315,7 +315,7 @@ export default function SiswaPage() {
               const studentDocRef = doc(firestore, 'siswa', student.nis);
               const raportDocRef = doc(firestore, 'raports', student.nis);
 
-              const studentData: Omit<DetailedStudent, 'id'> = {
+              const studentData: Omit<DetailedStudent, 'id' | 'tahunLulus'> = {
                 nis: student.nis,
                 nama: student.nama,
                 jenisKelamin: student.jenisKelamin || 'Laki-laki',
@@ -434,12 +434,27 @@ export default function SiswaPage() {
                   <TableCell>{student.namaIbu}</TableCell>
                   <TableCell>{student.alamat}</TableCell>
                   <TableCell>
-                    <Button variant="outline" size="sm" asChild>
-                      <a href={student.fileDokumen} download={`Dokumen_${student.nis}.pdf`}>
-                        <FileDown className="mr-2 h-4 w-4" />
-                        Unduh
-                      </a>
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                         <Button variant="outline" size="sm" disabled={!student.fileDokumen || student.fileDokumen.startsWith('/path/to/')}>
+                            File <MoreHorizontal className="ml-2 h-4 w-4" />
+                          </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                         <DropdownMenuItem asChild>
+                           <a href={student.fileDokumen} target="_blank" rel="noopener noreferrer">
+                              <Eye className="mr-2 h-4 w-4" />
+                              <span>Lihat</span>
+                           </a>
+                         </DropdownMenuItem>
+                         <DropdownMenuItem asChild>
+                            <a href={student.fileDokumen} download={`Dokumen_${student.nis}.pdf`}>
+                              <Download className="mr-2 h-4 w-4" />
+                              <span>Unduh</span>
+                            </a>
+                         </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                   {isAdmin && (
                     <TableCell className="text-right">
@@ -532,7 +547,7 @@ export default function SiswaPage() {
                 <div className="space-y-2">
                     <Label htmlFor="fileDokumen">File Dokumen</Label>
                     <Input id="fileDokumen" name="fileDokumen" type="file" accept=".pdf" onChange={handleFileChange} />
-                    {studentToEdit && typeof formData.fileDokumen === 'string' && formData.fileDokumen.startsWith('data:') && (
+                    {studentToEdit && typeof formData.fileDokumen === 'string' && !formData.fileDokumen.startsWith('/path/to/') && (
                         <p className="text-sm text-muted-foreground mt-1">Dokumen saat ini: <a href={formData.fileDokumen} target="_blank" rel="noopener noreferrer" className="text-primary underline">Lihat</a></p>
                     )}
                 </div>
