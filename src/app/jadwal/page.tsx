@@ -103,7 +103,7 @@ export default function JadwalPage() {
     if (selectedKelas !== 'all') {
       filtered = filtered.filter(item => item.kelas === selectedKelas);
     }
-    return filtered.sort((a,b) => HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari) || a.jam.localeCompare(b.jam) || a.kelas.localeCompare(b.kelas));
+    return filtered.sort((a,b) => a.kelas.localeCompare(b.kelas) || HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari) || a.jam.localeCompare(b.jam));
   }, [jadwal, selectedKelas]);
 
   const handleSelectChange = (name: string, value: string) => {
@@ -157,11 +157,11 @@ export default function JadwalPage() {
     const doc = new jsPDF() as jsPDFWithAutoTable;
     doc.text(`Jadwal Pelajaran - ${selectedKelas === 'all' ? 'Semua Kelas' : `Kelas ${selectedKelas}`}`, 20, 10);
     doc.autoTable({
-        head: [['Hari', 'Jam', 'Kelas', 'Mata Pelajaran', 'Guru']],
+        head: [['Kelas', 'Hari', 'Jam', 'Mata Pelajaran', 'Guru']],
         body: filteredJadwal.map((item: Jadwal) => [
+            `Kelas ${item.kelas}`,
             item.hari,
             item.jam,
-            `Kelas ${item.kelas}`,
             item.mataPelajaran,
             getTeacherName(item.guruId),
         ]),
@@ -220,9 +220,9 @@ export default function JadwalPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="font-headline">Kelas</TableHead>
                     <TableHead className="font-headline">Hari</TableHead>
                     <TableHead className="font-headline">Jam</TableHead>
-                    <TableHead className="font-headline">Kelas</TableHead>
                     <TableHead className="font-headline">Mata Pelajaran</TableHead>
                     <TableHead className="font-headline">Guru</TableHead>
                     {isAdmin && <TableHead className="font-headline text-right">Aksi</TableHead>}
@@ -238,9 +238,9 @@ export default function JadwalPage() {
                   )}
                   {filteredJadwal.map((item) => (
                     <TableRow key={item.id}>
+                      <TableCell>Kelas {item.kelas}</TableCell>
                       <TableCell>{item.hari}</TableCell>
                       <TableCell>{item.jam}</TableCell>
-                      <TableCell>Kelas {item.kelas}</TableCell>
                       <TableCell className="font-medium">{item.mataPelajaran}</TableCell>
                       <TableCell>{getTeacherName(item.guruId)}</TableCell>
                       {isAdmin && (
