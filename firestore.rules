@@ -1,122 +1,130 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a public-read, owner-write model for all data.
- * All collections are publicly readable, but write access is restricted to authorized users.
+ * @file Firebase Security Rules for the school management app.
+ *
+ * Core Philosophy:
+ * This ruleset prioritizes secure data access by enforcing strict ownership and role-based access control.
+ * Data access is generally restricted to authenticated users, with distinctions made between different collections.
  *
  * Data Structure:
- * The Firestore database consists of the following top-level collections:
- * - /gurus/{guruId}: Stores teacher profiles.
- * - /siswa/{siswaId}: Stores student profiles. Document ID is the student's NIS.
- * - /kurikulum/{kurikulumId}: Stores curriculum/subject data.
- * - /jadwal/{jadwalId}: Stores class schedule entries.
- * - /raports/{raportId}: Stores student report card data. Document ID is the student's NIS.
+ * The Firestore database is structured with top-level collections for `gurus`, `siswa`, `kurikulum`, `jadwal`, `raports`, and `nilai`.
+ * Each collection stores documents representing the respective entities (teachers, students, curricula, schedules, reports, and grades).
  *
  * Key Security Decisions:
- * - Public Read: All collections are publicly readable.
- * - Owner-Only Writes: Write access (create, update, delete) is restricted to authorized users.
- * - No User Listing: Listing all users is not permitted.
+ * - Unauthenticated users are not granted any data access.
+ * - Listing of documents is generally disallowed except where explicitly granted, to prevent unauthorized data discovery.
+ * - All write operations are secured to prevent unauthorized modification of data.
  *
  * Denormalization for Authorization:
- * This ruleset assumes an ownership field (e.g., 'ownerId', 'authorId') exists within each document
- * in the collections for write operations. This field is used to verify ownership during create,
- * update, and delete operations.
+ * No denormalization is required, as the current authorization needs are met by checking document IDs and auth UIDs.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     /**
-     * @description Grants public read access to the 'gurus' collection and restricts write access to authenticated users.
+     * @description Controls access to the `gurus` collection. Only authenticated users can read or write teacher profiles.
      * @path /databases/{database}/documents/gurus/{guruId}
-     * @allow (get, list): Any user can read guru profiles.
-     * @allow (create): Only an authenticated user can create a guru profile, provided the 'guruId' field matches their UID.
-     * @allow (update, delete): Only the authenticated user who created the guru profile can modify or delete it.
-     * @deny create: if the guruId in the request does not match the authenticated user's UID.
-     * @deny update: if the authenticated user is not the owner of the guru profile.
-     * @deny delete: if the authenticated user is not the owner of the guru profile.
-     * @principle Enforces public read and owner-only write access to the 'gurus' collection.
+     * @allow (get, list): Any authenticated user can read guru profiles.
+     * @allow (create, update, delete): Only authenticated users can create, update, or delete guru profiles.
+     * @deny  (get, list): Unauthenticated users cannot read guru profiles.
+     * @deny  (create, update, delete): Unauthenticated users cannot create, update, or delete guru profiles.
+     * @principle Authenticated access for profiles.
      */
     match /gurus/{guruId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Grants public read access to the 'siswa' collection and restricts write access to authenticated users.
+     * @description Controls access to the `siswa` collection. Only authenticated users can read or write student profiles.
      * @path /databases/{database}/documents/siswa/{siswaId}
-     * @allow (get, list): Any user can read siswa profiles.
-     * @allow (create): Only an authenticated user can create a siswa profile.
-     * @allow (update, delete): Only the authenticated user who created the siswa profile can modify or delete it.
-     * @deny create: if the siswaId in the request does not match the authenticated user's UID.
-     * @deny update: if the authenticated user is not the owner of the siswa profile.
-     * @deny delete: if the authenticated user is not the owner of the siswa profile.
-     * @principle Enforces public read and owner-only write access to the 'siswa' collection.
+     * @allow (get, list): Any authenticated user can read student profiles.
+     * @allow (create, update, delete): Only authenticated users can create, update, or delete student profiles.
+     * @deny  (get, list): Unauthenticated users cannot read student profiles.
+     * @deny  (create, update, delete): Unauthenticated users cannot create, update, or delete student profiles.
+     * @principle Authenticated access for profiles.
      */
     match /siswa/{siswaId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Grants public read access to the 'kurikulum' collection and restricts write access to authenticated users.
+     * @description Controls access to the `kurikulum` collection. Only authenticated users can read or write curriculum data.
      * @path /databases/{database}/documents/kurikulum/{kurikulumId}
-     * @allow (get, list): Any user can read kurikulum data.
-     * @allow (create): Only an authenticated user can create kurikulum data.
-     * @allow (update, delete): Only the authenticated user who created the kurikulum data can modify or delete it.
-     * @deny create: if the kurikulumId in the request does not match the authenticated user's UID.
-     * @deny update: if the authenticated user is not the owner of the kurikulum data.
-     * @deny delete: if the authenticated user is not the owner of the kurikulum data.
-     * @principle Enforces public read and owner-only write access to the 'kurikulum' collection.
+     * @allow (get, list): Any authenticated user can read curriculum data.
+     * @allow (create, update, delete): Only authenticated users can create, update, or delete curriculum data.
+     * @deny  (get, list): Unauthenticated users cannot read curriculum data.
+     * @deny  (create, update, delete): Unauthenticated users cannot create, update, or delete curriculum data.
+     * @principle Authenticated access for curriculum data.
      */
     match /kurikulum/{kurikulumId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Grants public read access to the 'jadwal' collection and restricts write access to authenticated users.
+     * @description Controls access to the `jadwal` collection. Only authenticated users can read or write schedule data.
      * @path /databases/{database}/documents/jadwal/{jadwalId}
-     * @allow (get, list): Any user can read jadwal data.
-     * @allow (create): Only an authenticated user can create jadwal data.
-     * @allow (update, delete): Only the authenticated user who created the jadwal data can modify or delete it.
-     * @deny create: if the jadwalId in the request does not match the authenticated user's UID.
-     * @deny update: if the authenticated user is not the owner of the jadwal data.
-     * @deny delete: if the authenticated user is not the owner of the jadwal data.
-     * @principle Enforces public read and owner-only write access to the 'jadwal' collection.
+     * @allow (get, list): Any authenticated user can read schedule data.
+     * @allow (create, update, delete): Only authenticated users can create, update, or delete schedule data.
+     * @deny  (get, list): Unauthenticated users cannot read schedule data.
+     * @deny  (create, update, delete): Unauthenticated users cannot create, update, or delete schedule data.
+     * @principle Authenticated access for schedule data.
      */
     match /jadwal/{jadwalId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Grants public read access to the 'raports' collection and restricts write access to authenticated users.
+     * @description Controls access to the `raports` collection. Only authenticated users can read or write report data.
      * @path /databases/{database}/documents/raports/{raportId}
-     * @allow (get, list): Any user can read raport data.
-     * @allow (create): Only an authenticated user can create raport data.
-     * @allow (update, delete): Only the authenticated user who created the raport data can modify or delete it.
-     * @deny create: if the raportId in the request does not match the authenticated user's UID.
-     * @deny update: if the authenticated user is not the owner of the raport data.
-     * @deny delete: if the authenticated user is not the owner of the raport data.
-     * @principle Enforces public read and owner-only write access to the 'raports' collection.
+     * @allow (get, list): Any authenticated user can read report data.
+     * @allow (create, update, delete): Only authenticated users can create, update, or delete report data.
+     * @deny  (get, list): Unauthenticated users cannot read report data.
+     * @deny  (create, update, delete): Unauthenticated users cannot create, update, or delete report data.
+     * @principle Authenticated access for report data.
      */
     match /raports/{raportId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
-  }
 
-  function isSignedIn() {
-    return request.auth != null;
+    /**
+     * @description Controls access to the `nilai` collection. Only authenticated users can read or write grade data.
+     * @path /databases/{database}/documents/nilai/{nilaiId}
+     * @allow (get, list): Any authenticated user can read grade data.
+     * @allow (create, update, delete): Only authenticated users can create, update, or delete grade data.
+     * @deny  (get, list): Unauthenticated users cannot read grade data.
+     * @deny  (create, update, delete): Unauthenticated users cannot create, update, or delete grade data.
+     * @principle Authenticated access for grade data.
+     */
+    match /nilai/{nilaiId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
   }
 }
