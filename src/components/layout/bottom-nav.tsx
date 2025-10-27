@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -35,6 +34,7 @@ export function BottomNav() {
       <AnimatePresence>
         {isVisible && (
             <motion.div
+                key="nav-panel"
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "calc(100% - 2rem)" }}
@@ -96,9 +96,9 @@ export function BottomNav() {
 
       {!isVisible && (
            <motion.div
-                initial={{ y: "calc(100% - 2rem)"}}
+                key="show-button"
+                initial={{ y: "100%" }}
                 animate={{ y: 0 }}
-                exit={{ y: "calc(100% - 2rem)"}}
                 transition={{ type: "tween", duration: 0.3, ease: "easeInOut" }}
                 className="relative"
             >
