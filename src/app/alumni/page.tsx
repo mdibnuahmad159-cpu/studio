@@ -126,9 +126,7 @@ export default function AlumniPage() {
     const headers = ["nis","nama","jenisKelamin","tempatLahir","tanggalLahir","namaAyah","namaIbu","alamat","status","kelas","tahunLulus"];
     const csvContent = Papa.unparse({
       fields: headers,
-      data: [
-        ['', '', '', '', '', '', '', '', 'Lulus', '', new Date().getFullYear()]
-      ]
+      data: []
     });
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
@@ -176,7 +174,7 @@ export default function AlumniPage() {
                 namaAyah: alumnus.namaAyah || '',
                 namaIbu: alumnus.namaIbu || '',
                 alamat: alumnus.alamat || '',
-                fileDokumen: '/path/to/default.pdf', // default placeholder
+                fileDokumen: '', // default placeholder
                 kelas: alumnus.kelas ? Number(alumnus.kelas) : 6,
                 status: 'Lulus',
                 tahunLulus: alumnus.tahunLulus ? Number(alumnus.tahunLulus) : new Date().getFullYear(),

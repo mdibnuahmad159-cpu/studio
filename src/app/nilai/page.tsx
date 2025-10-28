@@ -272,13 +272,10 @@ export default function NilaiPage() {
   const downloadTemplate = () => {
     if (!students || !sortedSubjects) return;
     const headers = ["nis", "nama_siswa", ...sortedSubjects.map(s => s.mataPelajaran)];
-    const sampleData = students.slice(0, 2).map(s => {
-        const row: {[key: string]: any} = { nis: s.nis, nama_siswa: s.nama };
-        sortedSubjects.forEach(sub => row[sub.mataPelajaran] = '');
-        return row;
+    const csvContent = Papa.unparse({
+        fields: headers,
+        data: []
     });
-
-    const csvContent = Papa.unparse(sampleData, {header: true});
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
