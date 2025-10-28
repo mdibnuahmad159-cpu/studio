@@ -83,7 +83,7 @@ export default function GuruPage() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [teacherToEdit, setTeacherToEdit] = useState<Guru | null>(null);
-  const [teacherToDelete, setTeacherToDelete] = useState<Guru | null>(null);
+  const [teacherToDelete, setTeacherToDelete] useState<Guru | null>(null);
   const [formData, setFormData] = useState(emptyTeacher);
   const [importFile, setImportFile] = useState<File | null>(null);
 
@@ -200,7 +200,7 @@ export default function GuruPage() {
       fields: headers,
       data: []
     });
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
@@ -423,7 +423,7 @@ export default function GuruPage() {
               <div className="py-4 space-y-4">
                 <div className="flex items-center gap-4">
                   <Input 
-                    id="import-file" 
+                    id="import-file" _
                     type="file" 
                     accept=".csv"
                     onChange={handleImportFileChange}

@@ -252,7 +252,7 @@ export default function NilaiPage() {
         doc.save(`${filename}.pdf`);
     } else {
         const csvContent = Papa.unparse({ fields: head, data: body });
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
@@ -276,7 +276,7 @@ export default function NilaiPage() {
         fields: headers,
         data: []
     });
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
