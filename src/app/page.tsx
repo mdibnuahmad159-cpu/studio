@@ -7,6 +7,21 @@ import { ArrowUpRight, BookOpen, Users, UserCircle, GraduationCap } from 'lucide
 import { useCollection, useUser } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase } from '@/firebase/provider';
+import { motion } from 'framer-motion';
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      delay: i * 0.15,
+      duration: 0.5,
+      ease: 'easeOut',
+    },
+  }),
+};
+
 
 export default function DashboardPage() {
   const firestore = useFirestore();
@@ -81,21 +96,30 @@ export default function DashboardPage() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 px-4 md:px-0">
           {stats.map((stat, index) => (
-            <Card key={index} className="bg-card shadow-lg hover:shadow-xl transition-shadow rounded-2xl md:rounded-lg flex flex-col">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
-                <stat.icon className="h-5 w-5 text-muted-foreground" />
-              </CardHeader>
-              <CardContent className="flex flex-col flex-grow justify-between">
-                <div>
-                    <div className="text-2xl font-bold bg-gradient-primary text-transparent bg-clip-text">{stat.value}</div>
-                    <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
-                </div>
-                <Link href={stat.href} className="flex items-center gap-1 text-xs text-primary hover:underline mt-4">
-                    Lihat Detail <ArrowUpRight className="h-3 w-3" />
-                </Link>
-              </CardContent>
-            </Card>
+             <motion.div
+              key={index}
+              custom={index}
+              initial="hidden"
+              animate="visible"
+              variants={cardVariants}
+              className="h-full"
+            >
+              <Card className="bg-card shadow-lg hover:shadow-xl transition-shadow rounded-2xl md:rounded-lg flex flex-col h-full">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
+                  <stat.icon className="h-5 w-5 text-muted-foreground" />
+                </CardHeader>
+                <CardContent className="flex flex-col flex-grow justify-between">
+                  <div>
+                      <div className="text-2xl font-bold bg-gradient-primary text-transparent bg-clip-text">{stat.value}</div>
+                      <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
+                  </div>
+                  <Link href={stat.href} className="flex items-center gap-1 text-xs text-primary hover:underline mt-4">
+                      Lihat Detail <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
         </div>
       </div>
