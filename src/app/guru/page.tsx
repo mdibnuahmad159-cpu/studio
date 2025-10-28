@@ -83,7 +83,7 @@ export default function GuruPage() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [teacherToEdit, setTeacherToEdit] = useState<Guru | null>(null);
-  const [teacherToDelete, setTeacherToDelete] useState<Guru | null>(null);
+  const [teacherToDelete, setTeacherToDelete] = useState<Guru | null>(null);
   const [formData, setFormData] = useState(emptyTeacher);
   const [importFile, setImportFile] = useState<File | null>(null);
 
@@ -423,7 +423,7 @@ export default function GuruPage() {
               <div className="py-4 space-y-4">
                 <div className="flex items-center gap-4">
                   <Input 
-                    id="import-file" _
+                    id="import-file"
                     type="file" 
                     accept=".csv"
                     onChange={handleImportFileChange}
