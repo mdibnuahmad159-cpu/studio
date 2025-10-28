@@ -76,7 +76,7 @@ export default function PendaftaranPage() {
       return;
     }
 
-    const studentData: Omit<Siswa, 'id'> = {
+    const studentData: Omit<Siswa, 'id' | 'tahunLulus'> = {
         nis: formData.nis,
         nama: formData.fullName,
         jenisKelamin: formData.gender as 'Laki-laki' | 'Perempuan',
@@ -85,7 +85,7 @@ export default function PendaftaranPage() {
         namaAyah: formData.fatherName,
         namaIbu: formData.motherName,
         alamat: formData.address,
-        fileDokumen: '/path/to/default.pdf', // Placeholder
+        fileDokumen: '', // No file on registration, to be uploaded later
         status: 'Aktif',
         kelas: 0, // Default to class 0
     };

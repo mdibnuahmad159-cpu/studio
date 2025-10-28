@@ -29,10 +29,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, useStorage } from '@/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { useToast } from '@/hooks/use-toast';
+import { uploadFile } from '@/lib/storage';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -56,6 +57,7 @@ const positionOrder = [
 
 export default function GuruPage() {
   const firestore = useFirestore();
+  const storage = useStorage();
   const { user } = useUser();
   const teachersRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -118,12 +120,29 @@ export default function GuruPage() {
     }
   };
   
-  const handleImageChange = async (teacherId: string, image: string | null) => {
-    if (!firestore) return;
-    const teacherDocRef = doc(firestore, 'gurus', teacherId);
-    const batch = writeBatch(firestore);
-    batch.update(teacherDocRef, { imageId: image });
-    await batch.commit();
+  const handleImageChange = async (teacherId: string, imageFile: File | null) => {
+    if (!firestore || !storage || !imageFile) return;
+
+    toast({
+        title: 'Mengunggah foto...',
+        description: 'Harap tunggu sebentar.'
+    });
+    
+    try {
+        const filePath = `teacher_images/${teacherId}/${imageFile.name}`;
+        const imageUrl = await uploadFile(storage, filePath, imageFile);
+        
+        const teacherDocRef = doc(firestore, 'gurus', teacherId);
+        const batch = writeBatch(firestore);
+        batch.update(teacherDocRef, { imageId: imageUrl });
+        await batch.commit();
+        
+        toast({ title: 'Sukses!', description: 'Foto profil berhasil diperbarui.'});
+
+    } catch (error) {
+        console.error(error);
+        toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat mengunggah foto.'});
+    }
   };
 
   const handleDeleteTeacher = (teacher: Guru) => {

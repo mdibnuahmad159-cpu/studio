@@ -17,7 +17,7 @@ import { Button } from './ui/button';
 
 interface TeacherCardProps {
   teacher: Teacher;
-  onImageChange: (teacherId: string, image: string | null) => void;
+  onImageChange: (teacherId: string, image: File | null) => void;
   onEdit: (teacher: Teacher) => void;
   onDelete: (teacher: Teacher) => void;
   isAdmin: boolean;
@@ -34,13 +34,7 @@ export function TeacherCard({ teacher, onImageChange, onEdit, onDelete, isAdmin 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // In a real app, you'd upload this to Firebase Storage.
-      // For now, we'll use a local blob URL.
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        onImageChange(teacher.id, reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      onImageChange(teacher.id, file);
     }
   };
 
