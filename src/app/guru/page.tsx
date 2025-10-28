@@ -196,20 +196,18 @@ export default function GuruPage() {
 
   const downloadTemplate = () => {
     const headers = ["name", "position", "whatsapp"];
-    const csv = Papa.unparse({
+    const csvContent = Papa.unparse({
       fields: headers,
       data: []
     });
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
-    if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", "template_guru.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "template_guru.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -293,74 +291,76 @@ export default function GuruPage() {
         />
 
         <div className="border rounded-lg overflow-hidden bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="font-headline w-[80px]">Foto</TableHead>
-                <TableHead className="font-headline w-[30%]">Nama</TableHead>
-                <TableHead className="font-headline w-[30%]">Jabatan</TableHead>
-                <TableHead className="font-headline">No. WhatsApp</TableHead>
-                {isAdmin && <TableHead className="font-headline text-right w-[100px]">Aksi</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={isAdmin ? 5 : 4}>Loading...</TableCell></TableRow>}
-              {sortedTeachers?.map((teacher) => (
-                <TableRow key={teacher.id}>
-                  <TableCell>
-                    <div className="relative w-12 h-12 group">
-                      <Avatar className="w-full h-full text-lg">
-                        {teacher.imageId ? (
-                          <AvatarImage src={teacher.imageId} alt={teacher.name} className="object-cover"/>
-                        ) : null }
-                        <AvatarFallback>
-                          <User />
-                        </AvatarFallback>
-                      </Avatar>
-                      {isAdmin && (
-                          <button 
-                            onClick={() => handleAvatarClick(teacher.id)}
-                            className="absolute inset-0 bg-black/50 flex items-center justify-center text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                            aria-label="Ubah foto"
-                          >
-                            <Camera className="h-5 w-5" />
-                          </button>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{teacher.name}</TableCell>
-                  <TableCell>{teacher.position}</TableCell>
-                  <TableCell>
-                    <Link href={`https://wa.me/${teacher.whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                      {teacher.whatsapp}
-                    </Link>
-                  </TableCell>
-                  {isAdmin && (
-                    <TableCell className="text-right">
-                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Buka menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleOpenFormDialog(teacher)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            <span>Edit</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDeleteTeacher(teacher)} className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Hapus</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  )}
+          <div className="relative w-full overflow-auto">
+            <Table className="min-w-[800px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="font-headline w-[80px]">Foto</TableHead>
+                  <TableHead className="font-headline w-[30%]">Nama</TableHead>
+                  <TableHead className="font-headline w-[30%]">Jabatan</TableHead>
+                  <TableHead className="font-headline">No. WhatsApp</TableHead>
+                  {isAdmin && <TableHead className="font-headline text-right w-[100px]">Aksi</TableHead>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {isLoading && <TableRow><TableCell colSpan={isAdmin ? 5 : 4}>Loading...</TableCell></TableRow>}
+                {sortedTeachers?.map((teacher) => (
+                  <TableRow key={teacher.id}>
+                    <TableCell>
+                      <div className="relative w-12 h-12 group">
+                        <Avatar className="w-full h-full text-lg">
+                          {teacher.imageId ? (
+                            <AvatarImage src={teacher.imageId} alt={teacher.name} className="object-cover"/>
+                          ) : null }
+                          <AvatarFallback>
+                            <User />
+                          </AvatarFallback>
+                        </Avatar>
+                        {isAdmin && (
+                            <button 
+                              onClick={() => handleAvatarClick(teacher.id)}
+                              className="absolute inset-0 bg-black/50 flex items-center justify-center text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              aria-label="Ubah foto"
+                            >
+                              <Camera className="h-5 w-5" />
+                            </button>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{teacher.name}</TableCell>
+                    <TableCell>{teacher.position}</TableCell>
+                    <TableCell>
+                      <Link href={`https://wa.me/${teacher.whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        {teacher.whatsapp}
+                      </Link>
+                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-right">
+                         <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Buka menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleOpenFormDialog(teacher)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              <span>Edit</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDeleteTeacher(teacher)} className="text-red-600">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              <span>Hapus</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </div>
 
@@ -448,5 +448,4 @@ export default function GuruPage() {
       )}
     </div>
   );
-
-    
+}
