@@ -196,18 +196,20 @@ export default function GuruPage() {
 
   const downloadTemplate = () => {
     const headers = ["name", "position", "whatsapp"];
-    const csvContent = Papa.unparse({
+    const csv = Papa.unparse({
       fields: headers,
       data: []
     });
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "template_guru.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "template_guru.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
   };
 
   const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -295,10 +297,10 @@ export default function GuruPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="font-headline w-[80px]">Foto</TableHead>
-                <TableHead className="font-headline">Nama</TableHead>
-                <TableHead className="font-headline">Jabatan</TableHead>
+                <TableHead className="font-headline w-[30%]">Nama</TableHead>
+                <TableHead className="font-headline w-[30%]">Jabatan</TableHead>
                 <TableHead className="font-headline">No. WhatsApp</TableHead>
-                {isAdmin && <TableHead className="font-headline text-right">Aksi</TableHead>}
+                {isAdmin && <TableHead className="font-headline text-right w-[100px]">Aksi</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
