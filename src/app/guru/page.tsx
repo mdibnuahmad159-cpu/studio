@@ -29,11 +29,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useCollection, useFirestore, useMemoFirebase, useUser, useStorage } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { useToast } from '@/hooks/use-toast';
-import { uploadFile } from '@/lib/storage';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -57,7 +56,6 @@ const positionOrder = [
 
 export default function GuruPage() {
   const firestore = useFirestore();
-  const storage = useStorage();
   const { user } = useUser();
   const teachersRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -104,15 +102,12 @@ export default function GuruPage() {
   const handleSaveTeacher = async () => {
     if (!firestore || !teachersRef) return;
     if (formData.name && formData.position && formData.whatsapp) {
-      const batch = writeBatch(firestore);
       if (teacherToEdit) {
         const teacherDocRef = doc(firestore, 'gurus', teacherToEdit.id);
-        batch.update(teacherDocRef, { ...formData });
+        updateDocumentNonBlocking(teacherDocRef, { ...formData });
       } else {
-        const newTeacherRef = doc(teachersRef);
-        batch.set(newTeacherRef, { ...formData, imageId: null });
+        addDocumentNonBlocking(teachersRef, { ...formData, imageId: null });
       }
-      await batch.commit();
       setIsFormDialogOpen(false);
       setTeacherToEdit(null);
       setFormData(emptyTeacher);
@@ -121,27 +116,24 @@ export default function GuruPage() {
   };
   
   const handleImageChange = async (teacherId: string, imageFile: File | null) => {
-    if (!firestore || !storage || !imageFile) return;
+    if (!firestore || !imageFile) return;
 
     toast({
         title: 'Mengunggah foto...',
         description: 'Harap tunggu sebentar.'
     });
-    
-    try {
-        const filePath = `teacher_images/${teacherId}/${imageFile.name}`;
-        const imageUrl = await uploadFile(storage, filePath, imageFile);
-        
-        const teacherDocRef = doc(firestore, 'gurus', teacherId);
-        const batch = writeBatch(firestore);
-        batch.update(teacherDocRef, { imageId: imageUrl });
-        await batch.commit();
-        
-        toast({ title: 'Sukses!', description: 'Foto profil berhasil diperbarui.'});
 
-    } catch (error) {
-        console.error(error);
-        toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat mengunggah foto.'});
+    const reader = new FileReader();
+    reader.readAsDataURL(imageFile);
+    reader.onload = () => {
+      const imageUrl = reader.result as string;
+      const teacherDocRef = doc(firestore, 'gurus', teacherId);
+      updateDocumentNonBlocking(teacherDocRef, { imageId: imageUrl });
+      toast({ title: 'Sukses!', description: 'Foto profil berhasil diperbarui.'});
+    };
+    reader.onerror = (error) => {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat membaca file gambar.'});
     }
   };
 
@@ -153,9 +145,7 @@ export default function GuruPage() {
   const confirmDelete = async () => {
     if (teacherToDelete && firestore) {
       const teacherDocRef = doc(firestore, 'gurus', teacherToDelete.id);
-      const batch = writeBatch(firestore);
-      batch.delete(teacherDocRef);
-      await batch.commit();
+      deleteDocumentNonBlocking(teacherDocRef);
       setTeacherToDelete(null);
       toast({ title: 'Sukses!', description: 'Data guru berhasil dihapus.' });
     }

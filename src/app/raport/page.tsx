@@ -20,17 +20,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking, useUser, useStorage } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { Input } from '@/components/ui/input';
-import { uploadFile } from '@/lib/storage';
 
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
 export default function RaportPage() {
   const firestore = useFirestore();
-  const storage = useStorage();
   const { toast } = useToast();
   const { isAdmin } = useAdmin();
   const { user } = useUser();
@@ -70,7 +68,7 @@ export default function RaportPage() {
   
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && uploadTarget && firestore && storage) {
+    if (file && uploadTarget && firestore) {
       const { nis, raportKey } = uploadTarget;
       
       toast({
@@ -78,9 +76,10 @@ export default function RaportPage() {
         description: `Harap tunggu, file ${file.name} sedang diunggah.`,
       });
 
-      try {
-        const filePath = `raports/${nis}/${raportKey}_${file.name}`;
-        const fileUrl = await uploadFile(storage, filePath, file);
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const fileUrl = reader.result as string;
         
         const raportDocRef = doc(firestore, 'raports', nis);
         const updateData = { [`raports.${raportKey}`]: fileUrl };
@@ -91,15 +90,18 @@ export default function RaportPage() {
           title: 'Upload Berhasil!',
           description: `Raport untuk siswa NIS ${nis} telah diunggah.`,
         });
-      } catch (error) {
+
+        // Reset after upload
+        setUploadTarget(null);
+        if(fileInputRef.current) fileInputRef.current.value = '';
+      };
+      reader.onerror = (error) => {
         console.error(error);
         toast({
           variant: 'destructive',
           title: 'Upload Gagal!',
-          description: 'Terjadi kesalahan saat mengunggah file. Silakan coba lagi.',
+          description: 'Terjadi kesalahan saat membaca file. Silakan coba lagi.',
         });
-      } finally {
-        // Reset after upload
         setUploadTarget(null);
         if(fileInputRef.current) fileInputRef.current.value = '';
       }

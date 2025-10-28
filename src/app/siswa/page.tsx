@@ -51,10 +51,9 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Papa from 'papaparse';
-import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, addDocumentNonBlocking, useStorage } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
-import { uploadFile } from '@/lib/storage';
 
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -78,7 +77,6 @@ const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
 export default function SiswaPage() {
   const firestore = useFirestore();
-  const storage = useStorage();
   const { user } = useUser();
   const siswaAktifQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -153,21 +151,14 @@ export default function SiswaPage() {
   };
   
   const handleSaveStudent = async () => {
-    if (!firestore || !storage) return;
+    if (!firestore) return;
 
     toast({
         title: studentToEdit ? 'Memperbarui data...' : 'Menyimpan data...',
         description: 'Harap tunggu sebentar.'
     });
 
-    try {
-        let fileUrl = typeof formData.fileDokumen === 'string' ? formData.fileDokumen : '';
-
-        if (file) {
-            const filePath = `dokumen_siswa/${formData.nis}/${file.name}`;
-            fileUrl = await uploadFile(storage, filePath, file);
-        }
-
+    const processAndSave = (fileUrl: string) => {
         const studentData: Omit<DetailedStudent, 'id' | 'tahunLulus'> = {
             nis: formData.nis,
             nama: formData.nama,
@@ -207,13 +198,23 @@ export default function SiswaPage() {
         setIsFormDialogOpen(false);
         setStudentToEdit(null);
         toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
-    } catch (error) {
+    };
+
+    let fileUrl = typeof formData.fileDokumen === 'string' ? formData.fileDokumen : '';
+
+    if (file) {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        fileUrl = reader.result as string;
+        processAndSave(fileUrl);
+      };
+      reader.onerror = (error) => {
         console.error(error);
-        toast({
-            variant: 'destructive',
-            title: 'Gagal Menyimpan!',
-            description: 'Terjadi kesalahan saat menyimpan data. Coba lagi.'
-        });
+        toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat membaca file.'});
+      }
+    } else {
+      processAndSave(fileUrl);
     }
   };
 
@@ -359,6 +360,22 @@ export default function SiswaPage() {
     });
   };
 
+  const handleOpenPdf = (dataUrl: string) => {
+    // Convert base64 to blob
+    const byteString = atob(dataUrl.split(',')[1]);
+    const mimeString = dataUrl.split(',')[0].split(':')[1].split(';')[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+    }
+    const blob = new Blob([ab], { type: mimeString });
+    const blobUrl = URL.createObjectURL(blob);
+    
+    // Open in new tab
+    window.open(blobUrl, '_blank');
+  };
+
   return (
     <div className="bg-background">
       <div className="container py-12 md:py-20">
@@ -438,11 +455,9 @@ export default function SiswaPage() {
                           </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                         <DropdownMenuItem asChild>
-                            <a href={student.fileDokumen} target="_blank" rel="noopener noreferrer">
-                                <Eye className="mr-2 h-4 w-4" />
-                                <span>Lihat</span>
-                            </a>
+                         <DropdownMenuItem onClick={() => student.fileDokumen && handleOpenPdf(student.fileDokumen)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            <span>Lihat</span>
                          </DropdownMenuItem>
                          <DropdownMenuItem asChild>
                             <a href={student.fileDokumen} download={`Dokumen_${student.nis}.pdf`}>
@@ -545,7 +560,7 @@ export default function SiswaPage() {
                     <Label htmlFor="fileDokumen">File Dokumen</Label>
                     <Input id="fileDokumen" name="fileDokumen" type="file" accept=".pdf" onChange={handleFileChange} />
                     {studentToEdit && typeof formData.fileDokumen === 'string' && formData.fileDokumen && (
-                        <p className="text-sm text-muted-foreground mt-1">Dokumen saat ini: <a href={formData.fileDokumen} target="_blank" rel="noopener noreferrer" className="text-primary underline">Lihat</a></p>
+                        <p className="text-sm text-muted-foreground mt-1">Dokumen saat ini: <button onClick={() => handleOpenPdf(formData.fileDokumen as string)} className="text-primary underline">Lihat</button></p>
                     )}
                 </div>
               </div>
