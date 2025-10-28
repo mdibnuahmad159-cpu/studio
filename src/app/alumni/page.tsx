@@ -123,11 +123,17 @@ export default function AlumniPage() {
   };
 
   const downloadTemplate = () => {
-    const headers = "nis,nama,jenisKelamin,tempatLahir,tanggalLahir,namaAyah,namaIbu,alamat,status,kelas,tahunLulus";
-    const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + ",,,,,,,,,Lulus,,2024\n";
-    const encodedUri = encodeURI(csvContent);
+    const headers = ["nis","nama","jenisKelamin","tempatLahir","tanggalLahir","namaAyah","namaIbu","alamat","status","kelas","tahunLulus"];
+    const csvContent = Papa.unparse({
+      fields: headers,
+      data: [
+        ['', '', '', '', '', '', '', '', 'Lulus', '', new Date().getFullYear()]
+      ]
+    });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
     link.setAttribute("download", "template_alumni.csv");
     document.body.appendChild(link);
     link.click();
@@ -367,5 +373,3 @@ export default function AlumniPage() {
     </div>
   );
 }
-
-    

@@ -278,10 +278,11 @@ export default function NilaiPage() {
         return row;
     });
 
-    const csvContent = "data:text/csv;charset=utf-8," + Papa.unparse(sampleData, {header: true});
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = Papa.unparse(sampleData, {header: true});
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
     link.setAttribute("download", `template_nilai_kelas_${selectedKelas}_${selectedSemester}.csv`);
     document.body.appendChild(link);
     link.click();

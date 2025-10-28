@@ -275,11 +275,15 @@ export default function SiswaPage() {
   };
 
   const downloadTemplate = () => {
-    const headers = "nis,nama,jenisKelamin,tempatLahir,tanggalLahir,namaAyah,namaIbu,alamat,kelas,status";
-    const csvContent = "data:text/csv;charset=utf-8," + headers + "\n";
-    const encodedUri = encodeURI(csvContent);
+    const headers = ["nis","nama","jenisKelamin","tempatLahir","tanggalLahir","namaAyah","namaIbu","alamat","kelas","status"];
+    const csvContent = Papa.unparse({
+      fields: headers,
+      data: []
+    });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
     link.setAttribute("download", "template_siswa.csv");
     document.body.appendChild(link);
     link.click();

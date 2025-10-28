@@ -156,10 +156,15 @@ export default function KurikulumPage() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "data:text/csv;charset=utf-8," + "kelas,mataPelajaran,kitab\n";
-    const encodedUri = encodeURI(csvContent);
+    const headers = ["kelas", "mataPelajaran", "kitab"];
+    const csvContent = Papa.unparse({
+      fields: headers,
+      data: []
+    });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
     link.setAttribute("download", "template_kurikulum.csv");
     document.body.appendChild(link);
     link.click();
