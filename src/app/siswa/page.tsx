@@ -84,6 +84,7 @@ export default function SiswaPage() {
   }, [firestore, user]);
   const { data: activeStudents, isLoading } = useCollection<DetailedStudent>(siswaAktifQuery);
   const { isAdmin } = useAdmin();
+  const { toast } = useToast();
   
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isAssignClassDialogOpen, setIsAssignClassDialogOpen] = useState(false);
@@ -96,7 +97,6 @@ export default function SiswaPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
-  const { toast } = useToast();
   
   const importInputRef = useRef<HTMLInputElement>(null);
 
