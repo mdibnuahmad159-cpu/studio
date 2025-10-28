@@ -3,7 +3,6 @@
 
 import { useState, useMemo, useRef } from 'react';
 import { Guru } from '@/lib/data';
-import { TeacherCard } from '@/components/teacher-card';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,7 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, FileDown, Upload } from 'lucide-react';
+import { PlusCircle, FileDown, Upload, MoreHorizontal, Pencil, Trash2, Camera, User } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Papa from 'papaparse';
@@ -33,6 +32,22 @@ import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBl
 import { collection, doc, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import Link from 'next/link';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -73,6 +88,9 @@ export default function GuruPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
 
   const importInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadTarget, setUploadTarget] = useState<string | null>(null);
+
 
   const sortedTeachers = useMemo(() => {
     if (!teachers) return [];
@@ -115,7 +133,22 @@ export default function GuruPage() {
     }
   };
   
-  const handleImageChange = async (teacherId: string, imageFile: File | null) => {
+  const handleAvatarClick = (teacherId: string) => {
+    if (!isAdmin) return;
+    setUploadTarget(teacherId);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+     const file = event.target.files?.[0];
+     if (file && uploadTarget && firestore) {
+        onImageChange(uploadTarget, file);
+        if(fileInputRef.current) fileInputRef.current.value = '';
+        setUploadTarget(null);
+     }
+  }
+
+  const onImageChange = async (teacherId: string, imageFile: File | null) => {
     if (!firestore || !imageFile) return;
 
     toast({
@@ -249,18 +282,83 @@ export default function GuruPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {isLoading && <p>Loading...</p>}
-          {sortedTeachers?.map((teacher) => (
-            <TeacherCard 
-              key={teacher.id} 
-              teacher={teacher} 
-              onImageChange={handleImageChange} 
-              onEdit={handleOpenFormDialog}
-              onDelete={handleDeleteTeacher}
-              isAdmin={isAdmin}
-            />
-          ))}
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="image/*"
+          onChange={handleFileChange}
+        />
+
+        <div className="border rounded-lg overflow-hidden bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="font-headline w-[80px]">Foto</TableHead>
+                <TableHead className="font-headline">Nama</TableHead>
+                <TableHead className="font-headline">Jabatan</TableHead>
+                <TableHead className="font-headline">No. WhatsApp</TableHead>
+                {isAdmin && <TableHead className="font-headline text-right">Aksi</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && <TableRow><TableCell colSpan={isAdmin ? 5 : 4}>Loading...</TableCell></TableRow>}
+              {sortedTeachers?.map((teacher) => (
+                <TableRow key={teacher.id}>
+                  <TableCell>
+                    <div className="relative w-12 h-12 group">
+                      <Avatar className="w-full h-full text-lg">
+                        {teacher.imageId ? (
+                          <AvatarImage src={teacher.imageId} alt={teacher.name} className="object-cover"/>
+                        ) : null }
+                        <AvatarFallback>
+                          <User />
+                        </AvatarFallback>
+                      </Avatar>
+                      {isAdmin && (
+                          <button 
+                            onClick={() => handleAvatarClick(teacher.id)}
+                            className="absolute inset-0 bg-black/50 flex items-center justify-center text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="Ubah foto"
+                          >
+                            <Camera className="h-5 w-5" />
+                          </button>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium">{teacher.name}</TableCell>
+                  <TableCell>{teacher.position}</TableCell>
+                  <TableCell>
+                    <Link href={`https://wa.me/${teacher.whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                      {teacher.whatsapp}
+                    </Link>
+                  </TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-right">
+                       <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Buka menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleOpenFormDialog(teacher)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteTeacher(teacher)} className="text-red-600">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Hapus</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </div>
 
@@ -348,4 +446,5 @@ export default function GuruPage() {
       )}
     </div>
   );
-}
+
+    
