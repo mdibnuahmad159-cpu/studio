@@ -165,7 +165,7 @@ export default function KurikulumPage() {
   };
 
   const handleImport = async () => {
-    if (!importFile || !firestore) return;
+    if (!importFile || !firestore || !kurikulumRef) return;
     
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -182,16 +182,18 @@ export default function KurikulumPage() {
             }
 
             const batch = writeBatch(firestore);
-            const kurikulumCollection = collection(firestore, 'kurikulum');
-
             newKurikulum.forEach(item => {
-              if (item.kelas && item.mataPelajaran && item.kitab) {
-                 const newDocRef = doc(kurikulumCollection);
-                 batch.set(newDocRef, item);
+              if (item.kelas !== undefined && item.mataPelajaran && item.kitab) {
+                 const newDocRef = doc(kurikulumRef); // This is the key change
+                 batch.set(newDocRef, {
+                   ...item,
+                   kelas: String(item.kelas) // ensure kelas is a string
+                 });
               }
             });
 
             await batch.commit();
+
             toast({ title: 'Import Berhasil!', description: `${newKurikulum.length} data kurikulum berhasil ditambahkan.` });
             setIsImportDialogOpen(false);
             setImportFile(null);
