@@ -104,15 +104,6 @@ export default function KurikulumPage() {
   };
 
   const handleSaveKurikulum = async () => {
-    if (!formData.mataPelajaran || !formData.kitab) {
-      toast({
-        variant: 'destructive',
-        title: 'Gagal Menyimpan',
-        description: 'Mohon isi semua kolom yang diperlukan.',
-      });
-      return;
-    }
-    
     if (kurikulumRef && firestore) {
       if (kurikulumToEdit) {
         const kurikulumDocRef = doc(firestore, 'kurikulum', kurikulumToEdit.id);
@@ -174,7 +165,7 @@ export default function KurikulumPage() {
   };
 
   const handleImport = async () => {
-    if (!importFile || !kurikulumRef || !firestore) return;
+    if (!importFile || !firestore) return;
     
     const reader = new FileReader();
     reader.onload = async (e) => {
