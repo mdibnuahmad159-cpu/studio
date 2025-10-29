@@ -21,10 +21,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Siswa, Kurikulum, Nilai, Guru, NilaiSiswa } from '@/lib/data';
-import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking, useDoc } from '@/firebase';
+import { collection, doc, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Search, FileDown, Upload, CalendarIcon } from 'lucide-react';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -38,12 +38,68 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { Label } from '@/components/ui/label';
 
-
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
+
+
+// New component to handle individual student term data fetching and updating
+const StudentTermDataCell = ({
+  studentId,
+  kelas,
+  semester,
+  field,
+}: {
+  studentId: string;
+  kelas: number;
+  semester: 'ganjil' | 'genap';
+  field: 'sakit' | 'izin' | 'alpa' | 'keputusan';
+}) => {
+  const firestore = useFirestore();
+  const { isAdmin } = useAdmin();
+  const { toast } = useToast();
+
+  const docId = `${studentId}-${kelas}-${semester}`;
+  const docRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'nilaiSiswa', docId);
+  }, [firestore, docId]);
+
+  const { data: termData, isLoading } = useDoc<NilaiSiswa>(docRef);
+
+  const handleSave = async (value: string | number) => {
+    if (!firestore || !isAdmin) return;
+    const dataToSet = {
+        siswaId: studentId,
+        kelas: kelas,
+        semester: semester,
+        [field]: value
+    };
+    try {
+        await setDocumentNonBlocking(docRef!, dataToSet, { merge: true });
+        toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat menyimpan data.' });
+    }
+  }
+
+  return (
+      <Input
+        type={field === 'keputusan' ? 'text' : 'number'}
+        defaultValue={termData?.[field] as any}
+        onBlur={(e) => handleSave(field === 'keputusan' ? e.target.value : parseInt(e.target.value) || 0)}
+        className={cn(
+          "min-w-[70px] text-center",
+          field === 'keputusan' && "min-w-[200px]"
+        )}
+        disabled={!isAdmin || isLoading}
+        placeholder={isLoading ? "..." : "-"}
+      />
+  );
+}
+
 
 export default function NilaiPage() {
   const firestore = useFirestore();
@@ -65,7 +121,7 @@ export default function NilaiPage() {
   const [tahunPelajaran, setTahunPelajaran] = useState('');
   const [tanggal, setTanggal] = useState<Date | undefined>(new Date());
   
-  const kelasNum = parseInt(selectedKelas, 10);
+  const kelasNum = useMemo(() => parseInt(selectedKelas, 10), [selectedKelas]);
   
   // --- Data Fetching ---
   const siswaQuery = useMemoFirebase(() => {
@@ -96,16 +152,6 @@ export default function NilaiPage() {
   }, [firestore, user, kelasNum, selectedSemester]);
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
-  const nilaiSiswaQuery = useMemoFirebase(() => {
-      if (!firestore || !user || isNaN(kelasNum)) return null;
-      return query(
-          collection(firestore, 'nilaiSiswa'),
-          where('kelas', '==', kelasNum),
-          where('semester', '==', selectedSemester)
-      );
-  }, [firestore, user, kelasNum, selectedSemester]);
-  const { data: studentTermData, isLoading: studentTermDataLoading } = useCollection<NilaiSiswa>(nilaiSiswaQuery);
-  
   // --- Memoized Data Processing ---
   const { waliKelasOptions, kepalaMadrasahOptions } = useMemo(() => {
     if (!teachers) return { waliKelasOptions: [], kepalaMadrasahOptions: [] };
@@ -130,7 +176,10 @@ export default function NilaiPage() {
     if (kepalaMadrasahOptions.length === 1 && !kepalaMadrasah) {
       setKepalaMadrasah(kepalaMadrasahOptions[0].id);
     }
-  }, [kepalaMadrasahOptions, kepalaMadrasah]);
+     if (kepalaMadrasahOptions.length > 1 || kepalaMadrasahOptions.length === 0) {
+      setKepalaMadrasah('');
+    }
+  }, [kepalaMadrasahOptions]);
 
 
   const sortedSubjects = useMemo(() => {
@@ -147,13 +196,6 @@ export default function NilaiPage() {
     return map;
   }, [grades]);
   
-  const studentTermDataMap = useMemo(() => {
-    const map = new Map<string, NilaiSiswa>();
-    studentTermData?.forEach(data => {
-        map.set(data.siswaId, data);
-    });
-    return map;
-  }, [studentTermData]);
 
   const studentStats = useMemo(() => {
     const stats = new Map<string, { sum: number; average: number }>();
@@ -269,29 +311,9 @@ export default function NilaiPage() {
         return false;
     }
   };
-
-  const handleSaveStudentTermData = async (siswaId: string, field: 'sakit' | 'izin' | 'alpa' | 'keputusan', value: string | number) => {
-    if (!firestore || !isAdmin) return;
-
-    const docId = `${siswaId}-${selectedKelas}-${selectedSemester}`;
-    const docRef = doc(firestore, 'nilaiSiswa', docId);
-
-    const dataToSet = {
-        siswaId,
-        kelas: Number(selectedKelas),
-        semester: selectedSemester,
-        [field]: value
-    };
-
-    try {
-        await setDocumentNonBlocking(docRef, dataToSet, { merge: true });
-        toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat menyimpan data.' });
-    }
-  }
   
   const handleExport = (format: 'pdf' | 'csv') => {
+    if (!students) return;
     const head = ['Peringkat', 'Nama', 'NIS', ...sortedSubjects.map(s => s.mataPelajaran), 'Jumlah', 'Rata-rata'];
     const body = sortedStudents.map(student => {
         const stats = studentStats.stats.get(student.id);
@@ -333,7 +355,7 @@ export default function NilaiPage() {
   };
 
   const downloadTemplate = () => {
-    if (!students || !sortedSubjects) return;
+    if (!subjects) return;
     const headers = ["nis", "nama_siswa", ...sortedSubjects.map(s => s.kode)];
     const ws = XLSX.utils.json_to_sheet([], { header: headers });
     const wb = XLSX.utils.book_new();
@@ -342,16 +364,9 @@ export default function NilaiPage() {
   };
   
   const handleImport = async () => {
-    if (!importFile || !firestore) {
-      toast({ variant: "destructive", title: "Gagal", description: "File atau koneksi database tidak tersedia." });
+    if (!importFile || !firestore || !students || !subjects) {
+      toast({ variant: "destructive", title: "Gagal", description: "Data prasyarat (file, siswa, atau mapel) tidak tersedia." });
       return;
-    }
-    const studentList = students;
-    const subjectList = sortedSubjects;
-    
-    if (!studentList || !subjectList) {
-        toast({ variant: "destructive", title: "Gagal", description: "Data siswa atau mata pelajaran belum dimuat." });
-        return;
     }
 
     const reader = new FileReader();
@@ -368,8 +383,9 @@ export default function NilaiPage() {
               return;
             }
 
-            const subjectMapByCode = new Map(subjectList.map(s => [s.kode, s.id]));
-            const studentMapByNis = new Map(studentList.map(s => [s.nis, s.id]));
+            const subjectMapByCode = new Map(subjects.map(s => [s.kode, s.id]));
+            const studentMapByNis = new Map(students.map(s => [s.nis, s.id]));
+            const batch = writeBatch(firestore);
 
             for (const row of importedData) {
               const nis = String(row.nis);
@@ -383,8 +399,9 @@ export default function NilaiPage() {
                     if (nilaiStr !== null && nilaiStr !== undefined && String(nilaiStr).trim() !== '') {
                       const nilai = parseInt(String(nilaiStr), 10);
                       if (!isNaN(nilai) && nilai >= 0 && nilai <= 100) {
-                        const existingGrade = gradesMap.get(`${siswaId}-${kurikulumId}`);
-                        const gradeRef = existingGrade ? doc(firestore, 'nilai', existingGrade.id) : doc(collection(firestore, 'nilai'));
+                        const existingGradeId = gradesMap.get(`${siswaId}-${kurikulumId}`)?.id;
+                        const gradeRef = existingGradeId ? doc(firestore, 'nilai', existingGradeId) : doc(collection(firestore, 'nilai'));
+                        
                         const gradeData = {
                             siswaId,
                             kurikulumId,
@@ -392,14 +409,14 @@ export default function NilaiPage() {
                             semester: selectedSemester,
                             nilai,
                         };
-                        setDocumentNonBlocking(gradeRef, gradeData, { merge: true });
+                        batch.set(gradeRef, gradeData, { merge: true });
                       }
                     }
                   }
                 }
               }
             }
-
+            await batch.commit();
             toast({ title: 'Import Berhasil!', description: `Nilai berhasil diperbarui dari file.` });
         } catch (error) {
             console.error("Error importing grades:", error);
@@ -417,7 +434,7 @@ export default function NilaiPage() {
   };
 
 
-  const isLoading = studentsLoading || subjectsLoading || teachersLoading || gradesLoading || studentTermDataLoading;
+  const isLoading = studentsLoading || subjectsLoading || teachersLoading || gradesLoading;
 
   const renderMobileView = () => (
     <div className="flex flex-col md:flex-row gap-4 h-full">
@@ -503,9 +520,9 @@ export default function NilaiPage() {
   );
 
   const renderDesktopView = () => (
-    <div className="flex-1 relative">
+    <div className="relative flex-1">
       <ScrollArea className="absolute inset-0">
-        <Table className='min-w-max'>
+        <Table>
           <TableHeader className='sticky top-0 z-10 bg-card'>
             <TableRow>
               <TableHead className="font-headline sticky left-0 bg-card z-20 w-[200px] shadow-sm">Nama Siswa</TableHead>
@@ -513,7 +530,7 @@ export default function NilaiPage() {
               {sortedSubjects.map(subject => (
                 <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
               ))}
-              <TableHead className="font-headline text-center">Jumlah Nilai</TableHead>
+              <TableHead className="font-headline text-center">Jumlah</TableHead>
               <TableHead className="font-headline text-center">Rata-rata</TableHead>
               <TableHead className="font-headline text-center">Peringkat</TableHead>
               <TableHead className="font-headline text-center">Sakit</TableHead>
@@ -528,7 +545,6 @@ export default function NilaiPage() {
             {sortedStudents.map(student => {
               const stats = studentStats.stats.get(student.id);
               const rank = studentStats.ranks.get(student.id);
-              const termData = studentTermDataMap.get(student.id);
               return (
               <TableRow key={student.id}>
                 <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
@@ -536,7 +552,7 @@ export default function NilaiPage() {
                 {sortedSubjects.map(subject => {
                   const grade = gradesMap.get(`${student.id}-${subject.id}`);
                   return (
-                    <TableCell key={subject.id} className="text-center">
+                    <TableCell key={subject.id} className="text-center p-1">
                       <Input
                         type="number"
                         defaultValue={grade?.nilai}
@@ -551,31 +567,22 @@ export default function NilaiPage() {
                 <TableCell className="text-center font-medium">{stats?.sum.toFixed(0) || 0}</TableCell>
                 <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
                 <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
-                <TableCell>
-                  <Input type="number" defaultValue={termData?.sakit} onBlur={(e) => handleSaveStudentTermData(student.id, 'sakit', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
-                </TableCell>
-                <TableCell>
-                  <Input type="number" defaultValue={termData?.izin} onBlur={(e) => handleSaveStudentTermData(student.id, 'izin', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
-                </TableCell>
-                <TableCell>
-                  <Input type="number" defaultValue={termData?.alpa} onBlur={(e) => handleSaveStudentTermData(student.id, 'alpa', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
-                </TableCell>
-                <TableCell>
-                  <Input type="text" defaultValue={termData?.keputusan} onBlur={(e) => handleSaveStudentTermData(student.id, 'keputusan', e.target.value)} className="min-w-[200px]" disabled={!isAdmin} />
-                </TableCell>
+                <TableCell className="p-1"><StudentTermDataCell studentId={student.id} kelas={kelasNum} semester={selectedSemester} field="sakit" /></TableCell>
+                <TableCell className="p-1"><StudentTermDataCell studentId={student.id} kelas={kelasNum} semester={selectedSemester} field="izin" /></TableCell>
+                <TableCell className="p-1"><StudentTermDataCell studentId={student.id} kelas={kelasNum} semester={selectedSemester} field="alpa" /></TableCell>
+                <TableCell className="p-1"><StudentTermDataCell studentId={student.id} kelas={kelasNum} semester={selectedSemester} field="keputusan" /></TableCell>
               </TableRow>
             )})}
           </TableBody>
         </Table>
-        <ScrollBar orientation="horizontal" />
       </ScrollArea>
     </div>
   );
 
 
   return (
-    <div className="bg-background flex flex-col h-screen overflow-hidden pb-16 md:pb-0">
-      <div className="container flex flex-col py-8 flex-1 overflow-hidden">
+    <div className="bg-background flex flex-col h-full max-h-[calc(100vh-8rem)]">
+      <div className="container flex flex-col py-8 flex-1 min-h-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
@@ -589,10 +596,10 @@ export default function NilaiPage() {
                         <Upload className="mr-2 h-4 w-4" /> Import Excel
                     </Button>
                 )}
-                <Button onClick={() => handleExport('pdf')} variant="outline" size="sm">
+                <Button onClick={() => handleExport('pdf')} variant="outline" size="sm" disabled={!students || students.length === 0}>
                   <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
                 </Button>
-                <Button onClick={() => handleExport('csv')} variant="outline" size="sm">
+                <Button onClick={() => handleExport('csv')} variant="outline" size="sm" disabled={!students || students.length === 0}>
                   <FileDown className="mr-2 h-4 w-4" /> Ekspor Excel
                 </Button>
             </div>
@@ -691,7 +698,7 @@ export default function NilaiPage() {
             </div>
         </div>
         
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 min-h-0 flex flex-col">
           {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
 
@@ -734,5 +741,3 @@ export default function NilaiPage() {
     </div>
   );
 }
-
-    
