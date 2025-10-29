@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Siswa, Kurikulum, Nilai, Guru, NilaiSiswa } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking, useDoc } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { Search, FileDown, Upload, CalendarIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import jsPDF from 'jspdf';
@@ -44,7 +44,6 @@ interface jsPDFWithAutoTable extends jsPDF {
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
 
-// New component to handle individual student term data fetching and updating
 const StudentTermDataCell = ({
   studentId,
   kelas,
@@ -69,7 +68,7 @@ const StudentTermDataCell = ({
   const { data: termData, isLoading } = useDoc<NilaiSiswa>(docRef);
 
   const handleSave = async (value: string | number) => {
-    if (!firestore) return;
+    if (!firestore || !docRef) return;
     const dataToSet = {
         siswaId: studentId,
         kelas: kelas,
@@ -77,7 +76,7 @@ const StudentTermDataCell = ({
         [field]: value
     };
     try {
-        await setDocumentNonBlocking(docRef!, dataToSet, { merge: true });
+        await setDocumentNonBlocking(docRef, dataToSet, { merge: true });
         toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
     } catch (error) {
         toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat menyimpan data.' });
@@ -99,26 +98,12 @@ const StudentTermDataCell = ({
   );
 }
 
-
-export default function NilaiPage() {
+// Custom hook for data fetching and processing logic
+const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap') => {
   const firestore = useFirestore();
   const { user } = useUser();
-  const { toast } = useToast();
-  const isMobile = useIsMobile();
-
-  const [selectedKelas, setSelectedKelas] = useState('1');
-  const [selectedSemester, setSelectedSemester] = useState<'ganjil' | 'genap'>('ganjil');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState<Siswa | null>(null);
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const importInputRef = useRef<HTMLInputElement>(null);
-  
-  const [tahunPelajaran, setTahunPelajaran] = useState('');
-  const [tanggal, setTanggal] = useState<Date | undefined>(new Date());
-  
   const kelasNum = useMemo(() => parseInt(selectedKelas, 10), [selectedKelas]);
-  
+
   // --- Data Fetching ---
   const siswaQuery = useMemoFirebase(() => {
     if (!firestore || !user || isNaN(kelasNum)) return null;
@@ -141,7 +126,7 @@ export default function NilaiPage() {
   const studentIds = useMemo(() => students?.map(s => s.id) || [], [students]);
 
   const nilaiQuery = useMemoFirebase(() => {
-    if (!firestore || !user || isNaN(kelasNum) || studentIds.length === 0) return null;
+    if (!firestore || !user || isNaN(kelasNum) || !studentIds || studentIds.length === 0) return null;
     return query(
       collection(firestore, 'nilai'),
       where('kelas', '==', kelasNum),
@@ -167,7 +152,6 @@ export default function NilaiPage() {
     return map;
   }, [grades]);
   
-
   const studentStats = useMemo(() => {
     const stats = new Map<string, { sum: number; average: number }>();
     const ranks = new Map<string, number>();
@@ -213,6 +197,47 @@ export default function NilaiPage() {
     return { stats, ranks };
   }, [students, sortedSubjects, gradesMap]);
 
+  const isLoading = studentsLoading || subjectsLoading || teachersLoading || gradesLoading;
+
+  return {
+    students,
+    teachers,
+    subjects,
+    gradesMap,
+    sortedSubjects,
+    studentStats,
+    isLoading
+  };
+};
+
+
+export default function NilaiPage() {
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const isMobile = useIsMobile();
+
+  const [selectedKelas, setSelectedKelas] = useState('1');
+  const [selectedSemester, setSelectedSemester] = useState<'ganjil' | 'genap'>('ganjil');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<Siswa | null>(null);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  
+  const [tahunPelajaran, setTahunPelajaran] = useState('');
+  const [tanggal, setTanggal] = useState<Date | undefined>(new Date());
+  
+  const kelasNum = useMemo(() => parseInt(selectedKelas, 10), [selectedKelas]);
+  
+  const { 
+    students, 
+    teachers, 
+    subjects, 
+    gradesMap,
+    sortedSubjects, 
+    studentStats, 
+    isLoading 
+  } = useNilaiData(selectedKelas, selectedSemester);
 
   const sortedStudents = useMemo(() => {
     if (!students) return [];
@@ -435,9 +460,6 @@ export default function NilaiPage() {
     reader.readAsBinaryString(importFile);
   };
 
-
-  const isLoading = studentsLoading || subjectsLoading || teachersLoading || gradesLoading;
-
   const renderMobileView = () => (
     <div className="flex flex-col md:flex-row gap-4 h-full">
       <Card className="w-full md:w-1/3 flex flex-col">
@@ -581,7 +603,7 @@ export default function NilaiPage() {
 
 
   return (
-    <div className="bg-background flex flex-col h-[calc(100vh-8rem)]">
+    <div className="bg-background flex flex-col h-full max-h-[calc(100vh-8rem)]">
       <div className="container flex flex-col py-8 flex-1 min-h-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div className="text-center sm:text-left">
@@ -603,7 +625,7 @@ export default function NilaiPage() {
             </div>
         </div>
 
-        <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+        <div className="mb-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 items-end">
             <div className="relative col-span-2 md:col-span-1">
                 <Label>Cari Siswa</Label>
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground mt-3" />
@@ -711,3 +733,5 @@ export default function NilaiPage() {
     </div>
   );
 }
+
+    
