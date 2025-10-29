@@ -275,18 +275,16 @@ export default function NilaiPage() {
             head: [head],
             body: body,
             startY: 25,
+            didDrawPage: (data) => {
+              const textY = doc.internal.pageSize.height - 30;
+              const textX = doc.internal.pageSize.width - 14;
+              const signatureX = textX - 100;
+              doc.setFontSize(10);
+              doc.text(`Tanggal: ${tanggal ? format(tanggal, "dd MMMM yyyy") : '-'}`, signatureX, textY);
+              doc.text(`Wali Kelas: ${waliKelasData?.name || '-'}`, signatureX, textY + 5);
+              doc.text(`Kepala Madrasah: ${kepalaMadrasahData?.name || '-'}`, signatureX, textY + 10);
+            }
         });
-
-        const pageCount = doc.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            const textY = doc.internal.pageSize.height - 30;
-            const textX = doc.internal.pageSize.width - 14;
-            const signatureX = textX - 100;
-            doc.text(`Tanggal: ${tanggal ? format(tanggal, "dd MMMM yyyy") : '-'}`, signatureX, textY);
-            doc.text(`Wali Kelas: ${waliKelasData?.name || '-'}`, signatureX, textY + 5);
-            doc.text(`Kepala Madrasah: ${kepalaMadrasahData?.name || '-'}`, signatureX, textY + 10);
-        }
         
         doc.save(`${filename}.pdf`);
     } else {
