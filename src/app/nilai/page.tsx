@@ -32,7 +32,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useAdmin } from '@/context/AdminProvider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
@@ -160,7 +159,8 @@ export default function NilaiPage() {
 
   const gradesMap = useMemo(() => {
     const map = new Map<string, Nilai>();
-    grades?.forEach(grade => {
+    if (!grades) return map;
+    grades.forEach(grade => {
       const key = `${grade.siswaId}-${grade.kurikulumId}`;
       map.set(key, grade);
     });
@@ -581,7 +581,7 @@ export default function NilaiPage() {
 
 
   return (
-    <div className="bg-background flex flex-col h-full">
+    <div className="bg-background flex flex-col h-[calc(100vh-8rem)]">
       <div className="container flex flex-col py-8 flex-1 min-h-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div className="text-center sm:text-left">
