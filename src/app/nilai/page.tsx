@@ -71,25 +71,25 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
   const studentIds = useMemo(() => students?.map(s => s.id) || [], [students]);
 
   const nilaiQuery = useMemoFirebase(() => {
-    if (studentsLoading || studentIds.length === 0) return null;
+    if (!user || isNaN(kelasNum) || studentIds.length === 0) return null; // CRITICAL: Prevent query with empty 'in' array
     return query(
       collection(firestore, 'nilai'),
       where('kelas', '==', kelasNum),
       where('semester', '==', selectedSemester),
       where('siswaId', 'in', studentIds)
     );
-  }, [firestore, kelasNum, selectedSemester, studentIds, studentsLoading]);
+  }, [firestore, user, kelasNum, selectedSemester, studentIds]);
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
   const nilaiSiswaQuery = useMemoFirebase(() => {
-    if (studentsLoading || studentIds.length === 0) return null;
+    if (!user || isNaN(kelasNum) || studentIds.length === 0) return null; // CRITICAL: Prevent query with empty 'in' array
     return query(
       collection(firestore, 'nilaiSiswa'),
       where('kelas', '==', kelasNum),
       where('semester', '==', selectedSemester),
       where('siswaId', 'in', studentIds)
     );
-  }, [firestore, kelasNum, selectedSemester, studentIds, studentsLoading]);
+  }, [firestore, user, kelasNum, selectedSemester, studentIds]);
   const { data: studentTermData, isLoading: termDataLoading } = useCollection<NilaiSiswa>(nilaiSiswaQuery);
 
   const isLoading = studentsLoading || subjectsLoading || teachersLoading || (studentIds.length > 0 && (gradesLoading || termDataLoading));
