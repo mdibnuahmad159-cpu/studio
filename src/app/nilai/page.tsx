@@ -21,8 +21,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Siswa, Kurikulum, Nilai, Guru, NilaiSiswa } from '@/lib/data';
-import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking, getDocs } from '@/firebase';
-import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc, query, where, writeBatch, getDocs } from 'firebase/firestore';
 import { Search, FileDown, Upload, CalendarIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import jsPDF from 'jspdf';
@@ -597,7 +597,7 @@ export default function NilaiPage() {
 
   return (
     <div className="bg-background pb-32 md:pb-0">
-      <div className="container flex flex-col py-12 md:py-20 h-screen">
+      <div className="container flex flex-col py-12 md:py-20 h-full max-h-[calc(100vh-8rem)]">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
@@ -756,4 +756,3 @@ export default function NilaiPage() {
     </div>
   );
 }
-
