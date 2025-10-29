@@ -61,9 +61,10 @@ const StudentTermDataCell = ({
   const { isAdmin } = useAdmin();
   const { toast } = useToast();
 
-  const docId = `${studentId}-${kelas}-${semester}`;
+  const docId = useMemo(() => `${studentId}-${kelas}-${semester}`, [studentId, kelas, semester]);
+  
   const docRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !docId) return null;
     return doc(firestore, 'nilaiSiswa', docId);
   }, [firestore, docId]);
 
@@ -137,20 +138,20 @@ export default function NilaiPage() {
   const kurikulumQuery = useMemoFirebase(() => {
     if (!firestore || !user || isNaN(kelasNum)) return null;
     return query(collection(firestore, 'kurikulum'), where('kelas', '==', selectedKelas));
-  }, [firestore, user, selectedKelas, kelasNum]);
+  }, [firestore, user, selectedKelas]);
   const { data: subjects, isLoading: subjectsLoading } = useCollection<Kurikulum>(kurikulumQuery);
 
+  const studentIds = useMemo(() => students?.map(s => s.id) || [], [students]);
+
   const nilaiQuery = useMemoFirebase(() => {
-    if (!firestore || !user || isNaN(kelasNum) || !students || students.length === 0) return null;
-    const studentIds = students.map(s => s.id);
-    if (studentIds.length === 0) return null;
+    if (!firestore || !user || isNaN(kelasNum) || studentIds.length === 0) return null;
     return query(
       collection(firestore, 'nilai'),
       where('kelas', '==', kelasNum),
       where('semester', '==', selectedSemester),
       where('siswaId', 'in', studentIds)
     );
-  }, [firestore, user, kelasNum, selectedSemester, students]);
+  }, [firestore, user, kelasNum, selectedSemester, studentIds]);
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
   // --- Memoized Data Processing ---
@@ -285,7 +286,7 @@ export default function NilaiPage() {
   };
   
   const handleExport = (format: 'pdf' | 'csv') => {
-    if (!students || !teachers) return;
+    if (!students || !teachers || !sortedSubjects) return;
 
     const waliKelasData = teachers.find(t => t.position === `Wali Kelas ${selectedKelas}`);
     const kepalaMadrasahData = teachers.find(t => t.position.toLowerCase().includes('kepala madrasah'));
@@ -334,7 +335,17 @@ export default function NilaiPage() {
         
         doc.save(`${filename}.pdf`);
     } else {
-        const ws = XLSX.utils.aoa_to_sheet([head, ...body]);
+        const exportData = [
+            [`Data Nilai Kelas ${selectedKelas} - Semester ${selectedSemester}`],
+            [`Tahun Pelajaran: ${tahunPelajaran || '-'}`],
+            [`Wali Kelas: ${waliKelasData?.name || '-'}`],
+            [`Kepala Madrasah: ${kepalaMadrasahData?.name || '-'}`],
+            [], // Empty row for spacing
+            head,
+            ...body
+        ];
+        
+        const ws = XLSX.utils.aoa_to_sheet(exportData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Nilai");
         XLSX.writeFile(wb, `${filename}.xlsx`);
@@ -513,68 +524,68 @@ export default function NilaiPage() {
   );
 
   const renderDesktopView = () => (
-    <div className="relative flex-1">
-      <ScrollArea className="absolute inset-0">
-        <Table>
-          <TableHeader className='sticky top-0 z-10 bg-card'>
-            <TableRow>
-              <TableHead className="font-headline sticky left-0 bg-card z-20 w-[200px] shadow-sm">Nama Siswa</TableHead>
-              <TableHead className="font-headline w-[120px]">NIS</TableHead>
-              {sortedSubjects.map(subject => (
-                <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
-              ))}
-              <TableHead className="font-headline text-center">Jumlah</TableHead>
-              <TableHead className="font-headline text-center">Rata-rata</TableHead>
-              <TableHead className="font-headline text-center">Peringkat</TableHead>
-              <TableHead className="font-headline text-center">Sakit</TableHead>
-              <TableHead className="font-headline text-center">Izin</TableHead>
-              <TableHead className="font-headline text-center">Alpa</TableHead>
-              <TableHead className="font-headline text-center min-w-[200px]">Keputusan</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Memuat data...</TableCell></TableRow>}
-            {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
-            {sortedStudents.map(student => {
-              const stats = studentStats.stats.get(student.id);
-              const rank = studentStats.ranks.get(student.id);
-              return (
-              <TableRow key={student.id}>
-                <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
-                <TableCell>{student.nis}</TableCell>
-                {sortedSubjects.map(subject => {
-                  const grade = gradesMap.get(`${student.id}-${subject.id}`);
-                  return (
-                    <TableCell key={subject.id} className="text-center p-1">
-                      <Input
-                        type="number"
-                        defaultValue={grade?.nilai}
-                        onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
-                        className="min-w-[70px] text-center mx-auto"
-                        placeholder="-"
-                        disabled={!isAdmin}
-                      />
-                    </TableCell>
-                  );
-                })}
-                <TableCell className="text-center font-medium">{stats?.sum.toFixed(0) || 0}</TableCell>
-                <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
-                <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
-                <TableCell className="p-1"><StudentTermDataCell studentId={student.id} kelas={kelasNum} semester={selectedSemester} field="sakit" /></TableCell>
-                <TableCell className="p-1"><StudentTermDataCell studentId={student.id} kelas={kelasNum} semester={selectedSemester} field="izin" /></TableCell>
-                <TableCell className="p-1"><StudentTermDataCell studentId={student.id} kelas={kelasNum} semester={selectedSemester} field="alpa" /></TableCell>
-                <TableCell className="p-1"><StudentTermDataCell studentId={student.id} kelas={kelasNum} semester={selectedSemester} field="keputusan" /></TableCell>
-              </TableRow>
-            )})}
-          </TableBody>
-        </Table>
-      </ScrollArea>
+    <div className="flex-grow min-h-0">
+        <ScrollArea className="h-full">
+            <Table>
+            <TableHeader className='sticky top-0 z-10 bg-card'>
+                <TableRow>
+                <TableHead className="font-headline sticky left-0 bg-card z-20 w-[200px] shadow-sm">Nama Siswa</TableHead>
+                <TableHead className="font-headline w-[120px]">NIS</TableHead>
+                {sortedSubjects.map(subject => (
+                    <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
+                ))}
+                <TableHead className="font-headline text-center">Jumlah</TableHead>
+                <TableHead className="font-headline text-center">Rata-rata</TableHead>
+                <TableHead className="font-headline text-center">Peringkat</TableHead>
+                <TableHead className="font-headline text-center">Sakit</TableHead>
+                <TableHead className="font-headline text-center">Izin</TableHead>
+                <TableHead className="font-headline text-center">Alpa</TableHead>
+                <TableHead className="font-headline text-center min-w-[200px]">Keputusan</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Memuat data...</TableCell></TableRow>}
+                {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
+                {sortedStudents.map(student => {
+                const stats = studentStats.stats.get(student.id);
+                const rank = studentStats.ranks.get(student.id);
+                return (
+                <TableRow key={student.id}>
+                    <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
+                    <TableCell>{student.nis}</TableCell>
+                    {sortedSubjects.map(subject => {
+                    const grade = gradesMap.get(`${student.id}-${subject.id}`);
+                    return (
+                        <TableCell key={subject.id} className="text-center p-1">
+                        <Input
+                            type="number"
+                            defaultValue={grade?.nilai}
+                            onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
+                            className="min-w-[70px] text-center mx-auto"
+                            placeholder="-"
+                            disabled={!isAdmin}
+                        />
+                        </TableCell>
+                    );
+                    })}
+                    <TableCell className="text-center font-medium">{stats?.sum.toFixed(0) || 0}</TableCell>
+                    <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
+                    <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
+                    <TableCell className="p-1"><StudentTermDataCell studentId={student.id} kelas={kelasNum} semester={selectedSemester} field="sakit" /></TableCell>
+                    <TableCell className="p-1"><StudentTermDataCell studentId={student.id} kelas={kelasNum} semester={selectedSemester} field="izin" /></TableCell>
+                    <TableCell className="p-1"><StudentTermDataCell studentId={student.id} kelas={kelasNum} semester={selectedSemester} field="alpa" /></TableCell>
+                    <TableCell className="p-1"><StudentTermDataCell studentId={student.id} kelas={kelasNum} semester={selectedSemester} field="keputusan" /></TableCell>
+                </TableRow>
+                )})}
+            </TableBody>
+            </Table>
+        </ScrollArea>
     </div>
   );
 
 
   return (
-    <div className="bg-background flex flex-col h-full max-h-[calc(100vh-8rem)]">
+    <div className="bg-background flex flex-col h-full">
       <div className="container flex flex-col py-8 flex-1 min-h-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div className="text-center sm:text-left">
@@ -634,7 +645,7 @@ export default function NilaiPage() {
                     </SelectContent>
                 </Select>
             </div>
-            <div>
+             <div className="md:col-span-2 lg:col-span-1">
                 <Label>Tahun Pelajaran</Label>
                  <Input className="mt-1" placeholder="e.g. 2023/2024" value={tahunPelajaran} onChange={(e) => setTahunPelajaran(e.target.value)} />
             </div>
@@ -665,7 +676,7 @@ export default function NilaiPage() {
             </div>
         </div>
         
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-grow min-h-0 flex flex-col">
           {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
 
