@@ -46,7 +46,7 @@ export type Jadwal = {
 
 export type JadwalUjian = {
   id: string;
-  tanggal: string;
+  hari: string;
   kelas: string;
   mataPelajaran: string;
   guruId: string;

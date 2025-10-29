@@ -135,9 +135,8 @@
       "type": "object",
       "description": "Represents an exam schedule entry.",
       "properties": {
-        "tanggal": {
-          "type": "string",
-          "description": "Date of the exam in ISO 8601 format."
+        "hari": {
+          "type": "string"
         },
         "kelas": {
           "type": "string"
@@ -153,7 +152,7 @@
           "type": "string"
         }
       },
-      "required": ["tanggal", "kelas", "mataPelajaran", "guruId", "jam"]
+      "required": ["hari", "kelas", "mataPelajaran", "guruId", "jam"]
     },
     "Raport": {
       "title": "Raport",
