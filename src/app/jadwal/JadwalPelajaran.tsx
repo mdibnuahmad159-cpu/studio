@@ -76,7 +76,10 @@ export default function JadwalPelajaranComponent() {
   const [selectedKelas, setSelectedKelas] = useState('all');
   
   const jadwalRef = useMemoFirebase(() => {
-    if (!user || selectedKelas === 'all') return null;
+    if (!user) return null;
+    if (selectedKelas === 'all') {
+      return collection(firestore, 'jadwal');
+    }
     return query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
   const { data: jadwal, isLoading: jadwalLoading } = useCollection<Jadwal>(jadwalRef);
@@ -99,7 +102,6 @@ export default function JadwalPelajaranComponent() {
   const [formData, setFormData] = useState<Omit<Jadwal, 'id'>>(emptyJadwal);
   const [selectedHari, setSelectedHari] = useState('all');
 
-
   const jadwalByKelasHariJam = useMemo(() => {
     if (!jadwal) return {};
     const grouped: { [key: string]: Jadwal } = {};
@@ -116,8 +118,15 @@ export default function JadwalPelajaranComponent() {
     }
     return [selectedHari];
   }, [selectedHari]);
-  
 
+  const kelasToRender = useMemo(() => {
+    if (selectedKelas === 'all') {
+      const uniqueKelas = [...new Set(jadwal?.map(j => j.kelas) || [])];
+      return KELAS_OPTIONS.filter(k => uniqueKelas.includes(k));
+    }
+    return [selectedKelas];
+  }, [selectedKelas, jadwal]);
+  
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -271,7 +280,7 @@ export default function JadwalPelajaranComponent() {
                   <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal
               </Button>
           )}
-          <Button onClick={handleExportPdf} variant="outline" size="sm" disabled={selectedKelas === 'all'}>
+          <Button onClick={handleExportPdf} variant="outline" size="sm" disabled={!jadwal || jadwal.length === 0}>
               <FileDown className="mr-2 h-4 w-4" />
               Ekspor PDF
           </Button>
@@ -282,7 +291,7 @@ export default function JadwalPelajaranComponent() {
                     <SelectValue placeholder="Filter Kelas" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="all">Pilih Kelas</SelectItem>
+                    <SelectItem value="all">Semua Kelas</SelectItem>
                     {KELAS_OPTIONS.map(kelas => (
                         <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
                     ))}
@@ -302,14 +311,12 @@ export default function JadwalPelajaranComponent() {
         </div>
       </div>
       
-      {selectedKelas === 'all' ? (
-        <p className="text-center text-muted-foreground mt-8">Silakan pilih kelas terlebih dahulu untuk melihat atau menambah jadwal.</p>
-      ) : isLoading ? (
+      {isLoading ? (
          <p className="text-center">Loading...</p>
       ) : (
          <div>
           {jadwal && jadwal.length > 0 ? 
-            renderInteractiveGrid(selectedKelas) :
+            kelasToRender.map(kelas => renderInteractiveGrid(kelas)) :
             <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal untuk ditampilkan berdasarkan filter yang dipilih.</p>
           }
          </div>
