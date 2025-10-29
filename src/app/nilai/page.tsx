@@ -67,7 +67,7 @@ export default function NilaiPage() {
   
   // --- Data Fetching ---
   const siswaQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || !selectedKelas) return null;
     return query(collection(firestore, 'siswa'), where('status', '==', 'Aktif'), where('kelas', '==', Number(selectedKelas)));
   }, [firestore, user, selectedKelas]);
   const { data: students, isLoading: studentsLoading } = useCollection<Siswa>(siswaQuery);
@@ -84,13 +84,13 @@ export default function NilaiPage() {
   }, [teachers]);
   
   const kurikulumQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || !selectedKelas) return null;
     return query(collection(firestore, 'kurikulum'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
   const { data: subjects, isLoading: subjectsLoading } = useCollection<Kurikulum>(kurikulumQuery);
 
   const nilaiQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || !selectedKelas) return null;
     return query(
       collection(firestore, 'nilai'),
       where('kelas', '==', Number(selectedKelas)),
@@ -100,7 +100,7 @@ export default function NilaiPage() {
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
   const nilaiSiswaQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || !selectedKelas) return null;
     return query(
       collection(firestore, 'nilaiSiswa'),
       where('kelas', '==', Number(selectedKelas)),
@@ -136,19 +136,21 @@ export default function NilaiPage() {
     const stats = new Map<string, { sum: number; average: number }>();
     const ranks = new Map<string, number>();
 
-    if (!students || students.length === 0 || sortedSubjects.length === 0) {
+    if (!students || students.length === 0 || !sortedSubjects || sortedSubjects.length === 0) {
       return { stats, ranks };
     }
 
     students.forEach(student => {
       let sum = 0;
+      let count = 0;
       sortedSubjects.forEach(subject => {
         const grade = gradesMap.get(`${student.id}-${subject.id}`);
-        if (grade) {
+        if (grade?.nilai) {
           sum += grade.nilai;
+          count++;
         }
       });
-      const average = sum / sortedSubjects.length;
+      const average = count > 0 ? sum / count : 0;
       stats.set(student.id, { sum, average });
     });
 
@@ -561,7 +563,7 @@ export default function NilaiPage() {
 
 
   return (
-    <div className="bg-background">
+    <div className="bg-background pb-32 md:pb-0">
       <div className="container flex flex-col py-12 md:py-20 h-full max-h-[calc(100vh-8rem)]">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div className="text-center sm:text-left">
@@ -678,7 +680,7 @@ export default function NilaiPage() {
             </div>
         </div>
         
-        <div className="flex-1 overflow-auto flex flex-col pb-32 md:pb-0">
+        <div className="flex-1 overflow-auto flex flex-col">
           {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
 
@@ -721,4 +723,3 @@ export default function NilaiPage() {
     </div>
   );
 }
-
