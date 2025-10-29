@@ -67,11 +67,11 @@ export default function DashboardPage() {
       description: 'Jumlah tenaga pendidik profesional',
     },
     {
-      title: 'Total Kitab Diajarkan',
-      value: `${subjects?.length || 0} Kitab`,
+      title: 'Total Mata Pelajaran',
+      value: `${subjects?.length || 0} Pelajaran`,
       icon: BookOpen,
       href: '/kurikulum',
-      description: 'Jumlah kitab yang dipelajari',
+      description: 'Jumlah mata pelajaran yang diajarkan',
     },
      {
       title: 'Total Alumni',
