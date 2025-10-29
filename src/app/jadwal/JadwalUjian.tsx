@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon, FileDown, PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { FileDown, PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,13 +44,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { Input } from '@/components/ui/input';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format, parseISO } from 'date-fns';
 import { id as localeID } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
 import { JadwalUjian, Guru, Kurikulum } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
@@ -64,7 +62,7 @@ const JAM_PELAJARAN = ['08:00 - 09:30', '10:00 - 11:30', '13:00 - 14:30'];
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
 const emptyJadwalUjian: Omit<JadwalUjian, 'id'> = {
-  tanggal: new Date().toISOString(),
+  tanggal: '',
   kelas: '0',
   mataPelajaran: '',
   guruId: '',
@@ -78,7 +76,7 @@ export default function JadwalUjianComponent() {
   const [selectedKelas, setSelectedKelas] = useState('all');
 
   const jadwalUjianRef = useMemoFirebase(() => {
-    if (!user || selectedKelas === 'all') return null;
+    if (!user || selectedKelas === 'all') return collection(firestore, 'jadwalUjian');
     return query(collection(firestore, 'jadwalUjian'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
   const { data: jadwalUjian, isLoading: jadwalUjianLoading } = useCollection<JadwalUjian>(jadwalUjianRef);
@@ -104,7 +102,7 @@ export default function JadwalUjianComponent() {
     if (!jadwalUjian) return {};
     const grouped: { [tanggal: string]: JadwalUjian[] } = {};
     jadwalUjian.forEach(item => {
-      const date = format(parseISO(item.tanggal), 'yyyy-MM-dd');
+      const date = item.tanggal;
       if (!grouped[date]) {
         grouped[date] = [];
       }
@@ -118,14 +116,13 @@ export default function JadwalUjianComponent() {
     return Object.fromEntries(Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)));
   }, [jadwalUjian]);
 
-  const handleSelectChange = (name: string, value: string) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleDateChange = (date: Date | undefined) => {
-    if (date) {
-      setFormData(prev => ({ ...prev, tanggal: date.toISOString() }));
-    }
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleOpenDialog = (item: JadwalUjian | null = null) => {
@@ -180,7 +177,7 @@ export default function JadwalUjianComponent() {
         head: [['Tanggal', 'Jam', 'Kelas', 'Mata Pelajaran', 'Pengawas']],
         body: Object.entries(groupedJadwal).flatMap(([_, jadwalItems]) => 
             jadwalItems.map(item => [
-                format(parseISO(item.tanggal), "eeee, dd MMMM yyyy", { locale: localeID }),
+                item.tanggal,
                 item.jam,
                 `Kelas ${item.kelas}`,
                 item.mataPelajaran,
@@ -235,7 +232,7 @@ export default function JadwalUjianComponent() {
             {Object.entries(groupedJadwal).map(([tanggal, jadwalItems]) => (
                 <div key={tanggal}>
                     <h2 className="font-headline text-xl font-bold mb-4 border-b pb-2">
-                        {format(parseISO(tanggal), "eeee, dd MMMM yyyy", { locale: localeID })}
+                        {tanggal}
                     </h2>
                     <div className="border rounded-lg overflow-hidden bg-card">
                         <Table>
@@ -293,29 +290,8 @@ export default function JadwalUjianComponent() {
               </DialogHeader>
               <div className="grid gap-4 py-4">
                  <div className="space-y-2">
-                  <Label>Tanggal</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                        <Button
-                        variant={"outline"}
-                        className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !formData.tanggal && "text-muted-foreground"
-                        )}
-                        >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.tanggal ? format(parseISO(formData.tanggal), "PPP", { locale: localeID }) : <span>Pilih tanggal</span>}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                        <Calendar
-                        mode="single"
-                        selected={parseISO(formData.tanggal)}
-                        onSelect={handleDateChange}
-                        initialFocus
-                        />
-                    </PopoverContent>
-                  </Popover>
+                  <Label htmlFor="tanggal">Tanggal</Label>
+                  <Input id="tanggal" name="tanggal" value={formData.tanggal} onChange={handleInputChange} placeholder="Contoh: Senin, 20 Mei 2024" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="kelas">Kelas</Label>

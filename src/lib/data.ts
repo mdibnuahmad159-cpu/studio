@@ -46,7 +46,7 @@ export type Jadwal = {
 
 export type JadwalUjian = {
   id: string;
-  tanggal: string; // ISO 8601 string date
+  tanggal: string;
   kelas: string;
   mataPelajaran: string;
   guruId: string;
