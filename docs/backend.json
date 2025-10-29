@@ -174,33 +174,6 @@
         }
       },
       "required": ["siswaId", "kurikulumId", "kelas", "semester", "nilai"]
-    },
-    "NilaiSiswa": {
-      "title": "NilaiSiswa",
-      "type": "object",
-      "description": "Stores student's term-specific data like attendance and promotion status.",
-      "properties": {
-        "siswaId": {
-          "type": "string",
-          "description": "Reference to the Siswa document ID."
-        },
-        "kelas": {
-          "type": "number"
-        },
-        "semester": {
-          "type": "string",
-          "enum": ["ganjil", "genap"]
-        },
-        "absensi": {
-          "type": "string",
-          "enum": ["sakit", "izin", "alpa"]
-        },
-        "keputusan": {
-          "type": "string",
-          "enum": ["lanjut semester genap", "naik kelas"]
-        }
-      },
-      "required": ["siswaId", "kelas", "semester"]
     }
   },
   "auth": {
@@ -230,10 +203,6 @@
     "/nilai/{nilaiId}": {
       "schema": { "$ref": "#/entities/Nilai" },
       "description": "Stores individual student grades for subjects."
-    },
-    "/nilaiSiswa/{nilaiSiswaId}": {
-      "schema": { "$ref": "#/entities/NilaiSiswa" },
-      "description": "Stores student's term-specific data."
     }
   }
 }
