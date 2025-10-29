@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Siswa, Kurikulum, Nilai, Guru, NilaiSiswa } from '@/lib/data';
-import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { Search, FileDown, Upload, CalendarIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -44,12 +44,6 @@ interface jsPDFWithAutoTable extends jsPDF {
 }
 
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
-
-interface StudentStats {
-  sum: number;
-  average: number;
-  rank: number;
-}
 
 export default function NilaiPage() {
   const firestore = useFirestore();
@@ -140,7 +134,11 @@ export default function NilaiPage() {
 
   const studentStats = useMemo(() => {
     const stats = new Map<string, { sum: number; average: number }>();
-    if (!students || sortedSubjects.length === 0) return { stats, ranks: new Map() };
+    const ranks = new Map<string, number>();
+
+    if (!students || students.length === 0 || sortedSubjects.length === 0) {
+      return { stats, ranks };
+    }
 
     students.forEach(student => {
       let sum = 0;
@@ -150,7 +148,7 @@ export default function NilaiPage() {
           sum += grade.nilai;
         }
       });
-      const average = sortedSubjects.length > 0 ? sum / sortedSubjects.length : 0;
+      const average = sum / sortedSubjects.length;
       stats.set(student.id, { sum, average });
     });
 
@@ -160,7 +158,6 @@ export default function NilaiPage() {
       return avgB - avgA;
     });
 
-    const ranks = new Map<string, number>();
     let rank = 1;
     for (let i = 0; i < sortedByAverage.length; i++) {
         const currentStudent = sortedByAverage[i];
@@ -207,10 +204,8 @@ export default function NilaiPage() {
         const grade = gradesMap.get(`${siswaId}-${kurikulumId}`);
         if(grade) {
           const gradeRef = doc(firestore, 'nilai', grade.id);
-          const batch = writeBatch(firestore);
-          batch.delete(gradeRef);
           try {
-            await batch.commit();
+            await deleteDocumentNonBlocking(gradeRef);
             toast({ title: 'Sukses!', description: 'Nilai berhasil dihapus.'});
           } catch(error) {
              toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat menghapus nilai.'});
