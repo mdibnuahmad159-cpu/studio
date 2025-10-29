@@ -220,10 +220,6 @@
       "schema": { "$ref": "#/entities/Jadwal" },
       "description": "Stores class schedule entries."
     },
-    "/jadwalUjian/{jadwalUjianId}": {
-      "schema": { "$ref": "#/entities/JadwalUjian" },
-      "description": "Stores exam schedule entries."
-    },
     "/raports/{raportId}": {
       "schema": { "$ref": "#/entities/Raport" },
       "description": "Stores student report card data. The document ID should be the student's NIS."
