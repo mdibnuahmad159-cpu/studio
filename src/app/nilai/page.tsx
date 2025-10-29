@@ -220,7 +220,7 @@ export default function NilaiPage() {
   };
   
   const handleExport = (format: 'pdf' | 'csv') => {
-    const head = ['Peringkat', 'Nama', 'NIS', ...sortedSubjects.map(s => `[${s.kode}] ${s.mataPelajaran}`), 'Jumlah', 'Rata-rata'];
+    const head = ['Peringkat', 'Nama', 'NIS', ...sortedSubjects.map(s => s.mataPelajaran), 'Jumlah', 'Rata-rata'];
     const body = sortedStudents.map(student => {
         const stats = studentStats.stats.get(student.id);
         return [
@@ -391,7 +391,7 @@ export default function NilaiPage() {
                   return (
                     <div key={subject.id} className="flex items-center justify-between gap-4">
                       <label className="flex-1 truncate" htmlFor={`${selectedStudent.id}-${subject.id}`}>
-                        [{subject.kode}] {subject.mataPelajaran}
+                        {subject.mataPelajaran}
                       </label>
                       <Input
                         id={`${selectedStudent.id}-${subject.id}`}
@@ -428,13 +428,13 @@ export default function NilaiPage() {
   const renderDesktopView = () => (
     <div className="border rounded-lg overflow-hidden bg-card">
       <ScrollArea className="w-full whitespace-nowrap">
-        <Table className="min-w-[1000px]">
+        <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="font-headline sticky left-0 bg-card z-10 w-[200px] shadow-sm">Nama Siswa</TableHead>
               <TableHead className="font-headline w-[120px]">NIS</TableHead>
               {sortedSubjects.map(subject => (
-                <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">[{subject.kode}] {subject.mataPelajaran}</TableHead>
+                <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
               ))}
               <TableHead className="font-headline text-center">Jumlah Nilai</TableHead>
               <TableHead className="font-headline text-center">Rata-rata</TableHead>
