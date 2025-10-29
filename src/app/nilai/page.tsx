@@ -20,10 +20,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Siswa, Kurikulum, Nilai } from '@/lib/data';
+import { Siswa, Kurikulum, Nilai, Guru, NilaiSiswa } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
-import { Search, FileDown, Upload } from 'lucide-react';
+import { Search, FileDown, Upload, CalendarIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -33,6 +33,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAdmin } from '@/context/AdminProvider';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { Label } from '@/components/ui/label';
 
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -62,6 +66,11 @@ export default function NilaiPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   
+  const [waliKelas, setWaliKelas] = useState('');
+  const [kepalaMadrasah, setKepalaMadrasah] = useState('');
+  const [tahunPelajaran, setTahunPelajaran] = useState('');
+  const [tanggal, setTanggal] = useState<Date | undefined>(new Date());
+  
   // --- Data Fetching ---
   const siswaQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -69,6 +78,13 @@ export default function NilaiPage() {
   }, [firestore, user, selectedKelas]);
   const { data: students, isLoading: studentsLoading } = useCollection<Siswa>(siswaQuery);
 
+  const guruQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'gurus');
+  }, [firestore, user]);
+  const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(guruQuery);
+  const kepalaMadrasahOptions = useMemo(() => teachers?.filter(t => t.position.toLowerCase().includes('kepala madrasah')), [teachers]);
+  
   const kurikulumQuery = useMemoFirebase(() => {
     if (!user) return null;
     return query(collection(firestore, 'kurikulum'), where('kelas', '==', selectedKelas));
@@ -85,6 +101,17 @@ export default function NilaiPage() {
   }, [firestore, user, selectedKelas, selectedSemester]);
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
+  const nilaiSiswaQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(
+      collection(firestore, 'nilaiSiswa'),
+      where('kelas', '==', Number(selectedKelas)),
+      where('semester', '==', selectedSemester)
+    );
+  }, [firestore, user, selectedKelas, selectedSemester]);
+  const { data: studentTermData, isLoading: studentTermDataLoading } = useCollection<NilaiSiswa>(nilaiSiswaQuery);
+  
+  
   // --- Memoized Data Processing ---
   const sortedSubjects = useMemo(() => {
     return subjects?.sort((a,b) => a.kode.localeCompare(b.kode)) || [];
@@ -99,6 +126,14 @@ export default function NilaiPage() {
     return map;
   }, [grades]);
   
+  const studentTermDataMap = useMemo(() => {
+    const map = new Map<string, NilaiSiswa>();
+    studentTermData?.forEach(data => {
+        map.set(data.siswaId, data);
+    });
+    return map;
+  }, [studentTermData]);
+
   const studentStats = useMemo(() => {
     const stats = new Map<string, { sum: number; average: number }>();
     if (!students || sortedSubjects.length === 0) return { stats, ranks: new Map() };
@@ -165,7 +200,6 @@ export default function NilaiPage() {
   const handleSaveGrade = async (siswaId: string, kurikulumId: string, value: string) => {
     if (!firestore || !isAdmin) return true;
     if (value.trim() === '') {
-        // Handle deletion if value is cleared.
         const grade = gradesMap.get(`${siswaId}-${kurikulumId}`);
         if(grade) {
           const gradeRef = doc(firestore, 'nilai', grade.id);
@@ -218,6 +252,31 @@ export default function NilaiPage() {
         return false;
     }
   };
+
+  const handleSaveStudentTermData = async (siswaId: string, field: keyof Omit<NilaiSiswa, 'id' | 'siswaId' | 'kelas' | 'semester'>, value: string | number) => {
+    if (!firestore || !isAdmin) return;
+
+    const docId = `${siswaId}-${selectedKelas}-${selectedSemester}`;
+    const docRef = doc(firestore, 'nilaiSiswa', docId);
+
+    const updateData = { [field]: value };
+    const initialData: Omit<NilaiSiswa, 'id'> = {
+        siswaId,
+        kelas: Number(selectedKelas),
+        semester: selectedSemester,
+        ...updateData,
+    }
+
+    try {
+        await setDocumentNonBlocking(docRef, updateData, { merge: true });
+        if(!studentTermDataMap.has(siswaId)) {
+            await setDocumentNonBlocking(docRef, initialData, { merge: true });
+        }
+        toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat menyimpan data.' });
+    }
+  }
   
   const handleExport = (format: 'pdf' | 'csv') => {
     const head = ['Peringkat', 'Nama', 'NIS', ...sortedSubjects.map(s => s.mataPelajaran), 'Jumlah', 'Rata-rata'];
@@ -356,7 +415,7 @@ export default function NilaiPage() {
   };
 
 
-  const isLoading = studentsLoading || subjectsLoading || gradesLoading;
+  const isLoading = studentsLoading || subjectsLoading || gradesLoading || teachersLoading || studentTermDataLoading;
 
   const renderMobileView = () => (
     <div className="flex flex-col md:flex-row gap-4 h-full">
@@ -442,7 +501,7 @@ export default function NilaiPage() {
   );
 
   const renderDesktopView = () => (
-    <ScrollArea className="w-full whitespace-nowrap border rounded-lg bg-card">
+    <ScrollArea className="w-full whitespace-nowrap rounded-lg bg-card border flex-grow">
       <Table>
         <TableHeader>
           <TableRow>
@@ -454,14 +513,19 @@ export default function NilaiPage() {
             <TableHead className="font-headline text-center">Jumlah Nilai</TableHead>
             <TableHead className="font-headline text-center">Rata-rata</TableHead>
             <TableHead className="font-headline text-center">Peringkat</TableHead>
+            <TableHead className="font-headline text-center">Sakit</TableHead>
+            <TableHead className="font-headline text-center">Izin</TableHead>
+            <TableHead className="font-headline text-center">Alpa</TableHead>
+            <TableHead className="font-headline text-center min-w-[200px]">Keputusan</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center h-24">Memuat data...</TableCell></TableRow>}
-          {!isLoading && sortedSubjects.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
+          {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Memuat data...</TableCell></TableRow>}
+          {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
           {sortedStudents.map(student => {
             const stats = studentStats.stats.get(student.id);
             const rank = studentStats.ranks.get(student.id);
+            const termData = studentTermDataMap.get(student.id);
             return (
             <TableRow key={student.id}>
               <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
@@ -484,6 +548,18 @@ export default function NilaiPage() {
               <TableCell className="text-center font-medium">{stats?.sum.toFixed(0) || 0}</TableCell>
               <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
               <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
+              <TableCell>
+                <Input type="number" defaultValue={termData?.sakit} onBlur={(e) => handleSaveStudentTermData(student.id, 'sakit', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
+              </TableCell>
+              <TableCell>
+                <Input type="number" defaultValue={termData?.izin} onBlur={(e) => handleSaveStudentTermData(student.id, 'izin', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
+              </TableCell>
+              <TableCell>
+                <Input type="number" defaultValue={termData?.alpa} onBlur={(e) => handleSaveStudentTermData(student.id, 'alpa', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
+              </TableCell>
+              <TableCell>
+                <Input type="text" defaultValue={termData?.keputusan} onBlur={(e) => handleSaveStudentTermData(student.id, 'keputusan', e.target.value)} className="min-w-[200px]" disabled={!isAdmin} />
+              </TableCell>
             </TableRow>
           )})}
         </TableBody>
@@ -495,8 +571,8 @@ export default function NilaiPage() {
 
   return (
     <div className="bg-background pb-32 md:pb-0">
-      <div className="container flex flex-col py-12 md:py-20">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+      <div className="container flex flex-col py-12 md:py-20 h-full">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
             <p className="mt-4 max-w-2xl mx-auto sm:mx-0 text-lg text-muted-foreground">
@@ -518,40 +594,100 @@ export default function NilaiPage() {
             </div>
         </div>
 
-        <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Cari Nama atau NIS..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <div className="flex gap-4">
-            <Select value={selectedKelas} onValueChange={(v) => { setSelectedKelas(v); setSearchQuery('');}}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Pilih Kelas" />
-              </SelectTrigger>
-              <SelectContent>
-                {KELAS_OPTIONS.map(kelas => (
-                  <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={selectedSemester} onValueChange={(v) => setSelectedSemester(v as any)}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Pilih Semester" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ganjil">Semester Ganjil</SelectItem>
-                <SelectItem value="genap">Semester Genap</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
+            <div className="relative col-span-2 md:col-span-3 lg:col-span-1">
+                <Label>Cari Siswa</Label>
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground mt-3" />
+                <Input
+                placeholder="Cari Nama atau NIS..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 mt-1"
+                />
+            </div>
+            <div>
+                <Label>Kelas</Label>
+                <Select value={selectedKelas} onValueChange={(v) => { setSelectedKelas(v); setSearchQuery('');}}>
+                    <SelectTrigger className="w-full mt-1">
+                        <SelectValue placeholder="Pilih Kelas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {KELAS_OPTIONS.map(kelas => (
+                        <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div>
+                <Label>Semester</Label>
+                <Select value={selectedSemester} onValueChange={(v) => setSelectedSemester(v as any)}>
+                    <SelectTrigger className="w-full mt-1">
+                        <SelectValue placeholder="Pilih Semester" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="ganjil">Semester Ganjil</SelectItem>
+                        <SelectItem value="genap">Semester Genap</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div>
+                <Label>Tahun Pelajaran</Label>
+                 <Input className="mt-1" placeholder="e.g. 2023/2024" value={tahunPelajaran} onChange={(e) => setTahunPelajaran(e.target.value)} />
+            </div>
+             <div>
+                <Label>Tanggal</Label>
+                 <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        variant={"outline"}
+                        className={cn(
+                        "w-full justify-start text-left font-normal mt-1",
+                        !tanggal && "text-muted-foreground"
+                        )}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {tanggal ? format(tanggal, "PPP") : <span>Pilih tanggal</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                    <Calendar
+                        mode="single"
+                        selected={tanggal}
+                        onSelect={setTanggal}
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+            </div>
+             <div>
+                <Label>Wali Kelas</Label>
+                <Select value={waliKelas} onValueChange={setWaliKelas}>
+                    <SelectTrigger className="w-full mt-1">
+                        <SelectValue placeholder="Pilih Wali Kelas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {teachers?.map(teacher => (
+                            <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div>
+                <Label>Kepala Madrasah</Label>
+                <Select value={kepalaMadrasah} onValueChange={setKepalaMadrasah}>
+                    <SelectTrigger className="w-full mt-1">
+                        <SelectValue placeholder="Pilih Kepala Madrasah" />
+                    </SelectTrigger>
+                    <SelectContent>
+                       {kepalaMadrasahOptions?.map(teacher => (
+                            <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
         </div>
         
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto flex flex-col">
           {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
 
