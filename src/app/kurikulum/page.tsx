@@ -50,7 +50,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Papa from 'papaparse';
 import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, writeBatch } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { useToast } from '@/hooks/use-toast';
 
@@ -111,9 +111,9 @@ export default function KurikulumPage() {
       } else {
         addDocumentNonBlocking(kurikulumRef, formData);
       }
+      toast({ title: 'Sukses!', description: 'Data kurikulum berhasil disimpan.' });
       setIsFormDialogOpen(false);
       setKurikulumToEdit(null);
-      toast({ title: 'Sukses!', description: 'Data kurikulum berhasil disimpan.' });
     }
   };
 
@@ -173,7 +173,7 @@ export default function KurikulumPage() {
   };
 
   const handleImport = () => {
-    if (!importFile || !firestore) return;
+    if (!importFile || !kurikulumRef) return;
     
     Papa.parse(importFile, {
       header: true,
@@ -186,15 +186,11 @@ export default function KurikulumPage() {
         }
 
         try {
-          const batch = writeBatch(firestore);
-          const kurikulumCollection = collection(firestore, 'kurikulum');
-          newKurikulum.forEach(item => {
+          for (const item of newKurikulum) {
             if (item.kelas && item.mataPelajaran && item.kitab) {
-               const newKurikulumRef = doc(kurikulumCollection);
-               batch.set(newKurikulumRef, item);
+               addDocumentNonBlocking(kurikulumRef, item);
             }
-          });
-          await batch.commit();
+          }
           toast({ title: 'Import Berhasil!', description: `${newKurikulum.length} data kurikulum berhasil ditambahkan.` });
           setIsImportDialogOpen(false);
           setImportFile(null);
