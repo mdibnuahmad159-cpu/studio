@@ -24,7 +24,7 @@ import { Siswa, Kurikulum, Nilai, Guru, NilaiSiswa } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, getDocs } from 'firebase/firestore';
 import { Search, FileDown, Upload, CalendarIcon } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -545,79 +545,79 @@ export default function NilaiPage() {
   );
 
   const renderDesktopView = () => (
-    <div className="flex-grow overflow-auto">
-        <ScrollArea className="w-full h-full whitespace-nowrap rounded-lg bg-card border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="font-headline sticky left-0 bg-card z-10 w-[200px] shadow-sm">Nama Siswa</TableHead>
-                <TableHead className="font-headline w-[120px]">NIS</TableHead>
-                {sortedSubjects.map(subject => (
-                  <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
-                ))}
-                <TableHead className="font-headline text-center">Jumlah Nilai</TableHead>
-                <TableHead className="font-headline text-center">Rata-rata</TableHead>
-                <TableHead className="font-headline text-center">Peringkat</TableHead>
-                <TableHead className="font-headline text-center">Sakit</TableHead>
-                <TableHead className="font-headline text-center">Izin</TableHead>
-                <TableHead className="font-headline text-center">Alpa</TableHead>
-                <TableHead className="font-headline text-center min-w-[200px]">Keputusan</TableHead>
+    <div className="flex-1 relative">
+      <ScrollArea className="absolute inset-0">
+        <Table className='min-w-max'>
+          <TableHeader className='sticky top-0 z-10 bg-card'>
+            <TableRow>
+              <TableHead className="font-headline sticky left-0 bg-card z-20 w-[200px] shadow-sm">Nama Siswa</TableHead>
+              <TableHead className="font-headline w-[120px]">NIS</TableHead>
+              {sortedSubjects.map(subject => (
+                <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
+              ))}
+              <TableHead className="font-headline text-center">Jumlah Nilai</TableHead>
+              <TableHead className="font-headline text-center">Rata-rata</TableHead>
+              <TableHead className="font-headline text-center">Peringkat</TableHead>
+              <TableHead className="font-headline text-center">Sakit</TableHead>
+              <TableHead className="font-headline text-center">Izin</TableHead>
+              <TableHead className="font-headline text-center">Alpa</TableHead>
+              <TableHead className="font-headline text-center min-w-[200px]">Keputusan</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Memuat data...</TableCell></TableRow>}
+            {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
+            {sortedStudents.map(student => {
+              const stats = studentStats.stats.get(student.id);
+              const rank = studentStats.ranks.get(student.id);
+              const termData = studentTermDataMap.get(student.id);
+              return (
+              <TableRow key={student.id}>
+                <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
+                <TableCell>{student.nis}</TableCell>
+                {sortedSubjects.map(subject => {
+                  const grade = gradesMap.get(`${student.id}-${subject.id}`);
+                  return (
+                    <TableCell key={subject.id} className="text-center">
+                      <Input
+                        type="number"
+                        defaultValue={grade?.nilai}
+                        onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
+                        className="min-w-[70px] text-center mx-auto"
+                        placeholder="-"
+                        disabled={!isAdmin}
+                      />
+                    </TableCell>
+                  );
+                })}
+                <TableCell className="text-center font-medium">{stats?.sum.toFixed(0) || 0}</TableCell>
+                <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
+                <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
+                <TableCell>
+                  <Input type="number" defaultValue={termData?.sakit} onBlur={(e) => handleSaveStudentTermData(student.id, 'sakit', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
+                </TableCell>
+                <TableCell>
+                  <Input type="number" defaultValue={termData?.izin} onBlur={(e) => handleSaveStudentTermData(student.id, 'izin', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
+                </TableCell>
+                <TableCell>
+                  <Input type="number" defaultValue={termData?.alpa} onBlur={(e) => handleSaveStudentTermData(student.id, 'alpa', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
+                </TableCell>
+                <TableCell>
+                  <Input type="text" defaultValue={termData?.keputusan} onBlur={(e) => handleSaveStudentTermData(student.id, 'keputusan', e.target.value)} className="min-w-[200px]" disabled={!isAdmin} />
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Memuat data...</TableCell></TableRow>}
-              {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
-              {sortedStudents.map(student => {
-                const stats = studentStats.stats.get(student.id);
-                const rank = studentStats.ranks.get(student.id);
-                const termData = studentTermDataMap.get(student.id);
-                return (
-                <TableRow key={student.id}>
-                  <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
-                  <TableCell>{student.nis}</TableCell>
-                  {sortedSubjects.map(subject => {
-                    const grade = gradesMap.get(`${student.id}-${subject.id}`);
-                    return (
-                      <TableCell key={subject.id} className="text-center">
-                        <Input
-                          type="number"
-                          defaultValue={grade?.nilai}
-                          onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
-                          className="min-w-[70px] text-center mx-auto"
-                          placeholder="-"
-                          disabled={!isAdmin}
-                        />
-                      </TableCell>
-                    );
-                  })}
-                  <TableCell className="text-center font-medium">{stats?.sum.toFixed(0) || 0}</TableCell>
-                  <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
-                  <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
-                  <TableCell>
-                    <Input type="number" defaultValue={termData?.sakit} onBlur={(e) => handleSaveStudentTermData(student.id, 'sakit', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
-                  </TableCell>
-                  <TableCell>
-                    <Input type="number" defaultValue={termData?.izin} onBlur={(e) => handleSaveStudentTermData(student.id, 'izin', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
-                  </TableCell>
-                  <TableCell>
-                    <Input type="number" defaultValue={termData?.alpa} onBlur={(e) => handleSaveStudentTermData(student.id, 'alpa', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
-                  </TableCell>
-                  <TableCell>
-                    <Input type="text" defaultValue={termData?.keputusan} onBlur={(e) => handleSaveStudentTermData(student.id, 'keputusan', e.target.value)} className="min-w-[200px]" disabled={!isAdmin} />
-                  </TableCell>
-                </TableRow>
-              )})}
-            </TableBody>
-          </Table>
-          <div className="h-1" />
-        </ScrollArea>
+            )})}
+          </TableBody>
+        </Table>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
     </div>
   );
 
 
   return (
-    <div className="bg-background pb-32 md:pb-0">
-      <div className="container flex flex-col py-12 md:py-20 h-full max-h-[calc(100vh-8rem)]">
+    <div className="bg-background flex flex-col h-full md:h-[calc(100vh_-_theme(spacing.16))] pb-32 md:pb-0">
+      <div className="container flex flex-col py-12 md:py-8 flex-1 overflow-hidden">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
@@ -733,7 +733,7 @@ export default function NilaiPage() {
             </div>
         </div>
         
-        <div className="flex-1 overflow-auto flex flex-col">
+        <div className="flex-1 overflow-hidden flex flex-col">
           {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
 
