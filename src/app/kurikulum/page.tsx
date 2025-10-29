@@ -50,7 +50,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Papa from 'papaparse';
 import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { useToast } from '@/hooks/use-toast';
 
@@ -173,7 +173,7 @@ export default function KurikulumPage() {
   };
 
   const handleImport = () => {
-    if (!importFile || !kurikulumRef) return;
+    if (!importFile || !kurikulumRef || !firestore) return;
     
     Papa.parse(importFile, {
       header: true,
@@ -186,11 +186,16 @@ export default function KurikulumPage() {
         }
 
         try {
-          for (const item of newKurikulum) {
+          const batch = writeBatch(firestore);
+          newKurikulum.forEach(item => {
             if (item.kelas && item.mataPelajaran && item.kitab) {
-               addDocumentNonBlocking(kurikulumRef, item);
+               const newDocRef = doc(kurikulumRef); // Creates a new doc with a unique ID
+               batch.set(newDocRef, item);
             }
-          }
+          });
+
+          await batch.commit();
+
           toast({ title: 'Import Berhasil!', description: `${newKurikulum.length} data kurikulum berhasil ditambahkan.` });
           setIsImportDialogOpen(false);
           setImportFile(null);
@@ -394,3 +399,5 @@ export default function KurikulumPage() {
     </div>
   );
 }
+
+    
