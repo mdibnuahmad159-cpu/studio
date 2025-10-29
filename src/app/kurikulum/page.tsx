@@ -173,7 +173,7 @@ export default function KurikulumPage() {
   };
 
   const handleImport = () => {
-    if (!importFile || !firestore || !kurikulumRef) return;
+    if (!importFile || !firestore) return;
     
     Papa.parse(importFile, {
       header: true,
@@ -187,9 +187,10 @@ export default function KurikulumPage() {
 
         try {
           const batch = writeBatch(firestore);
+          const kurikulumCollection = collection(firestore, 'kurikulum');
           newKurikulum.forEach(item => {
             if (item.kelas && item.mataPelajaran && item.kitab) {
-               const newKurikulumRef = doc(kurikulumRef);
+               const newKurikulumRef = doc(kurikulumCollection);
                batch.set(newKurikulumRef, item);
             }
           });
