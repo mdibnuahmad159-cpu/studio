@@ -243,9 +243,7 @@ export default function NilaiPage() {
   };
   
   const handleExport = (format: 'pdf' | 'csv') => {
-    if (!students || !teachers || !sortedSubjects) return;
-    const waliKelasData = teachers.find(t => t.position === `Wali Kelas ${selectedKelas}`);
-    const kepalaMadrasahData = teachers.find(t => t.position.toLowerCase().includes('kepala madrasah'));
+    if (!students || !sortedSubjects) return;
 
     const head = ['Peringkat', 'Nama', 'NIS', ...sortedSubjects.map(s => s.mataPelajaran), 'Jumlah', 'Rata-rata'];
     const body = sortedStudents.map(student => {
@@ -275,15 +273,6 @@ export default function NilaiPage() {
             head: [head],
             body: body,
             startY: 25,
-            didDrawPage: (data) => {
-              const textY = doc.internal.pageSize.height - 30;
-              const textX = doc.internal.pageSize.width - 14;
-              const signatureX = textX - 100;
-              doc.setFontSize(10);
-              doc.text(`Tanggal: ${tanggal ? format(tanggal, "dd MMMM yyyy") : '-'}`, signatureX, textY);
-              doc.text(`Wali Kelas: ${waliKelasData?.name || '-'}`, signatureX, textY + 5);
-              doc.text(`Kepala Madrasah: ${kepalaMadrasahData?.name || '-'}`, signatureX, textY + 10);
-            }
         });
         
         doc.save(`${filename}.pdf`);
@@ -291,8 +280,7 @@ export default function NilaiPage() {
         const exportData = [
             [`Data Nilai Kelas ${selectedKelas} - Semester ${selectedSemester}`],
             [`Tahun Pelajaran: ${tahunPelajaran || '-'}`],
-            [`Wali Kelas: ${waliKelasData?.name || '-'}`],
-            [`Kepala Madrasah: ${kepalaMadrasahData?.name || '-'}`],
+            [`Tanggal: ${tanggal ? format(tanggal, "dd MMMM yyyy") : '-'}`],
             [], // Empty row for spacing
             head,
             ...body
