@@ -116,8 +116,6 @@ export default function NilaiPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   
-  const [waliKelas, setWaliKelas] = useState('');
-  const [kepalaMadrasah, setKepalaMadrasah] = useState('');
   const [tahunPelajaran, setTahunPelajaran] = useState('');
   const [tanggal, setTanggal] = useState<Date | undefined>(new Date());
   
@@ -137,51 +135,25 @@ export default function NilaiPage() {
   const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(guruQuery);
   
   const kurikulumQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !selectedKelas) return null;
+    if (!firestore || !user || isNaN(kelasNum)) return null;
     return query(collection(firestore, 'kurikulum'), where('kelas', '==', selectedKelas));
-  }, [firestore, user, selectedKelas]);
+  }, [firestore, user, selectedKelas, kelasNum]);
   const { data: subjects, isLoading: subjectsLoading } = useCollection<Kurikulum>(kurikulumQuery);
 
   const nilaiQuery = useMemoFirebase(() => {
-    if (!firestore || !user || isNaN(kelasNum)) return null;
+    if (!firestore || !user || isNaN(kelasNum) || !students || students.length === 0) return null;
+    const studentIds = students.map(s => s.id);
+    if (studentIds.length === 0) return null;
     return query(
       collection(firestore, 'nilai'),
       where('kelas', '==', kelasNum),
-      where('semester', '==', selectedSemester)
+      where('semester', '==', selectedSemester),
+      where('siswaId', 'in', studentIds)
     );
-  }, [firestore, user, kelasNum, selectedSemester]);
+  }, [firestore, user, kelasNum, selectedSemester, students]);
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
   // --- Memoized Data Processing ---
-  const { waliKelasOptions, kepalaMadrasahOptions } = useMemo(() => {
-    if (!teachers) return { waliKelasOptions: [], kepalaMadrasahOptions: [] };
-    
-    const waliKelasOptions = teachers.filter(t => t.position === `Wali Kelas ${selectedKelas}`);
-    const kepalaMadrasahOptions = teachers.filter(t => t.position.toLowerCase().includes('kepala madrasah'));
-
-    return { waliKelasOptions, kepalaMadrasahOptions };
-  }, [teachers, selectedKelas]);
-
-  // Auto-select wali kelas and kepala madrasah if only one option is available
-  useEffect(() => {
-    if (waliKelasOptions.length === 1 && !waliKelas) {
-      setWaliKelas(waliKelasOptions[0].id);
-    }
-     if (waliKelasOptions.length > 1 || waliKelasOptions.length === 0) {
-      setWaliKelas('');
-    }
-  }, [waliKelasOptions]);
-
-  useEffect(() => {
-    if (kepalaMadrasahOptions.length === 1 && !kepalaMadrasah) {
-      setKepalaMadrasah(kepalaMadrasahOptions[0].id);
-    }
-     if (kepalaMadrasahOptions.length > 1 || kepalaMadrasahOptions.length === 0) {
-      setKepalaMadrasah('');
-    }
-  }, [kepalaMadrasahOptions]);
-
-
   const sortedSubjects = useMemo(() => {
     if (!subjects) return [];
     return [...subjects].sort((a,b) => a.kode.localeCompare(b.kode));
@@ -200,7 +172,7 @@ export default function NilaiPage() {
   const studentStats = useMemo(() => {
     const stats = new Map<string, { sum: number; average: number }>();
     const ranks = new Map<string, number>();
-
+    
     if (!students || students.length === 0 || !sortedSubjects) {
       return { stats, ranks };
     }
@@ -313,7 +285,11 @@ export default function NilaiPage() {
   };
   
   const handleExport = (format: 'pdf' | 'csv') => {
-    if (!students) return;
+    if (!students || !teachers) return;
+
+    const waliKelasData = teachers.find(t => t.position === `Wali Kelas ${selectedKelas}`);
+    const kepalaMadrasahData = teachers.find(t => t.position.toLowerCase().includes('kepala madrasah'));
+
     const head = ['Peringkat', 'Nama', 'NIS', ...sortedSubjects.map(s => s.mataPelajaran), 'Jumlah', 'Rata-rata'];
     const body = sortedStudents.map(student => {
         const stats = studentStats.stats.get(student.id);
@@ -334,11 +310,28 @@ export default function NilaiPage() {
 
     if (format === 'pdf') {
         const doc = new jsPDF({ orientation: 'landscape' }) as jsPDFWithAutoTable;
-        doc.text(`Data Nilai Kelas ${selectedKelas} - Semester ${selectedSemester}`, 14, 10);
+        doc.text(`Data Nilai Kelas ${selectedKelas} - Semester ${selectedSemester}`, 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Tahun Pelajaran: ${tahunPelajaran || '-'}`, 14, 20);
+
         doc.autoTable({
             head: [head],
             body: body,
+            startY: 25,
         });
+
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            const textY = doc.internal.pageSize.height - 30;
+            const textX = doc.internal.pageSize.width - 14;
+            const signatureX = textX - 100;
+
+            doc.text(`Tanggal: ${tanggal ? format(tanggal, "dd MMMM yyyy") : '-'}`, signatureX, textY);
+            doc.text(`Wali Kelas: ${waliKelasData?.name || '-'}`, signatureX, textY + 5);
+            doc.text(`Kepala Madrasah: ${kepalaMadrasahData?.name || '-'}`, signatureX, textY + 10);
+        }
+        
         doc.save(`${filename}.pdf`);
     } else {
         const ws = XLSX.utils.aoa_to_sheet([head, ...body]);
@@ -605,8 +598,8 @@ export default function NilaiPage() {
             </div>
         </div>
 
-        <div className="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end">
-            <div className="relative col-span-2 md:col-span-3 lg:col-span-1">
+        <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+            <div className="relative col-span-2 md:col-span-1">
                 <Label>Cari Siswa</Label>
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground mt-3" />
                 <Input
@@ -669,32 +662,6 @@ export default function NilaiPage() {
                     />
                     </PopoverContent>
                 </Popover>
-            </div>
-             <div className="lg:col-span-1">
-                <Label>Wali Kelas</Label>
-                <Select value={waliKelas} onValueChange={setWaliKelas} disabled={teachersLoading}>
-                    <SelectTrigger className="w-full mt-1">
-                        <SelectValue placeholder="Pilih Wali Kelas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {waliKelasOptions?.map(teacher => (
-                            <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
-            <div className="lg:col-span-2">
-                <Label>Kepala Madrasah</Label>
-                <Select value={kepalaMadrasah} onValueChange={setKepalaMadrasah} disabled={teachersLoading}>
-                    <SelectTrigger className="w-full mt-1">
-                        <SelectValue placeholder="Pilih Kepala Madrasah" />
-                    </SelectTrigger>
-                    <SelectContent>
-                       {kepalaMadrasahOptions?.map(teacher => (
-                            <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
             </div>
         </div>
         
