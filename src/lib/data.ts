@@ -62,14 +62,3 @@ export type Nilai = {
     semester: 'ganjil' | 'genap';
     nilai: number;
 };
-
-export type NilaiSiswa = {
-    id: string; // Document ID from Firestore, composed as `${siswaId}-${kelas}-${semester}`
-    siswaId: string;
-    kelas: number;
-    semester: 'ganjil' | 'genap';
-    sakit?: number;
-    izin?: number;
-    alpa?: number;
-    keputusan?: string;
-};

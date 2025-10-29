@@ -20,8 +20,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Siswa, Kurikulum, Nilai, Guru, NilaiSiswa } from '@/lib/data';
-import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { Siswa, Kurikulum, Nilai, Guru } from '@/lib/data';
+import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { Search, FileDown, Upload, CalendarIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -150,51 +150,6 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
     isLoading
   };
 };
-
-// This self-contained component handles fetching and updating a single field for a student's term data
-const StudentTermDataCell = ({ studentId, kelas, semester, field }: { studentId: string; kelas: string; semester: 'ganjil' | 'genap'; field: 'sakit' | 'izin' | 'alpa' | 'keputusan' }) => {
-    const firestore = useFirestore();
-    const { toast } = useToast();
-    const docId = `${studentId}-${kelas}-${semester}`;
-
-    const docRef = useMemoFirebase(() => {
-        if (!studentId || !kelas || !semester) return null;
-        return doc(firestore, 'nilaiSiswa', docId);
-    }, [firestore, docId, studentId, kelas, semester]);
-
-    const { data: termData, isLoading } = useDoc<NilaiSiswa>(docRef);
-
-    const handleSave = async (value: string | number) => {
-        if (!firestore) return;
-        const dataToSet = {
-            siswaId: studentId,
-            kelas: parseInt(kelas, 10),
-            semester: semester,
-            [field]: value
-        };
-        try {
-            await setDocumentNonBlocking(docRef!, dataToSet, { merge: true });
-            toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat menyimpan data.' });
-        }
-    };
-
-    if (isLoading) {
-      return <Input className="min-w-[70px] text-center" disabled placeholder="..."/>
-    }
-
-    return (
-        <Input
-            type={field === 'keputusan' ? 'text' : 'number'}
-            defaultValue={termData?.[field] as any}
-            onBlur={(e) => handleSave(field === 'keputusan' ? e.target.value : parseInt(e.target.value) || 0)}
-            className={cn("text-center", field === 'keputusan' ? "min-w-[200px]" : "min-w-[70px]")}
-            placeholder="-"
-        />
-    );
-};
-
 
 export default function NilaiPage() {
   const firestore = useFirestore();
@@ -533,15 +488,11 @@ export default function NilaiPage() {
                 <TableHead className="font-headline text-center">Jumlah</TableHead>
                 <TableHead className="font-headline text-center">Rata-rata</TableHead>
                 <TableHead className="font-headline text-center">Peringkat</TableHead>
-                <TableHead className="font-headline text-center">Sakit</TableHead>
-                <TableHead className="font-headline text-center">Izin</TableHead>
-                <TableHead className="font-headline text-center">Alpa</TableHead>
-                <TableHead className="font-headline text-center min-w-[200px]">Keputusan</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Memuat data...</TableCell></TableRow>}
-                {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
+                {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center h-24">Memuat data...</TableCell></TableRow>}
+                {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
                 {!isLoading && sortedStudents.map(student => {
                 const stats = studentStats.stats.get(student.id);
                 const rank = studentStats.ranks.get(student.id);
@@ -566,18 +517,6 @@ export default function NilaiPage() {
                     <TableCell className="text-center font-medium">{stats?.sum.toFixed(0) || 0}</TableCell>
                     <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
                     <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
-                    <TableCell className="p-1">
-                        <StudentTermDataCell studentId={student.id} kelas={selectedKelas} semester={selectedSemester} field="sakit" />
-                    </TableCell>
-                    <TableCell className="p-1">
-                        <StudentTermDataCell studentId={student.id} kelas={selectedKelas} semester={selectedSemester} field="izin" />
-                    </TableCell>
-                    <TableCell className="p-1">
-                        <StudentTermDataCell studentId={student.id} kelas={selectedKelas} semester={selectedSemester} field="alpa" />
-                    </TableCell>
-                    <TableCell className="p-1">
-                        <StudentTermDataCell studentId={student.id} kelas={selectedKelas} semester={selectedSemester} field="keputusan" />
-                    </TableCell>
                 </TableRow>
                 )})}
             </TableBody>
