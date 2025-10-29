@@ -65,13 +65,13 @@ export default function NilaiPage() {
   const [tahunPelajaran, setTahunPelajaran] = useState('');
   const [tanggal, setTanggal] = useState<Date | undefined>(new Date());
   
+  const kelasNum = parseInt(selectedKelas, 10);
+  
   // --- Data Fetching ---
   const siswaQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    const kelasNum = parseInt(selectedKelas, 10);
-    if (isNaN(kelasNum)) return null;
+    if (!firestore || !user || isNaN(kelasNum)) return null;
     return query(collection(firestore, 'siswa'), where('status', '==', 'Aktif'), where('kelas', '==', kelasNum));
-  }, [firestore, user, selectedKelas]);
+  }, [firestore, user, kelasNum]);
   const { data: students, isLoading: studentsLoading } = useCollection<Siswa>(siswaQuery);
 
   const guruQuery = useMemoFirebase(() => {
@@ -87,27 +87,23 @@ export default function NilaiPage() {
   const { data: subjects, isLoading: subjectsLoading } = useCollection<Kurikulum>(kurikulumQuery);
 
   const nilaiQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    const kelasNum = parseInt(selectedKelas, 10);
-    if (isNaN(kelasNum)) return null;
+    if (!firestore || !user || isNaN(kelasNum)) return null;
     return query(
       collection(firestore, 'nilai'),
       where('kelas', '==', kelasNum),
       where('semester', '==', selectedSemester)
     );
-  }, [firestore, user, selectedKelas, selectedSemester]);
+  }, [firestore, user, kelasNum, selectedSemester]);
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
   const nilaiSiswaQuery = useMemoFirebase(() => {
-      if (!firestore || !user) return null;
-      const kelasNum = parseInt(selectedKelas, 10);
-      if (isNaN(kelasNum)) return null;
+      if (!firestore || !user || isNaN(kelasNum)) return null;
       return query(
           collection(firestore, 'nilaiSiswa'),
           where('kelas', '==', kelasNum),
           where('semester', '==', selectedSemester)
       );
-  }, [firestore, user, selectedKelas, selectedSemester]);
+  }, [firestore, user, kelasNum, selectedSemester]);
   const { data: studentTermData, isLoading: studentTermDataLoading } = useCollection<NilaiSiswa>(nilaiSiswaQuery);
   
   // --- Memoized Data Processing ---
@@ -125,7 +121,10 @@ export default function NilaiPage() {
     if (waliKelasOptions.length === 1 && !waliKelas) {
       setWaliKelas(waliKelasOptions[0].id);
     }
-  }, [waliKelasOptions, waliKelas]);
+     if (waliKelasOptions.length > 1 || waliKelasOptions.length === 0) {
+      setWaliKelas('');
+    }
+  }, [waliKelasOptions]);
 
   useEffect(() => {
     if (kepalaMadrasahOptions.length === 1 && !kepalaMadrasah) {
@@ -369,16 +368,15 @@ export default function NilaiPage() {
               return;
             }
 
-            const batch = writeBatch(firestore);
             const subjectMapByCode = new Map(subjectList.map(s => [s.kode, s.id]));
             const studentMapByNis = new Map(studentList.map(s => [s.nis, s.id]));
 
-            importedData.forEach(row => {
+            for (const row of importedData) {
               const nis = String(row.nis);
               const siswaId = studentMapByNis.get(nis);
 
               if (siswaId) {
-                Object.keys(row).forEach(header => {
+                for (const header of Object.keys(row)) {
                   const kurikulumId = subjectMapByCode.get(header);
                   if (kurikulumId) {
                     const nilaiStr = row[header];
@@ -394,15 +392,14 @@ export default function NilaiPage() {
                             semester: selectedSemester,
                             nilai,
                         };
-                        batch.set(gradeRef, gradeData, { merge: true });
+                        setDocumentNonBlocking(gradeRef, gradeData, { merge: true });
                       }
                     }
                   }
-                });
+                }
               }
-            });
+            }
 
-            await batch.commit();
             toast({ title: 'Import Berhasil!', description: `Nilai berhasil diperbarui dari file.` });
         } catch (error) {
             console.error("Error importing grades:", error);
@@ -577,8 +574,8 @@ export default function NilaiPage() {
 
 
   return (
-    <div className="bg-background flex flex-col h-full md:h-screen pb-32 md:pb-0">
-      <div className="container flex flex-col py-12 md:py-8 flex-1 overflow-hidden">
+    <div className="bg-background flex flex-col h-screen overflow-hidden pb-16 md:pb-0">
+      <div className="container flex flex-col py-8 flex-1 overflow-hidden">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
@@ -737,3 +734,5 @@ export default function NilaiPage() {
     </div>
   );
 }
+
+    
