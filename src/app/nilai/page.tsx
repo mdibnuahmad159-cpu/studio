@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Siswa, Kurikulum, Nilai, Guru, NilaiSiswa } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { Search, FileDown, Upload, CalendarIcon } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import jsPDF from 'jspdf';
@@ -65,10 +65,6 @@ export default function NilaiPage() {
   const [tahunPelajaran, setTahunPelajaran] = useState('');
   const [tanggal, setTanggal] = useState<Date | undefined>(new Date());
   
-  const [grades, setGrades] = useState<Nilai[]>([]);
-  const [studentTermData, setStudentTermData] = useState<NilaiSiswa[]>([]);
-  const [isSubDataLoading, setIsSubDataLoading] = useState(true);
-
   // --- Data Fetching ---
   const siswaQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -85,48 +81,34 @@ export default function NilaiPage() {
   const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(guruQuery);
   
   const kurikulumQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || !selectedKelas) return null;
     return query(collection(firestore, 'kurikulum'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
   const { data: subjects, isLoading: subjectsLoading } = useCollection<Kurikulum>(kurikulumQuery);
 
-  useEffect(() => {
-    if (!firestore || !user || !selectedKelas) return;
-    
+  const nilaiQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
     const kelasNum = parseInt(selectedKelas, 10);
-    if (isNaN(kelasNum)) return;
-
-    const fetchSubData = async () => {
-        setIsSubDataLoading(true);
-        try {
-            const nilaiQuery = query(
-                collection(firestore, 'nilai'),
-                where('kelas', '==', kelasNum),
-                where('semester', '==', selectedSemester)
-            );
-            const nilaiSnapshot = await getDocs(nilaiQuery);
-            const gradesData = nilaiSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Nilai));
-            setGrades(gradesData);
-
-            const nilaiSiswaQuery = query(
-                collection(firestore, 'nilaiSiswa'),
-                where('kelas', '==', kelasNum),
-                where('semester', '==', selectedSemester)
-            );
-            const nilaiSiswaSnapshot = await getDocs(nilaiSiswaQuery);
-            const studentTermDataArr = nilaiSiswaSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as NilaiSiswa));
-            setStudentTermData(studentTermDataArr);
-
-        } catch (error) {
-            console.error("Failed to fetch grades or student term data:", error);
-            toast({ variant: "destructive", title: "Gagal memuat data nilai", description: "Terjadi kesalahan saat mengambil data." });
-        } finally {
-            setIsSubDataLoading(false);
-        }
-    };
-
-    fetchSubData();
-}, [firestore, user, selectedKelas, selectedSemester, toast]);
+    if (isNaN(kelasNum)) return null;
+    return query(
+      collection(firestore, 'nilai'),
+      where('kelas', '==', kelasNum),
+      where('semester', '==', selectedSemester)
+    );
+  }, [firestore, user, selectedKelas, selectedSemester]);
+  const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
+  
+  const nilaiSiswaQuery = useMemoFirebase(() => {
+      if (!firestore || !user) return null;
+      const kelasNum = parseInt(selectedKelas, 10);
+      if (isNaN(kelasNum)) return null;
+      return query(
+          collection(firestore, 'nilaiSiswa'),
+          where('kelas', '==', kelasNum),
+          where('semester', '==', selectedSemester)
+      );
+  }, [firestore, user, selectedKelas, selectedSemester]);
+  const { data: studentTermData, isLoading: studentTermDataLoading } = useCollection<NilaiSiswa>(nilaiSiswaQuery);
   
   // --- Memoized Data Processing ---
   const { waliKelasOptions, kepalaMadrasahOptions } = useMemo(() => {
@@ -159,7 +141,7 @@ export default function NilaiPage() {
 
   const gradesMap = useMemo(() => {
     const map = new Map<string, Nilai>();
-    grades.forEach(grade => {
+    grades?.forEach(grade => {
       const key = `${grade.siswaId}-${grade.kurikulumId}`;
       map.set(key, grade);
     });
@@ -168,7 +150,7 @@ export default function NilaiPage() {
   
   const studentTermDataMap = useMemo(() => {
     const map = new Map<string, NilaiSiswa>();
-    studentTermData.forEach(data => {
+    studentTermData?.forEach(data => {
         map.set(data.siswaId, data);
     });
     return map;
@@ -252,7 +234,6 @@ export default function NilaiPage() {
         if(existingGrade) {
           try {
             await deleteDocumentNonBlocking(doc(firestore, 'nilai', existingGrade.id));
-            setGrades(prev => prev.filter(g => g.id !== existingGrade.id));
             toast({ title: 'Sukses!', description: 'Nilai berhasil dihapus.'});
           } catch(error) {
              toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat menghapus nilai.'});
@@ -268,24 +249,20 @@ export default function NilaiPage() {
     }
 
     try {
-        if (existingGrade) {
-            if (existingGrade.nilai !== newNilai) {
-                const gradeRef = doc(firestore, 'nilai', existingGrade.id);
-                await setDocumentNonBlocking(gradeRef, { nilai: newNilai }, { merge: true });
-                setGrades(prev => prev.map(g => g.id === existingGrade.id ? { ...g, nilai: newNilai } : g));
-            }
-        } else {
-            const newGradeRef = doc(collection(firestore, 'nilai'));
-            const newGradeData: Omit<Nilai, 'id'> = {
-                siswaId,
-                kurikulumId,
-                kelas: Number(selectedKelas),
-                semester: selectedSemester,
-                nilai: newNilai,
-            };
-            await setDocumentNonBlocking(newGradeRef, newGradeData, {});
-            setGrades(prev => [...prev, { ...newGradeData, id: newGradeRef.id }]);
-        }
+        const gradeRef = existingGrade 
+          ? doc(firestore, 'nilai', existingGrade.id) 
+          : doc(collection(firestore, 'nilai'));
+
+        const gradeData = {
+          siswaId,
+          kurikulumId,
+          kelas: Number(selectedKelas),
+          semester: selectedSemester,
+          nilai: newNilai,
+        };
+
+        await setDocumentNonBlocking(gradeRef, gradeData, { merge: true });
+        
         toast({ title: 'Sukses!', description: 'Nilai berhasil disimpan.'});
         return true;
     } catch (error) {
@@ -309,12 +286,6 @@ export default function NilaiPage() {
 
     try {
         await setDocumentNonBlocking(docRef, dataToSet, { merge: true });
-        const existingData = studentTermData.find(d => d.id === docId);
-        if (existingData) {
-            setStudentTermData(prev => prev.map(d => d.id === docId ? {...d, [field]: value} : d));
-        } else {
-            setStudentTermData(prev => [...prev, {id: docId, ...dataToSet} as NilaiSiswa]);
-        }
         toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
     } catch (error) {
         toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat menyimpan data.' });
@@ -402,8 +373,6 @@ export default function NilaiPage() {
             const subjectMapByCode = new Map(subjectList.map(s => [s.kode, s.id]));
             const studentMapByNis = new Map(studentList.map(s => [s.nis, s.id]));
 
-            let newGrades: Nilai[] = [...grades];
-
             importedData.forEach(row => {
               const nis = String(row.nis);
               const siswaId = studentMapByNis.get(nis);
@@ -417,22 +386,15 @@ export default function NilaiPage() {
                       const nilai = parseInt(String(nilaiStr), 10);
                       if (!isNaN(nilai) && nilai >= 0 && nilai <= 100) {
                         const existingGrade = gradesMap.get(`${siswaId}-${kurikulumId}`);
-                        if (existingGrade) {
-                          const gradeRef = doc(firestore, 'nilai', existingGrade.id);
-                          batch.update(gradeRef, { nilai });
-                          newGrades = newGrades.map(g => g.id === existingGrade.id ? { ...g, nilai } : g);
-                        } else {
-                          const newGradeRef = doc(collection(firestore, 'nilai'));
-                          const newGradeData: Omit<Nilai, 'id'> = {
+                        const gradeRef = existingGrade ? doc(firestore, 'nilai', existingGrade.id) : doc(collection(firestore, 'nilai'));
+                        const gradeData = {
                             siswaId,
                             kurikulumId,
                             kelas: Number(selectedKelas),
                             semester: selectedSemester,
                             nilai,
-                          };
-                          batch.set(newGradeRef, newGradeData);
-                          newGrades.push({ ...newGradeData, id: newGradeRef.id });
-                        }
+                        };
+                        batch.set(gradeRef, gradeData, { merge: true });
                       }
                     }
                   }
@@ -441,7 +403,6 @@ export default function NilaiPage() {
             });
 
             await batch.commit();
-            setGrades(newGrades); // Manually update state
             toast({ title: 'Import Berhasil!', description: `Nilai berhasil diperbarui dari file.` });
         } catch (error) {
             console.error("Error importing grades:", error);
@@ -459,7 +420,7 @@ export default function NilaiPage() {
   };
 
 
-  const isLoading = studentsLoading || subjectsLoading || teachersLoading || isSubDataLoading;
+  const isLoading = studentsLoading || subjectsLoading || teachersLoading || gradesLoading || studentTermDataLoading;
 
   const renderMobileView = () => (
     <div className="flex flex-col md:flex-row gap-4 h-full">
@@ -616,7 +577,7 @@ export default function NilaiPage() {
 
 
   return (
-    <div className="bg-background flex flex-col h-full md:h-[calc(100vh_-_theme(spacing.16))] pb-32 md:pb-0">
+    <div className="bg-background flex flex-col h-full md:h-screen pb-32 md:pb-0">
       <div className="container flex flex-col py-12 md:py-8 flex-1 overflow-hidden">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div className="text-center sm:text-left">
