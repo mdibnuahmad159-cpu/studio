@@ -44,6 +44,15 @@ export type Jadwal = {
   jam: string;
 };
 
+export type JadwalUjian = {
+  id: string;
+  tanggal: string; // ISO 8601 string date
+  kelas: string;
+  mataPelajaran: string;
+  guruId: string;
+  jam: string;
+}
+
 export type RaportFile = {
   [key: string]: string | null; // e.g., 'kelas_0_ganjil': 'gs://bucket/path/to/file.pdf'
 };
