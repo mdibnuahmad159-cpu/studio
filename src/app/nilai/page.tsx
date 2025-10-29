@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Siswa, Kurikulum, Nilai, Guru, NilaiSiswa } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs } from 'firebase/firestore';
 import { Search, FileDown, Upload, CalendarIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import jsPDF from 'jspdf';
@@ -71,7 +71,7 @@ export default function NilaiPage() {
 
   // --- Data Fetching ---
   const siswaQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !selectedKelas) return null;
+    if (!firestore || !user) return null;
     const kelasNum = parseInt(selectedKelas, 10);
     if (isNaN(kelasNum)) return null;
     return query(collection(firestore, 'siswa'), where('status', '==', 'Aktif'), where('kelas', '==', kelasNum));
@@ -85,7 +85,7 @@ export default function NilaiPage() {
   const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(guruQuery);
   
   const kurikulumQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !selectedKelas) return null;
+    if (!firestore || !user) return null;
     return query(collection(firestore, 'kurikulum'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
   const { data: subjects, isLoading: subjectsLoading } = useCollection<Kurikulum>(kurikulumQuery);
@@ -129,10 +129,28 @@ export default function NilaiPage() {
 }, [firestore, user, selectedKelas, selectedSemester, toast]);
   
   // --- Memoized Data Processing ---
-  const kepalaMadrasahOptions = useMemo(() => {
-    if (!teachers) return [];
-    return teachers.filter(t => t.position.toLowerCase().includes('kepala madrasah'));
-  }, [teachers]);
+  const { waliKelasOptions, kepalaMadrasahOptions } = useMemo(() => {
+    if (!teachers) return { waliKelasOptions: [], kepalaMadrasahOptions: [] };
+    
+    const waliKelasOptions = teachers.filter(t => t.position === `Wali Kelas ${selectedKelas}`);
+    const kepalaMadrasahOptions = teachers.filter(t => t.position.toLowerCase().includes('kepala madrasah'));
+
+    return { waliKelasOptions, kepalaMadrasahOptions };
+  }, [teachers, selectedKelas]);
+
+  // Auto-select wali kelas and kepala madrasah if only one option is available
+  useEffect(() => {
+    if (waliKelasOptions.length === 1 && !waliKelas) {
+      setWaliKelas(waliKelasOptions[0].id);
+    }
+  }, [waliKelasOptions, waliKelas]);
+
+  useEffect(() => {
+    if (kepalaMadrasahOptions.length === 1 && !kepalaMadrasah) {
+      setKepalaMadrasah(kepalaMadrasahOptions[0].id);
+    }
+  }, [kepalaMadrasahOptions, kepalaMadrasah]);
+
 
   const sortedSubjects = useMemo(() => {
     if (!subjects) return [];
@@ -527,71 +545,73 @@ export default function NilaiPage() {
   );
 
   const renderDesktopView = () => (
-    <ScrollArea className="w-full whitespace-nowrap rounded-lg bg-card border flex-grow">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="font-headline sticky left-0 bg-card z-10 w-[200px] shadow-sm">Nama Siswa</TableHead>
-            <TableHead className="font-headline w-[120px]">NIS</TableHead>
-            {sortedSubjects.map(subject => (
-              <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
-            ))}
-            <TableHead className="font-headline text-center">Jumlah Nilai</TableHead>
-            <TableHead className="font-headline text-center">Rata-rata</TableHead>
-            <TableHead className="font-headline text-center">Peringkat</TableHead>
-            <TableHead className="font-headline text-center">Sakit</TableHead>
-            <TableHead className="font-headline text-center">Izin</TableHead>
-            <TableHead className="font-headline text-center">Alpa</TableHead>
-            <TableHead className="font-headline text-center min-w-[200px]">Keputusan</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Memuat data...</TableCell></TableRow>}
-          {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
-          {sortedStudents.map(student => {
-            const stats = studentStats.stats.get(student.id);
-            const rank = studentStats.ranks.get(student.id);
-            const termData = studentTermDataMap.get(student.id);
-            return (
-            <TableRow key={student.id}>
-              <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
-              <TableCell>{student.nis}</TableCell>
-              {sortedSubjects.map(subject => {
-                const grade = gradesMap.get(`${student.id}-${subject.id}`);
+    <div className="flex-grow overflow-auto">
+        <ScrollArea className="w-full h-full whitespace-nowrap rounded-lg bg-card border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="font-headline sticky left-0 bg-card z-10 w-[200px] shadow-sm">Nama Siswa</TableHead>
+                <TableHead className="font-headline w-[120px]">NIS</TableHead>
+                {sortedSubjects.map(subject => (
+                  <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
+                ))}
+                <TableHead className="font-headline text-center">Jumlah Nilai</TableHead>
+                <TableHead className="font-headline text-center">Rata-rata</TableHead>
+                <TableHead className="font-headline text-center">Peringkat</TableHead>
+                <TableHead className="font-headline text-center">Sakit</TableHead>
+                <TableHead className="font-headline text-center">Izin</TableHead>
+                <TableHead className="font-headline text-center">Alpa</TableHead>
+                <TableHead className="font-headline text-center min-w-[200px]">Keputusan</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Memuat data...</TableCell></TableRow>}
+              {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 9} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
+              {sortedStudents.map(student => {
+                const stats = studentStats.stats.get(student.id);
+                const rank = studentStats.ranks.get(student.id);
+                const termData = studentTermDataMap.get(student.id);
                 return (
-                  <TableCell key={subject.id} className="text-center">
-                    <Input
-                      type="number"
-                      defaultValue={grade?.nilai}
-                      onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
-                      className="min-w-[70px] text-center mx-auto"
-                      placeholder="-"
-                      disabled={!isAdmin}
-                    />
+                <TableRow key={student.id}>
+                  <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
+                  <TableCell>{student.nis}</TableCell>
+                  {sortedSubjects.map(subject => {
+                    const grade = gradesMap.get(`${student.id}-${subject.id}`);
+                    return (
+                      <TableCell key={subject.id} className="text-center">
+                        <Input
+                          type="number"
+                          defaultValue={grade?.nilai}
+                          onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
+                          className="min-w-[70px] text-center mx-auto"
+                          placeholder="-"
+                          disabled={!isAdmin}
+                        />
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell className="text-center font-medium">{stats?.sum.toFixed(0) || 0}</TableCell>
+                  <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
+                  <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
+                  <TableCell>
+                    <Input type="number" defaultValue={termData?.sakit} onBlur={(e) => handleSaveStudentTermData(student.id, 'sakit', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
                   </TableCell>
-                );
-              })}
-              <TableCell className="text-center font-medium">{stats?.sum.toFixed(0) || 0}</TableCell>
-              <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
-              <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
-              <TableCell>
-                <Input type="number" defaultValue={termData?.sakit} onBlur={(e) => handleSaveStudentTermData(student.id, 'sakit', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
-              </TableCell>
-              <TableCell>
-                <Input type="number" defaultValue={termData?.izin} onBlur={(e) => handleSaveStudentTermData(student.id, 'izin', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
-              </TableCell>
-              <TableCell>
-                <Input type="number" defaultValue={termData?.alpa} onBlur={(e) => handleSaveStudentTermData(student.id, 'alpa', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
-              </TableCell>
-              <TableCell>
-                <Input type="text" defaultValue={termData?.keputusan} onBlur={(e) => handleSaveStudentTermData(student.id, 'keputusan', e.target.value)} className="min-w-[200px]" disabled={!isAdmin} />
-              </TableCell>
-            </TableRow>
-          )})}
-        </TableBody>
-      </Table>
-      <div className="h-1" />
-    </ScrollArea>
+                  <TableCell>
+                    <Input type="number" defaultValue={termData?.izin} onBlur={(e) => handleSaveStudentTermData(student.id, 'izin', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
+                  </TableCell>
+                  <TableCell>
+                    <Input type="number" defaultValue={termData?.alpa} onBlur={(e) => handleSaveStudentTermData(student.id, 'alpa', parseInt(e.target.value) || 0)} className="w-16 text-center" disabled={!isAdmin} />
+                  </TableCell>
+                  <TableCell>
+                    <Input type="text" defaultValue={termData?.keputusan} onBlur={(e) => handleSaveStudentTermData(student.id, 'keputusan', e.target.value)} className="min-w-[200px]" disabled={!isAdmin} />
+                  </TableCell>
+                </TableRow>
+              )})}
+            </TableBody>
+          </Table>
+          <div className="h-1" />
+        </ScrollArea>
+    </div>
   );
 
 
@@ -687,12 +707,12 @@ export default function NilaiPage() {
             </div>
              <div className="lg:col-span-1">
                 <Label>Wali Kelas</Label>
-                <Select value={waliKelas} onValueChange={setWaliKelas}>
+                <Select value={waliKelas} onValueChange={setWaliKelas} disabled={teachersLoading}>
                     <SelectTrigger className="w-full mt-1">
                         <SelectValue placeholder="Pilih Wali Kelas" />
                     </SelectTrigger>
                     <SelectContent>
-                        {teachers?.map(teacher => (
+                        {waliKelasOptions?.map(teacher => (
                             <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
                         ))}
                     </SelectContent>
@@ -700,7 +720,7 @@ export default function NilaiPage() {
             </div>
             <div className="lg:col-span-2">
                 <Label>Kepala Madrasah</Label>
-                <Select value={kepalaMadrasah} onValueChange={setKepalaMadrasah}>
+                <Select value={kepalaMadrasah} onValueChange={setKepalaMadrasah} disabled={teachersLoading}>
                     <SelectTrigger className="w-full mt-1">
                         <SelectValue placeholder="Pilih Kepala Madrasah" />
                     </SelectTrigger>

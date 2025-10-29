@@ -48,6 +48,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -59,6 +60,17 @@ const emptyTeacher: Omit<Guru, 'id' | 'imageId'> = {
   whatsapp: '',
 };
 
+const positionOptions = [
+  'Pengasuh',
+  'Pengawas',
+  'Kepala Madrasah',
+  'Wakil Kepala Madrasah',
+  'Sekretaris',
+  'Bendahara',
+  ...Array.from({ length: 7 }, (_, i) => `Wali Kelas ${i}`),
+  'Guru'
+];
+
 const positionOrder = [
   'Pengasuh',
   'Pengawas',
@@ -66,8 +78,16 @@ const positionOrder = [
   'Wakil Kepala Madrasah',
   'Sekretaris',
   'Bendahara',
+  'Wali Kelas 6',
+  'Wali Kelas 5',
+  'Wali Kelas 4',
+  'Wali Kelas 3',
+  'Wali Kelas 2',
+  'Wali Kelas 1',
+  'Wali Kelas 0',
   'Guru'
 ];
+
 
 export default function GuruPage() {
   const firestore = useFirestore();
@@ -101,13 +121,20 @@ export default function GuruPage() {
       const effectiveIndexA = indexA === -1 ? positionOrder.length : indexA;
       const effectiveIndexB = indexB === -1 ? positionOrder.length : indexB;
 
-      return effectiveIndexA - effectiveIndexB;
+      if (effectiveIndexA !== effectiveIndexB) {
+        return effectiveIndexA - effectiveIndexB;
+      }
+      return a.name.localeCompare(b.name);
     });
   }, [teachers]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePositionChange = (value: string) => {
+    setFormData(prev => ({ ...prev, position: value }));
   };
 
   const handleOpenFormDialog = (teacher: Guru | null = null) => {
@@ -377,7 +404,16 @@ export default function GuruPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="position">Jabatan</Label>
-                  <Input id="position" name="position" value={formData.position} onChange={handleInputChange} />
+                  <Select value={formData.position} onValueChange={handlePositionChange}>
+                      <SelectTrigger>
+                          <SelectValue placeholder="Pilih Jabatan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {positionOptions.map(pos => (
+                              <SelectItem key={pos} value={pos}>{pos}</SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="whatsapp">No. WhatsApp</Label>
