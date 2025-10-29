@@ -83,7 +83,11 @@ export default function NilaiPage() {
     return collection(firestore, 'gurus');
   }, [firestore, user]);
   const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(guruQuery);
-  const kepalaMadrasahOptions = useMemo(() => teachers?.filter(t => t.position.toLowerCase().includes('kepala madrasah')), [teachers]);
+  
+  const kepalaMadrasahOptions = useMemo(() => {
+    if (!teachers) return [];
+    return teachers.filter(t => t.position.toLowerCase().includes('kepala madrasah'));
+  }, [teachers]);
   
   const kurikulumQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -259,19 +263,15 @@ export default function NilaiPage() {
     const docId = `${siswaId}-${selectedKelas}-${selectedSemester}`;
     const docRef = doc(firestore, 'nilaiSiswa', docId);
 
-    const updateData = { [field]: value };
-    const initialData: Omit<NilaiSiswa, 'id'> = {
+    const dataToSet = {
         siswaId,
         kelas: Number(selectedKelas),
         semester: selectedSemester,
-        ...updateData,
-    }
+        [field]: value
+    };
 
     try {
-        await setDocumentNonBlocking(docRef, updateData, { merge: true });
-        if(!studentTermDataMap.has(siswaId)) {
-            await setDocumentNonBlocking(docRef, initialData, { merge: true });
-        }
+        await setDocumentNonBlocking(docRef, dataToSet, { merge: true });
         toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
     } catch (error) {
         toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat menyimpan data.' });
@@ -341,77 +341,73 @@ export default function NilaiPage() {
         return;
     }
 
-    await new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const data = e.target?.result;
-                const workbook = XLSX.read(data, { type: 'binary' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const importedData = XLSX.utils.sheet_to_json(worksheet) as any[];
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = e.target?.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const importedData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
-                if (importedData.length === 0) {
-                  toast({ variant: "destructive", title: "File Kosong", description: "File Excel tidak berisi data." });
-                  return;
-                }
+            if (importedData.length === 0) {
+              toast({ variant: "destructive", title: "File Kosong", description: "File Excel tidak berisi data." });
+              return;
+            }
 
-                const batch = writeBatch(firestore);
-                const subjectMapByCode = new Map(subjectList.map(s => [s.kode, s.id]));
-                const studentMapByNis = new Map(studentList.map(s => [s.nis, s.id]));
+            const batch = writeBatch(firestore);
+            const subjectMapByCode = new Map(subjectList.map(s => [s.kode, s.id]));
+            const studentMapByNis = new Map(studentList.map(s => [s.nis, s.id]));
 
-                importedData.forEach(row => {
-                  const nis = String(row.nis);
-                  const siswaId = studentMapByNis.get(nis);
+            importedData.forEach(row => {
+              const nis = String(row.nis);
+              const siswaId = studentMapByNis.get(nis);
 
-                  if (siswaId) {
-                    Object.keys(row).forEach(header => {
-                      const kurikulumId = subjectMapByCode.get(header);
-                      if (kurikulumId) {
-                        const nilaiStr = row[header];
-                        if (nilaiStr !== null && nilaiStr !== undefined && String(nilaiStr).trim() !== '') {
-                          const nilai = parseInt(String(nilaiStr), 10);
-                          if (!isNaN(nilai) && nilai >= 0 && nilai <= 100) {
-                            const existingGrade = gradesMap.get(`${siswaId}-${kurikulumId}`);
-                            if (existingGrade) {
-                              const gradeRef = doc(firestore, 'nilai', existingGrade.id);
-                              batch.update(gradeRef, { nilai });
-                            } else {
-                              const newGradeRef = doc(collection(firestore, 'nilai'));
-                              const newGradeData: Omit<Nilai, 'id'> = {
-                                siswaId,
-                                kurikulumId,
-                                kelas: Number(selectedKelas),
-                                semester: selectedSemester,
-                                nilai,
-                              };
-                              batch.set(newGradeRef, newGradeData);
-                            }
-                          }
+              if (siswaId) {
+                Object.keys(row).forEach(header => {
+                  const kurikulumId = subjectMapByCode.get(header);
+                  if (kurikulumId) {
+                    const nilaiStr = row[header];
+                    if (nilaiStr !== null && nilaiStr !== undefined && String(nilaiStr).trim() !== '') {
+                      const nilai = parseInt(String(nilaiStr), 10);
+                      if (!isNaN(nilai) && nilai >= 0 && nilai <= 100) {
+                        const existingGrade = gradesMap.get(`${siswaId}-${kurikulumId}`);
+                        if (existingGrade) {
+                          const gradeRef = doc(firestore, 'nilai', existingGrade.id);
+                          batch.update(gradeRef, { nilai });
+                        } else {
+                          const newGradeRef = doc(collection(firestore, 'nilai'));
+                          const newGradeData: Omit<Nilai, 'id'> = {
+                            siswaId,
+                            kurikulumId,
+                            kelas: Number(selectedKelas),
+                            semester: selectedSemester,
+                            nilai,
+                          };
+                          batch.set(newGradeRef, newGradeData);
                         }
                       }
-                    });
+                    }
                   }
                 });
+              }
+            });
 
-                await batch.commit();
-                toast({ title: 'Import Berhasil!', description: `Nilai berhasil diperbarui dari file.` });
-            } catch (error) {
-                console.error("Error importing grades:", error);
-                toast({ variant: "destructive", title: 'Gagal', description: "Terjadi kesalahan saat mengimpor nilai." });
-            } finally {
-                setIsImportDialogOpen(false);
-                setImportFile(null);
-                resolve(true);
-            }
-        };
-        reader.onerror = (error) => {
-            console.error("Error reading file:", error);
-            toast({ variant: "destructive", title: 'Gagal Parsing', description: 'Tidak dapat memproses file Excel.' });
-            resolve(true);
-        };
-        reader.readAsBinaryString(importFile);
-    });
+            await batch.commit();
+            toast({ title: 'Import Berhasil!', description: `Nilai berhasil diperbarui dari file.` });
+        } catch (error) {
+            console.error("Error importing grades:", error);
+            toast({ variant: "destructive", title: 'Gagal', description: "Terjadi kesalahan saat mengimpor nilai." });
+        } finally {
+            setIsImportDialogOpen(false);
+            setImportFile(null);
+        }
+    };
+    reader.onerror = (error) => {
+        console.error("Error reading file:", error);
+        toast({ variant: "destructive", title: 'Gagal Parsing', description: 'Tidak dapat memproses file Excel.' });
+    };
+    reader.readAsBinaryString(importFile);
   };
 
 
@@ -570,8 +566,8 @@ export default function NilaiPage() {
 
 
   return (
-    <div className="bg-background pb-32 md:pb-0">
-      <div className="container flex flex-col py-12 md:py-20 h-full">
+    <div className="bg-background">
+      <div className="container flex flex-col py-12 md:py-20 h-full max-h-[calc(100vh-8rem)]">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
@@ -594,7 +590,7 @@ export default function NilaiPage() {
             </div>
         </div>
 
-        <div className="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
+        <div className="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end">
             <div className="relative col-span-2 md:col-span-3 lg:col-span-1">
                 <Label>Cari Siswa</Label>
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground mt-3" />
@@ -634,7 +630,7 @@ export default function NilaiPage() {
                 <Label>Tahun Pelajaran</Label>
                  <Input className="mt-1" placeholder="e.g. 2023/2024" value={tahunPelajaran} onChange={(e) => setTahunPelajaran(e.target.value)} />
             </div>
-             <div>
+             <div className="lg:col-span-1">
                 <Label>Tanggal</Label>
                  <Popover>
                     <PopoverTrigger asChild>
@@ -659,7 +655,7 @@ export default function NilaiPage() {
                     </PopoverContent>
                 </Popover>
             </div>
-             <div>
+             <div className="lg:col-span-1">
                 <Label>Wali Kelas</Label>
                 <Select value={waliKelas} onValueChange={setWaliKelas}>
                     <SelectTrigger className="w-full mt-1">
@@ -672,7 +668,7 @@ export default function NilaiPage() {
                     </SelectContent>
                 </Select>
             </div>
-            <div>
+            <div className="lg:col-span-2">
                 <Label>Kepala Madrasah</Label>
                 <Select value={kepalaMadrasah} onValueChange={setKepalaMadrasah}>
                     <SelectTrigger className="w-full mt-1">
@@ -687,7 +683,7 @@ export default function NilaiPage() {
             </div>
         </div>
         
-        <div className="flex-1 overflow-auto flex flex-col">
+        <div className="flex-1 overflow-auto flex flex-col pb-32 md:pb-0">
           {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
 
@@ -730,3 +726,4 @@ export default function NilaiPage() {
     </div>
   );
 }
+
