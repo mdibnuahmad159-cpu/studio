@@ -48,7 +48,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
@@ -152,18 +152,10 @@ export default function KurikulumPage() {
 
   const downloadTemplate = () => {
     const headers = ["kelas", "mataPelajaran", "kitab"];
-    const csvContent = Papa.unparse({
-      fields: headers,
-      data: []
-    });
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "template_kurikulum.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const ws = XLSX.utils.json_to_sheet([], { header: headers });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "template_kurikulum.xlsx");
   };
 
   const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,40 +167,43 @@ export default function KurikulumPage() {
   const handleImport = () => {
     if (!importFile || !kurikulumRef || !firestore) return;
     
-    Papa.parse(importFile, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const newKurikulum = results.data as Omit<Kitab, 'id'>[];
-        if (newKurikulum.length === 0) {
-          toast({ variant: 'destructive', title: 'Gagal', description: 'File CSV kosong atau format tidak sesuai.' });
-          return;
-        }
-
+    const reader = new FileReader();
+    reader.onload = async (e) => {
         try {
-          const batch = writeBatch(firestore);
-          newKurikulum.forEach(item => {
-            if (item.kelas && item.mataPelajaran && item.kitab) {
-               const newDocRef = doc(kurikulumRef); // Creates a new doc with a unique ID
-               batch.set(newDocRef, item);
+            const data = e.target?.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const newKurikulum = XLSX.utils.sheet_to_json(worksheet) as Omit<Kitab, 'id'>[];
+            
+            if (newKurikulum.length === 0) {
+              toast({ variant: 'destructive', title: 'Gagal', description: 'File Excel kosong atau format tidak sesuai.' });
+              return;
             }
-          });
 
-          await batch.commit();
+            const batch = writeBatch(firestore);
+            newKurikulum.forEach(item => {
+              if (item.kelas && item.mataPelajaran && item.kitab) {
+                 const newDocRef = doc(collection(firestore, 'kurikulum')); // Creates a new doc with a unique ID
+                 batch.set(newDocRef, item);
+              }
+            });
 
-          toast({ title: 'Import Berhasil!', description: `${newKurikulum.length} data kurikulum berhasil ditambahkan.` });
-          setIsImportDialogOpen(false);
-          setImportFile(null);
+            await batch.commit();
+
+            toast({ title: 'Import Berhasil!', description: `${newKurikulum.length} data kurikulum berhasil ditambahkan.` });
+            setIsImportDialogOpen(false);
+            setImportFile(null);
         } catch (error) {
-          console.error("Error importing curriculum: ", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Terjadi kesalahan saat mengimpor data.' });
+            console.error("Error importing curriculum: ", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Terjadi kesalahan saat mengimpor data.' });
         }
-      },
-      error: (error) => {
-        console.error("Error parsing CSV: ", error);
-        toast({ variant: 'destructive', title: 'Error Parsing', description: 'Gagal memproses file CSV.' });
-      }
-    });
+    };
+    reader.onerror = (error) => {
+        console.error("Error reading file: ", error);
+        toast({ variant: 'destructive', title: 'Error Reading File', description: 'Gagal memproses file Excel.' });
+    };
+    reader.readAsBinaryString(importFile);
   };
 
   return (
@@ -233,7 +228,7 @@ export default function KurikulumPage() {
              <div className="flex gap-2">
                 {isAdmin && (
                   <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
-                    <Upload className="mr-2 h-4 w-4" /> Import CSV
+                    <Upload className="mr-2 h-4 w-4" /> Import Data
                   </Button>
                 )}
                 <Button onClick={handleExportPdf} variant="outline" size="sm">
@@ -365,9 +360,9 @@ export default function KurikulumPage() {
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Import Data Kurikulum dari CSV</DialogTitle>
+                <DialogTitle>Import Data Kurikulum dari Excel</DialogTitle>
                 <DialogDescription>
-                  Pilih file CSV untuk mengimpor data kurikulum. Pastikan format file sesuai dengan template.
+                  Pilih file Excel untuk mengimpor data kurikulum. Pastikan format file sesuai dengan template.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4 space-y-4">
@@ -375,14 +370,14 @@ export default function KurikulumPage() {
                   <Input 
                     id="import-file" 
                     type="file" 
-                    accept=".csv"
+                    accept=".xlsx, .xls"
                     onChange={handleImportFileChange}
                     ref={importInputRef} 
                   />
                 </div>
                  <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate}>
                     <FileDown className="mr-2 h-4 w-4" />
-                    Unduh Template CSV
+                    Unduh Template Excel
                   </Button>
               </div>
               <DialogFooter>
@@ -399,5 +394,3 @@ export default function KurikulumPage() {
     </div>
   );
 }
-
-    

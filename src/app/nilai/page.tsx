@@ -27,7 +27,7 @@ import { Search, FileDown, Upload } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -249,15 +249,10 @@ export default function NilaiPage() {
         });
         doc.save(`${filename}.pdf`);
     } else {
-        const csvContent = Papa.unparse({ fields: head, data: body });
-        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", `${filename}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const ws = XLSX.utils.aoa_to_sheet([head, ...body]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Nilai");
+        XLSX.writeFile(wb, `${filename}.xlsx`);
     }
   };
 
@@ -270,86 +265,81 @@ export default function NilaiPage() {
   const downloadTemplate = () => {
     if (!students || !sortedSubjects) return;
     const headers = ["nis", "nama_siswa", ...sortedSubjects.map(s => s.mataPelajaran)];
-    const csvContent = Papa.unparse({
-        fields: headers,
-        data: []
-    });
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `template_nilai_kelas_${selectedKelas}_${selectedSemester}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const ws = XLSX.utils.json_to_sheet([], { header: headers });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, `template_nilai_kelas_${selectedKelas}_${selectedSemester}.xlsx`);
   };
   
   const handleImport = () => {
     if (!importFile || !firestore || !students || !sortedSubjects) return;
 
-    Papa.parse(importFile, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const importedData = results.data as any[];
-        if (importedData.length === 0) {
-          toast({ variant: "destructive", title: "File Kosong", description: "File CSV tidak berisi data." });
-          return;
-        }
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = e.target?.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const importedData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
-        const batch = writeBatch(firestore);
-        const subjectMap = new Map(sortedSubjects.map(s => [s.mataPelajaran, s.id]));
-        const studentMap = new Map(students.map(s => [s.nis, s.id]));
+            if (importedData.length === 0) {
+              toast({ variant: "destructive", title: "File Kosong", description: "File Excel tidak berisi data." });
+              return;
+            }
 
-        importedData.forEach(row => {
-          const nis = row.nis;
-          const siswaId = studentMap.get(nis);
+            const batch = writeBatch(firestore);
+            const subjectMap = new Map(sortedSubjects.map(s => [s.mataPelajaran, s.id]));
+            const studentMap = new Map(students.map(s => [s.nis, s.id]));
 
-          if (siswaId) {
-            Object.keys(row).forEach(header => {
-              const kurikulumId = subjectMap.get(header);
-              if (kurikulumId) {
-                const nilaiStr = row[header];
-                if (nilaiStr && nilaiStr.trim() !== '') {
-                  const nilai = parseInt(nilaiStr, 10);
-                  if (!isNaN(nilai) && nilai >= 0 && nilai <= 100) {
-                    const existingGrade = gradesMap.get(`${siswaId}-${kurikulumId}`);
-                    if (existingGrade) {
-                      const gradeRef = doc(firestore, 'nilai', existingGrade.id);
-                      batch.update(gradeRef, { nilai });
-                    } else {
-                      const newGradeRef = doc(collection(firestore, 'nilai'));
-                      const newGradeData: Omit<Nilai, 'id'> = {
-                        siswaId,
-                        kurikulumId,
-                        kelas: Number(selectedKelas),
-                        semester: selectedSemester,
-                        nilai,
-                      };
-                      batch.set(newGradeRef, newGradeData);
+            importedData.forEach(row => {
+              const nis = String(row.nis);
+              const siswaId = studentMap.get(nis);
+
+              if (siswaId) {
+                Object.keys(row).forEach(header => {
+                  const kurikulumId = subjectMap.get(header);
+                  if (kurikulumId) {
+                    const nilaiStr = row[header];
+                    if (nilaiStr !== null && nilaiStr !== undefined && String(nilaiStr).trim() !== '') {
+                      const nilai = parseInt(String(nilaiStr), 10);
+                      if (!isNaN(nilai) && nilai >= 0 && nilai <= 100) {
+                        const existingGrade = gradesMap.get(`${siswaId}-${kurikulumId}`);
+                        if (existingGrade) {
+                          const gradeRef = doc(firestore, 'nilai', existingGrade.id);
+                          batch.update(gradeRef, { nilai });
+                        } else {
+                          const newGradeRef = doc(collection(firestore, 'nilai'));
+                          const newGradeData: Omit<Nilai, 'id'> = {
+                            siswaId,
+                            kurikulumId,
+                            kelas: Number(selectedKelas),
+                            semester: selectedSemester,
+                            nilai,
+                          };
+                          batch.set(newGradeRef, newGradeData);
+                        }
+                      }
                     }
                   }
-                }
+                });
               }
             });
-          }
-        });
 
-        try {
-          await batch.commit();
-          toast({ title: 'Import Berhasil!', description: `Nilai berhasil diperbarui dari file.` });
-          setIsImportDialogOpen(false);
-          setImportFile(null);
+            await batch.commit();
+            toast({ title: 'Import Berhasil!', description: `Nilai berhasil diperbarui dari file.` });
+            setIsImportDialogOpen(false);
+            setImportFile(null);
         } catch (error) {
-          console.error("Error importing grades:", error);
-          toast({ variant: "destructive", title: 'Gagal', description: "Terjadi kesalahan saat mengimpor nilai." });
+            console.error("Error importing grades:", error);
+            toast({ variant: "destructive", title: 'Gagal', description: "Terjadi kesalahan saat mengimpor nilai." });
         }
-      },
-      error: (error) => {
-        console.error("Error parsing CSV:", error);
-        toast({ variant: "destructive", title: 'Gagal Parsing', description: 'Tidak dapat memproses file CSV.' });
-      }
-    });
+    };
+    reader.onerror = (error) => {
+        console.error("Error reading file:", error);
+        toast({ variant: "destructive", title: 'Gagal Parsing', description: 'Tidak dapat memproses file Excel.' });
+    };
+    reader.readAsBinaryString(importFile);
   };
 
   const isLoading = studentsLoading || subjectsLoading || gradesLoading;
@@ -501,13 +491,13 @@ export default function NilaiPage() {
           </div>
            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
-                  <Upload className="mr-2 h-4 w-4" /> Import CSV
+                  <Upload className="mr-2 h-4 w-4" /> Import Excel
                 </Button>
                 <Button onClick={() => handleExport('pdf')} variant="outline" size="sm">
                   <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
                 </Button>
                 <Button onClick={() => handleExport('csv')} variant="outline" size="sm">
-                  <FileDown className="mr-2 h-4 w-4" /> Ekspor CSV
+                  <FileDown className="mr-2 h-4 w-4" /> Ekspor Excel
                 </Button>
             </div>
         </div>
@@ -552,9 +542,9 @@ export default function NilaiPage() {
         <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Import Nilai dari CSV</DialogTitle>
+              <DialogTitle>Import Nilai dari Excel</DialogTitle>
               <DialogDescription>
-                Pilih file CSV untuk import nilai. Pastikan NIS dan nama mata pelajaran sesuai.
+                Pilih file Excel untuk import nilai. Pastikan NIS dan nama mata pelajaran sesuai.
                 Data nilai yang sudah ada akan diperbarui.
               </DialogDescription>
             </DialogHeader>
@@ -563,14 +553,14 @@ export default function NilaiPage() {
                 <Input 
                   id="import-file" 
                   type="file" 
-                  accept=".csv"
+                  accept=".xlsx, .xls"
                   onChange={handleImportFileChange}
                   ref={importInputRef} 
                 />
               </div>
                 <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate}>
                   <FileDown className="mr-2 h-4 w-4" />
-                  Unduh Template CSV untuk Kelas {selectedKelas}
+                  Unduh Template Excel untuk Kelas {selectedKelas}
                 </Button>
             </div>
             <DialogFooter>

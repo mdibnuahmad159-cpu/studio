@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { FileDown, MoreHorizontal, Pencil, Search, Trash2, Upload } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,7 +44,6 @@ import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import Papa from 'papaparse';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -124,18 +124,10 @@ export default function AlumniPage() {
 
   const downloadTemplate = () => {
     const headers = ["nis","nama","jenisKelamin","tempatLahir","tanggalLahir","namaAyah","namaIbu","alamat","status","kelas","tahunLulus"];
-    const csvContent = Papa.unparse({
-      fields: headers,
-      data: []
-    });
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "template_alumni.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const ws = XLSX.utils.json_to_sheet([], { header: headers });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "template_alumni.xlsx");
   };
 
   const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,70 +139,72 @@ export default function AlumniPage() {
   const handleImport = () => {
     if (!importFile || !firestore) return;
 
-    Papa.parse(importFile, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const newAlumni = results.data as any[];
-
-        if (newAlumni.length === 0) {
-          toast({ variant: 'destructive', title: 'Gagal', description: 'File CSV kosong atau format tidak sesuai.' });
-          return;
-        }
-
+    const reader = new FileReader();
+    reader.onload = async (e) => {
         try {
-          const batch = writeBatch(firestore);
-          newAlumni.forEach(alumnus => {
-            if (alumnus.nis && alumnus.nama) {
-              const studentDocRef = doc(firestore, 'siswa', alumnus.nis);
-              const raportDocRef = doc(firestore, 'raports', alumnus.nis);
+            const data = e.target?.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const newAlumni = XLSX.utils.sheet_to_json(worksheet) as any[];
 
-              const studentData: Omit<DetailedStudent, 'id'> = {
-                nis: alumnus.nis,
-                nama: alumnus.nama,
-                jenisKelamin: alumnus.jenisKelamin || 'Laki-laki',
-                tempatLahir: alumnus.tempatLahir || '',
-                tanggalLahir: alumnus.tanggalLahir || '',
-                namaAyah: alumnus.namaAyah || '',
-                namaIbu: alumnus.namaIbu || '',
-                alamat: alumnus.alamat || '',
-                fileDokumen: '', // default placeholder
-                kelas: alumnus.kelas ? Number(alumnus.kelas) : 6,
-                status: 'Lulus',
-                tahunLulus: alumnus.tahunLulus ? Number(alumnus.tahunLulus) : new Date().getFullYear(),
-              };
-              batch.set(studentDocRef, studentData);
-
-              const newRaport: Omit<Raport, 'id'> = {
-                nis: alumnus.nis,
-                raports: {
-                  kelas_0_ganjil: null, kelas_0_genap: null,
-                  kelas_1_ganjil: null, kelas_1_genap: null,
-                  kelas_2_ganjil: null, kelas_2_genap: null,
-                  kelas_3_ganjil: null, kelas_3_genap: null,
-                  kelas_4_ganjil: null, kelas_4_genap: null,
-                  kelas_5_ganjil: null, kelas_5_genap: null,
-                  kelas_6_ganjil: null, kelas_6_genap: null,
-                }
-              };
-              batch.set(raportDocRef, newRaport, { merge: true });
+            if (newAlumni.length === 0) {
+              toast({ variant: 'destructive', title: 'Gagal', description: 'File Excel kosong atau format tidak sesuai.' });
+              return;
             }
-          });
 
-          await batch.commit();
-          toast({ title: 'Import Berhasil!', description: `${newAlumni.length} data alumni berhasil ditambahkan/diperbarui.` });
-          setIsImportDialogOpen(false);
-          setImportFile(null);
+            const batch = writeBatch(firestore);
+            newAlumni.forEach(alumnus => {
+              if (alumnus.nis && alumnus.nama) {
+                const studentDocRef = doc(firestore, 'siswa', String(alumnus.nis));
+                const raportDocRef = doc(firestore, 'raports', String(alumnus.nis));
+
+                const studentData: Omit<DetailedStudent, 'id'> = {
+                  nis: String(alumnus.nis),
+                  nama: alumnus.nama,
+                  jenisKelamin: alumnus.jenisKelamin || 'Laki-laki',
+                  tempatLahir: alumnus.tempatLahir || '',
+                  tanggalLahir: alumnus.tanggalLahir || '',
+                  namaAyah: alumnus.namaAyah || '',
+                  namaIbu: alumnus.namaIbu || '',
+                  alamat: alumnus.alamat || '',
+                  fileDokumen: '', // default placeholder
+                  kelas: alumnus.kelas ? Number(alumnus.kelas) : 6,
+                  status: 'Lulus',
+                  tahunLulus: alumnus.tahunLulus ? Number(alumnus.tahunLulus) : new Date().getFullYear(),
+                };
+                batch.set(studentDocRef, studentData);
+
+                const newRaport: Omit<Raport, 'id'> = {
+                  nis: String(alumnus.nis),
+                  raports: {
+                    kelas_0_ganjil: null, kelas_0_genap: null,
+                    kelas_1_ganjil: null, kelas_1_genap: null,
+                    kelas_2_ganjil: null, kelas_2_genap: null,
+                    kelas_3_ganjil: null, kelas_3_genap: null,
+                    kelas_4_ganjil: null, kelas_4_genap: null,
+                    kelas_5_ganjil: null, kelas_5_genap: null,
+                    kelas_6_ganjil: null, kelas_6_genap: null,
+                  }
+                };
+                batch.set(raportDocRef, newRaport, { merge: true });
+              }
+            });
+
+            await batch.commit();
+            toast({ title: 'Import Berhasil!', description: `${newAlumni.length} data alumni berhasil ditambahkan/diperbarui.` });
+            setIsImportDialogOpen(false);
+            setImportFile(null);
         } catch (error) {
-          console.error("Error importing alumni: ", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Terjadi kesalahan saat mengimpor data.' });
+            console.error("Error importing alumni: ", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Terjadi kesalahan saat mengimpor data.' });
         }
-      },
-      error: (error) => {
-        console.error("Error parsing CSV: ", error);
-        toast({ variant: 'destructive', title: 'Error Parsing', description: 'Gagal memproses file CSV.' });
-      }
-    });
+    };
+    reader.onerror = (error) => {
+        console.error("Error reading file: ", error);
+        toast({ variant: 'destructive', title: 'Error Reading File', description: 'Gagal memproses file Excel.' });
+    };
+    reader.readAsBinaryString(importFile);
   };
 
   return (
@@ -228,7 +222,7 @@ export default function AlumniPage() {
            <div className="flex gap-2">
               {isAdmin && (
                 <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
-                  <Upload className="mr-2 h-4 w-4" /> Import CSV
+                  <Upload className="mr-2 h-4 w-4" /> Import Data
                 </Button>
               )}
                <Button onClick={handleExportPdf} variant="outline" size="sm">
@@ -337,9 +331,9 @@ export default function AlumniPage() {
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Import Data Alumni dari CSV</DialogTitle>
+                <DialogTitle>Import Data Alumni dari Excel</DialogTitle>
                 <DialogDescription>
-                  Pilih file CSV untuk import data alumni. Pastikan NIS unik. Data yang sudah ada akan diperbarui.
+                  Pilih file Excel untuk import data alumni. Pastikan NIS unik. Data yang sudah ada akan diperbarui.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4 space-y-4">
@@ -347,14 +341,14 @@ export default function AlumniPage() {
                   <Input 
                     id="import-file" 
                     type="file" 
-                    accept=".csv"
+                    accept=".xlsx, .xls"
                     onChange={handleImportFileChange}
                     ref={importInputRef} 
                   />
                 </div>
                   <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate}>
                     <FileDown className="mr-2 h-4 w-4" />
-                    Unduh Template CSV
+                    Unduh Template Excel
                   </Button>
               </div>
               <DialogFooter>

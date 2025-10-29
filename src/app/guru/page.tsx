@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { PlusCircle, FileDown, Upload, MoreHorizontal, Pencil, Trash2, Camera, User } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -196,18 +196,10 @@ export default function GuruPage() {
 
   const downloadTemplate = () => {
     const headers = ["name", "position", "whatsapp"];
-    const csvContent = Papa.unparse({
-      fields: headers,
-      data: []
-    });
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "template_guru.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const ws = XLSX.utils.json_to_sheet([], { header: headers });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "template_guru.xlsx");
   };
 
   const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,38 +211,41 @@ export default function GuruPage() {
   const handleImport = () => {
     if (!importFile || !firestore || !teachersRef) return;
     
-    Papa.parse(importFile, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const newTeachers = results.data as Omit<Guru, 'id' | 'imageId'>[];
-        if (newTeachers.length === 0) {
-          toast({ variant: 'destructive', title: 'Gagal', description: 'File CSV kosong atau format tidak sesuai.' });
-          return;
-        }
-
+    const reader = new FileReader();
+    reader.onload = async (e) => {
         try {
-          const batch = writeBatch(firestore);
-          newTeachers.forEach(teacher => {
-            if (teacher.name && teacher.position && teacher.whatsapp) {
-               const newTeacherRef = doc(teachersRef);
-               batch.set(newTeacherRef, { ...teacher, imageId: null });
+            const data = e.target?.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const newTeachers = XLSX.utils.sheet_to_json(worksheet) as Omit<Guru, 'id' | 'imageId'>[];
+
+            if (newTeachers.length === 0) {
+              toast({ variant: 'destructive', title: 'Gagal', description: 'File Excel kosong atau format tidak sesuai.' });
+              return;
             }
-          });
-          await batch.commit();
-          toast({ title: 'Import Berhasil!', description: `${newTeachers.length} data guru berhasil ditambahkan.` });
-          setIsImportDialogOpen(false);
-          setImportFile(null);
+
+            const batch = writeBatch(firestore);
+            newTeachers.forEach(teacher => {
+              if (teacher.name && teacher.position && teacher.whatsapp) {
+                 const newTeacherRef = doc(teachersRef);
+                 batch.set(newTeacherRef, { ...teacher, imageId: null });
+              }
+            });
+            await batch.commit();
+            toast({ title: 'Import Berhasil!', description: `${newTeachers.length} data guru berhasil ditambahkan.` });
+            setIsImportDialogOpen(false);
+            setImportFile(null);
         } catch (error) {
-          console.error("Error importing teachers: ", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Terjadi kesalahan saat mengimpor data.' });
+            console.error("Error importing teachers: ", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Terjadi kesalahan saat mengimpor data.' });
         }
-      },
-      error: (error) => {
-        console.error("Error parsing CSV: ", error);
-        toast({ variant: 'destructive', title: 'Error Parsing', description: 'Gagal memproses file CSV.' });
-      }
-    });
+    };
+    reader.onerror = (error) => {
+        console.error("Error reading file: ", error);
+        toast({ variant: 'destructive', title: 'Error Reading File', description: 'Gagal memproses file Excel.' });
+    };
+    reader.readAsBinaryString(importFile);
   };
 
   return (
@@ -272,7 +267,7 @@ export default function GuruPage() {
              <div className="flex gap-2">
                 {isAdmin && (
                   <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
-                    <Upload className="mr-2 h-4 w-4" /> Import CSV
+                    <Upload className="mr-2 h-4 w-4" /> Import Data
                   </Button>
                 )}
                 <Button onClick={handleExportPdf} variant="outline" size="sm">
@@ -415,9 +410,9 @@ export default function GuruPage() {
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Import Data Guru dari CSV</DialogTitle>
+                <DialogTitle>Import Data Guru dari Excel</DialogTitle>
                 <DialogDescription>
-                  Pilih file CSV untuk mengimpor data guru secara massal. Pastikan format file sesuai dengan template.
+                  Pilih file Excel untuk mengimpor data guru secara massal. Pastikan format file sesuai dengan template.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4 space-y-4">
@@ -425,14 +420,14 @@ export default function GuruPage() {
                   <Input 
                     id="import-file"
                     type="file" 
-                    accept=".csv"
+                    accept=".xlsx, .xls"
                     onChange={handleImportFileChange}
                     ref={importInputRef} 
                   />
                 </div>
                  <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate}>
                     <FileDown className="mr-2 h-4 w-4" />
-                    Unduh Template CSV
+                    Unduh Template Excel
                   </Button>
               </div>
               <DialogFooter>
