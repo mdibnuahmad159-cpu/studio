@@ -90,6 +90,10 @@
       "type": "object",
       "description": "Represents a curriculum or subject taught.",
       "properties": {
+        "kode": {
+            "type": "string",
+            "description": "The unique code for the subject."
+        },
         "kelas": {
           "type": "string"
         },
@@ -100,7 +104,7 @@
           "type": "string"
         }
       },
-      "required": ["kelas", "mataPelajaran", "kitab"]
+      "required": ["kode", "kelas", "mataPelajaran", "kitab"]
     },
     "Jadwal": {
       "title": "Jadwal",

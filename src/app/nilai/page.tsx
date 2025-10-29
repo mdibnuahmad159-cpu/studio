@@ -77,8 +77,6 @@ export default function NilaiPage() {
 
   const nilaiQuery = useMemoFirebase(() => {
     if (!user) return null;
-    // This query fetches all grades for the selected class and semester.
-    // It is more robust than using an 'in' query with a 30-item limit.
     return query(
       collection(firestore, 'nilai'),
       where('kelas', '==', Number(selectedKelas)),
@@ -89,7 +87,7 @@ export default function NilaiPage() {
   
   // --- Memoized Data Processing ---
   const sortedSubjects = useMemo(() => {
-    return subjects?.sort((a,b) => a.mataPelajaran.localeCompare(b.mataPelajaran)) || [];
+    return subjects?.sort((a,b) => a.kode.localeCompare(b.kode)) || [];
   }, [subjects]);
 
   const gradesMap = useMemo(() => {
@@ -222,7 +220,7 @@ export default function NilaiPage() {
   };
   
   const handleExport = (format: 'pdf' | 'csv') => {
-    const head = ['Peringkat', 'Nama', 'NIS', ...sortedSubjects.map(s => s.mataPelajaran), 'Jumlah', 'Rata-rata'];
+    const head = ['Peringkat', 'Nama', 'NIS', ...sortedSubjects.map(s => `[${s.kode}] ${s.mataPelajaran}`), 'Jumlah', 'Rata-rata'];
     const body = sortedStudents.map(student => {
         const stats = studentStats.stats.get(student.id);
         return [
@@ -264,7 +262,7 @@ export default function NilaiPage() {
 
   const downloadTemplate = () => {
     if (!students || !sortedSubjects) return;
-    const headers = ["nis", "nama_siswa", ...sortedSubjects.map(s => s.mataPelajaran)];
+    const headers = ["nis", "nama_siswa", ...sortedSubjects.map(s => s.kode)];
     const ws = XLSX.utils.json_to_sheet([], { header: headers });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template");
@@ -289,16 +287,16 @@ export default function NilaiPage() {
             }
 
             const batch = writeBatch(firestore);
-            const subjectMap = new Map(sortedSubjects.map(s => [s.mataPelajaran, s.id]));
-            const studentMap = new Map(students.map(s => [s.nis, s.id]));
+            const subjectMapByCode = new Map(sortedSubjects.map(s => [s.kode, s.id]));
+            const studentMapByNis = new Map(students.map(s => [s.nis, s.id]));
 
             importedData.forEach(row => {
               const nis = String(row.nis);
-              const siswaId = studentMap.get(nis);
+              const siswaId = studentMapByNis.get(nis);
 
               if (siswaId) {
                 Object.keys(row).forEach(header => {
-                  const kurikulumId = subjectMap.get(header);
+                  const kurikulumId = subjectMapByCode.get(header);
                   if (kurikulumId) {
                     const nilaiStr = row[header];
                     if (nilaiStr !== null && nilaiStr !== undefined && String(nilaiStr).trim() !== '') {
@@ -393,7 +391,7 @@ export default function NilaiPage() {
                   return (
                     <div key={subject.id} className="flex items-center justify-between gap-4">
                       <label className="flex-1 truncate" htmlFor={`${selectedStudent.id}-${subject.id}`}>
-                        {subject.mataPelajaran}
+                        [{subject.kode}] {subject.mataPelajaran}
                       </label>
                       <Input
                         id={`${selectedStudent.id}-${subject.id}`}
@@ -436,7 +434,7 @@ export default function NilaiPage() {
               <TableHead className="font-headline sticky left-0 bg-card z-10 w-[200px] shadow-sm">Nama Siswa</TableHead>
               <TableHead className="font-headline w-[120px]">NIS</TableHead>
               {sortedSubjects.map(subject => (
-                <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
+                <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">[{subject.kode}] {subject.mataPelajaran}</TableHead>
               ))}
               <TableHead className="font-headline text-center">Jumlah Nilai</TableHead>
               <TableHead className="font-headline text-center">Rata-rata</TableHead>
@@ -549,7 +547,7 @@ export default function NilaiPage() {
                 <DialogHeader>
                 <DialogTitle>Import Nilai dari Excel</DialogTitle>
                 <DialogDescription>
-                    Pilih file Excel untuk import nilai. Pastikan NIS dan nama mata pelajaran sesuai.
+                    Pilih file Excel untuk import nilai. Gunakan KODE mata pelajaran sebagai header kolom.
                     Data nilai yang sudah ada akan diperbarui.
                 </DialogDescription>
                 </DialogHeader>

@@ -50,7 +50,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { useToast } from '@/hooks/use-toast';
 
@@ -59,6 +59,7 @@ interface jsPDFWithAutoTable extends jsPDF {
 }
 
 const emptyKurikulum: Omit<Kitab, 'id'> = {
+  kode: '',
   kelas: '0',
   mataPelajaran: '',
   kitab: ''
@@ -99,17 +100,17 @@ export default function KurikulumPage() {
   const handleOpenDialog = (item: Kitab | null = null) => {
     if (!isAdmin) return;
     setKurikulumToEdit(item);
-    setFormData(item ? { kelas: item.kelas, mataPelajaran: item.mataPelajaran, kitab: item.kitab } : emptyKurikulum);
+    setFormData(item ? { kode: item.kode, kelas: item.kelas, mataPelajaran: item.mataPelajaran, kitab: item.kitab } : emptyKurikulum);
     setIsFormDialogOpen(true);
   };
 
   const handleSaveKurikulum = async () => {
     if (kurikulumRef && firestore) {
-      if (!formData.mataPelajaran || !formData.kitab) {
+      if (!formData.kode || !formData.mataPelajaran) {
         toast({
           variant: 'destructive',
           title: 'Data tidak lengkap',
-          description: 'Mohon isi semua kolom sebelum menyimpan.',
+          description: 'Mohon isi Kode dan Mata Pelajaran sebelum menyimpan.',
         });
         return;
       }
@@ -145,21 +146,21 @@ export default function KurikulumPage() {
     if (selectedKelas !== 'all') {
       filtered = filtered.filter(item => item.kelas === selectedKelas);
     }
-    return filtered.sort((a,b) => Number(a.kelas) - Number(b.kelas) || a.mataPelajaran.localeCompare(b.mataPelajaran));
+    return filtered.sort((a,b) => Number(a.kelas) - Number(b.kelas) || a.kode.localeCompare(b.kode));
   }, [kitabPelajaran, selectedKelas]);
 
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
     doc.text('Data Kurikulum', 20, 10);
     doc.autoTable({
-      head: [['Kelas', 'Mata Pelajaran', 'Kitab']],
-      body: filteredKitabPelajaran.map((item: Kitab) => [`Kelas ${item.kelas}`, item.mataPelajaran, item.kitab]),
+      head: [['Kode', 'Kelas', 'Mata Pelajaran', 'Kitab']],
+      body: filteredKitabPelajaran.map((item: Kitab) => [item.kode, `Kelas ${item.kelas}`, item.mataPelajaran, item.kitab]),
     });
     doc.save('data-kurikulum.pdf');
   };
 
   const downloadTemplate = () => {
-    const headers = ["kelas", "mataPelajaran", "kitab"];
+    const headers = ["kode", "kelas", "mataPelajaran", "kitab"];
     const ws = XLSX.utils.json_to_sheet([], { header: headers });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template");
@@ -190,10 +191,12 @@ export default function KurikulumPage() {
             }
 
             for (const item of newKurikulum) {
-              if (item.kelas !== undefined && item.mataPelajaran && item.kitab) {
+              if (item.kode && item.kelas !== undefined && item.mataPelajaran) {
                  await addDocumentNonBlocking(kurikulumRef, {
                    ...item,
-                   kelas: String(item.kelas) // ensure kelas is a string
+                   kitab: item.kitab || '',
+                   kode: String(item.kode),
+                   kelas: String(item.kelas)
                  });
               }
             }
@@ -264,6 +267,7 @@ export default function KurikulumPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[100px] font-headline">Kode</TableHead>
                 <TableHead className="w-[150px] font-headline">Kelas</TableHead>
                 <TableHead className="font-headline">Mata Pelajaran</TableHead>
                 <TableHead className="font-headline">Kitab</TableHead>
@@ -271,9 +275,10 @@ export default function KurikulumPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={isAdmin ? 4 : 3}>Loading...</TableCell></TableRow>}
+              {isLoading && <TableRow><TableCell colSpan={isAdmin ? 5 : 4}>Loading...</TableCell></TableRow>}
               {filteredKitabPelajaran.map((item) => (
                 <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.kode}</TableCell>
                   <TableCell className="font-medium">Kelas {item.kelas}</TableCell>
                   <TableCell>{item.mataPelajaran}</TableCell>
                   <TableCell>{item.kitab}</TableCell>
@@ -320,6 +325,10 @@ export default function KurikulumPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                 <div className="space-y-2">
+                  <Label htmlFor="kode">Kode Mata Pelajaran</Label>
+                  <Input id="kode" name="kode" value={formData.kode} onChange={handleInputChange} />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="kelas">Kelas</Label>
                   <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={formData.kelas}>

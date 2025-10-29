@@ -29,6 +29,7 @@ export type Siswa = {
 
 export type Kurikulum = {
   id: string; // Document ID from Firestore
+  kode: string;
   kelas: string;
   mataPelajaran: string;
   kitab: string;

@@ -391,7 +391,7 @@ export default function JadwalPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {kitabPelajaran?.filter(k => k.kelas === formData.kelas).map((mapel) => (
-                            <SelectItem key={mapel.id} value={mapel.mataPelajaran}>{mapel.mataPelajaran} ({mapel.kitab})</SelectItem>
+                            <SelectItem key={mapel.id} value={mapel.mataPelajaran}>[{mapel.kode}] {mapel.mataPelajaran}</SelectItem>
                         ))}
                     </SelectContent>
                   </Select>
