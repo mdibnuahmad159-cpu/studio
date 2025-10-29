@@ -295,7 +295,7 @@ export default function NilaiPage() {
         if (existingData) {
             setStudentTermData(prev => prev.map(d => d.id === docId ? {...d, [field]: value} : d));
         } else {
-            setStudentTermData(prev => [...prev, {id: docId, ...dataToSet}]);
+            setStudentTermData(prev => [...prev, {id: docId, ...dataToSet} as NilaiSiswa]);
         }
         toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
     } catch (error) {
@@ -756,6 +756,3 @@ export default function NilaiPage() {
     </div>
   );
 }
-
-
-    
