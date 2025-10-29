@@ -39,7 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking, useUser } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking, useUser, setDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { Input } from '@/components/ui/input';
@@ -153,8 +153,7 @@ export default function AlumniPage() {
               return;
             }
 
-            const batch = writeBatch(firestore);
-            newAlumni.forEach(alumnus => {
+            for (const alumnus of newAlumni) {
               if (alumnus.nis && alumnus.nama) {
                 const studentDocRef = doc(firestore, 'siswa', String(alumnus.nis));
                 const raportDocRef = doc(firestore, 'raports', String(alumnus.nis));
@@ -173,7 +172,7 @@ export default function AlumniPage() {
                   status: 'Lulus',
                   tahunLulus: alumnus.tahunLulus ? Number(alumnus.tahunLulus) : new Date().getFullYear(),
                 };
-                batch.set(studentDocRef, studentData);
+                setDocumentNonBlocking(studentDocRef, studentData, { merge: true });
 
                 const newRaport: Omit<Raport, 'id'> = {
                   nis: String(alumnus.nis),
@@ -187,11 +186,10 @@ export default function AlumniPage() {
                     kelas_6_ganjil: null, kelas_6_genap: null,
                   }
                 };
-                batch.set(raportDocRef, newRaport, { merge: true });
+                setDocumentNonBlocking(raportDocRef, newRaport, { merge: true });
               }
-            });
-
-            await batch.commit();
+            }
+            
             toast({ title: 'Import Berhasil!', description: `${newAlumni.length} data alumni berhasil ditambahkan/diperbarui.` });
             setIsImportDialogOpen(false);
             setImportFile(null);

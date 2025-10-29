@@ -29,7 +29,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, writeBatch } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -225,14 +225,12 @@ export default function GuruPage() {
               return;
             }
 
-            const batch = writeBatch(firestore);
-            newTeachers.forEach(teacher => {
+            for (const teacher of newTeachers) {
               if (teacher.name && teacher.position && teacher.whatsapp) {
-                 const newTeacherRef = doc(teachersRef);
-                 batch.set(newTeacherRef, { ...teacher, imageId: null });
+                 addDocumentNonBlocking(teachersRef, { ...teacher, imageId: null });
               }
-            });
-            await batch.commit();
+            }
+            
             toast({ title: 'Import Berhasil!', description: `${newTeachers.length} data guru berhasil ditambahkan.` });
             setIsImportDialogOpen(false);
             setImportFile(null);

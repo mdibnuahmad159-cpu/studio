@@ -52,7 +52,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 
 
@@ -303,8 +303,7 @@ export default function SiswaPage() {
               return;
             }
 
-            const batch = writeBatch(firestore);
-            newStudents.forEach(student => {
+            for (const student of newStudents) {
               if (student.nis && student.nama) {
                 const studentDocRef = doc(firestore, 'siswa', String(student.nis));
                 const raportDocRef = doc(firestore, 'raports', String(student.nis));
@@ -322,7 +321,7 @@ export default function SiswaPage() {
                   kelas: student.kelas ? Number(student.kelas) : 0,
                   status: student.status || 'Aktif',
                 };
-                batch.set(studentDocRef, studentData);
+                setDocumentNonBlocking(studentDocRef, studentData, { merge: true });
 
                 const newRaport: Omit<Raport, 'id'> = {
                   nis: String(student.nis),
@@ -336,11 +335,10 @@ export default function SiswaPage() {
                     kelas_6_ganjil: null, kelas_6_genap: null,
                   }
                 };
-                batch.set(raportDocRef, newRaport, { merge: true });
+                setDocumentNonBlocking(raportDocRef, newRaport, { merge: true });
               }
-            });
-
-            await batch.commit();
+            }
+            
             toast({ title: 'Import Berhasil!', description: `${newStudents.length} data siswa berhasil ditambahkan/diperbarui.` });
             setIsImportDialogOpen(false);
             setImportFile(null);

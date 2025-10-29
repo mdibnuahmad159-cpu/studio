@@ -50,7 +50,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, writeBatch } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { useToast } from '@/hooks/use-toast';
 
@@ -181,15 +181,11 @@ export default function KurikulumPage() {
               return;
             }
 
-            const batch = writeBatch(firestore);
-            newKurikulum.forEach(item => {
+            for (const item of newKurikulum) {
               if (item.kelas && item.mataPelajaran && item.kitab) {
-                 const newDocRef = doc(collection(firestore, 'kurikulum')); // Creates a new doc with a unique ID
-                 batch.set(newDocRef, item);
+                 addDocumentNonBlocking(kurikulumRef, item);
               }
-            });
-
-            await batch.commit();
+            }
 
             toast({ title: 'Import Berhasil!', description: `${newKurikulum.length} data kurikulum berhasil ditambahkan.` });
             setIsImportDialogOpen(false);
