@@ -126,15 +126,15 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
   const studentIds = useMemo(() => students?.map(s => s.id) || [], [students]);
 
   const nilaiQuery = useMemoFirebase(() => {
-    // CRITICAL FIX: Do not run this query if students haven't loaded yet.
-    if (!firestore || !user || isNaN(kelasNum) || !students || studentIds.length === 0) return null;
+    if (studentsLoading || studentIds.length === 0) return null;
+    if (!firestore || !user || isNaN(kelasNum)) return null;
     return query(
       collection(firestore, 'nilai'),
       where('kelas', '==', kelasNum),
       where('semester', '==', selectedSemester),
       where('siswaId', 'in', studentIds)
     );
-  }, [firestore, user, kelasNum, selectedSemester, students, studentIds]); // Depends on `students` to ensure `studentIds` is ready.
+  }, [firestore, user, kelasNum, selectedSemester, studentIds, studentsLoading]);
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
   // --- Memoized Data Processing ---
@@ -252,7 +252,6 @@ export default function NilaiPage() {
   }, [students, searchQuery, studentStats.ranks]);
   
   useEffect(() => {
-    // CRITICAL FIX: Only set selected student if sortedStudents is valid and populated
     if (sortedStudents && sortedStudents.length > 0) {
       if (!selectedStudent || !sortedStudents.find(s => s.id === selectedStudent.id)) {
         setSelectedStudent(sortedStudents[0]);
@@ -735,3 +734,5 @@ export default function NilaiPage() {
     </div>
   );
 }
+
+    
