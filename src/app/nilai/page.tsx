@@ -20,7 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Siswa, Kurikulum, Nilai, Guru } from '@/lib/data';
+import { Siswa, Kurikulum, Nilai, NilaiSiswa } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { Search, FileDown, Upload, CalendarIcon } from 'lucide-react';
@@ -42,6 +42,8 @@ interface jsPDFWithAutoTable extends jsPDF {
 }
 
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
+const ABSENSI_OPTIONS = ['sakit', 'izin', 'alpa'];
+const KEPUTUSAN_OPTIONS = ['lanjut semester genap', 'naik kelas'];
 
 const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap') => {
   const firestore = useFirestore();
@@ -53,12 +55,6 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
     return query(collection(firestore, 'siswa'), where('status', '==', 'Aktif'), where('kelas', '==', kelasNum));
   }, [firestore, user, kelasNum]);
   const { data: students, isLoading: studentsLoading } = useCollection<Siswa>(siswaQuery);
-
-  const guruQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return collection(firestore, 'gurus');
-  }, [firestore, user]);
-  const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(guruQuery);
 
   const kurikulumQuery = useMemoFirebase(() => {
     if (!user || isNaN(kelasNum)) return null;
@@ -79,7 +75,18 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
   }, [firestore, user, kelasNum, selectedSemester, studentIds]);
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
-  const isLoading = studentsLoading || subjectsLoading || teachersLoading || (studentIds.length > 0 && gradesLoading);
+  const nilaiSiswaQuery = useMemoFirebase(() => {
+    if (!user || isNaN(kelasNum) || studentIds.length === 0) return null;
+    return query(
+      collection(firestore, 'nilaiSiswa'),
+      where('kelas', '==', kelasNum),
+      where('semester', '==', selectedSemester),
+      where('siswaId', 'in', studentIds)
+    );
+  }, [firestore, user, kelasNum, selectedSemester, studentIds]);
+  const { data: studentTermData, isLoading: studentTermDataLoading } = useCollection<NilaiSiswa>(nilaiSiswaQuery);
+
+  const isLoading = studentsLoading || subjectsLoading || (studentIds.length > 0 && (gradesLoading || studentTermDataLoading));
 
   const sortedSubjects = useMemo(() => {
     if (!subjects) return [];
@@ -95,6 +102,15 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
     });
     return map;
   }, [grades]);
+  
+  const studentTermDataMap = useMemo(() => {
+    const map = new Map<string, NilaiSiswa>();
+    if (!studentTermData) return map;
+    studentTermData.forEach(data => {
+      map.set(data.siswaId, data);
+    });
+    return map;
+  }, [studentTermData]);
 
   const studentStats = useMemo(() => {
     const stats = new Map<string, { sum: number; average: number }>();
@@ -143,9 +159,9 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
 
   return {
     students,
-    teachers,
     subjects: sortedSubjects,
     gradesMap,
+    studentTermDataMap,
     studentStats,
     isLoading
   };
@@ -169,9 +185,9 @@ export default function NilaiPage() {
   
   const { 
     students, 
-    teachers, 
     subjects: sortedSubjects, 
     gradesMap,
+    studentTermDataMap,
     studentStats, 
     isLoading 
   } = useNilaiData(selectedKelas, selectedSemester);
@@ -241,13 +257,36 @@ export default function NilaiPage() {
         return false;
     }
   };
+
+  const handleSaveTermData = async (siswaId: string, field: 'absensi' | 'keputusan', value: string) => {
+    if (!firestore) return;
+    
+    const existingData = studentTermDataMap.get(siswaId);
+    const docId = existingData ? existingData.id : `${siswaId}_${selectedKelas}_${selectedSemester}`;
+    const termDataRef = doc(firestore, 'nilaiSiswa', docId);
+
+    const dataToSave = {
+      siswaId,
+      kelas: Number(selectedKelas),
+      semester: selectedSemester,
+      [field]: value,
+    };
+
+    try {
+      await setDocumentNonBlocking(termDataRef, dataToSave, { merge: true });
+      toast({ title: 'Sukses!', description: `Data ${field} berhasil disimpan.` });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Gagal!', description: `Tidak dapat menyimpan data ${field}.` });
+    }
+  };
   
   const handleExport = (format: 'pdf' | 'csv') => {
     if (!students || !sortedSubjects) return;
 
-    const head = ['Peringkat', 'Nama', 'NIS', ...sortedSubjects.map(s => s.mataPelajaran), 'Jumlah', 'Rata-rata'];
+    const head = ['Peringkat', 'Nama', 'NIS', ...sortedSubjects.map(s => s.mataPelajaran), 'Jumlah', 'Rata-rata', 'Absensi', 'Keputusan'];
     const body = sortedStudents.map(student => {
         const stats = studentStats.stats.get(student.id);
+        const termData = studentTermDataMap.get(student.id);
         return [
             studentStats.ranks.get(student.id) || '-',
             student.nama,
@@ -258,6 +297,8 @@ export default function NilaiPage() {
             }),
             stats?.sum.toFixed(0) || '0',
             stats?.average.toFixed(2) || '0.00',
+            termData?.absensi || '',
+            termData?.keputusan || '',
         ];
     });
 
@@ -452,6 +493,38 @@ export default function NilaiPage() {
                         </div>
                     </div>
                 )}
+                <div className="mt-6 pt-4 border-t space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <label className="flex-1 truncate">Absensi</label>
+                      <Select
+                        value={studentTermDataMap.get(selectedStudent.id)?.absensi || ''}
+                        onValueChange={(value) => handleSaveTermData(selectedStudent.id, 'absensi', value)}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Pilih" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">-</SelectItem>
+                          {ABSENSI_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <label className="flex-1 truncate">Keputusan</label>
+                      <Select
+                        value={studentTermDataMap.get(selectedStudent.id)?.keputusan || ''}
+                        onValueChange={(value) => handleSaveTermData(selectedStudent.id, 'keputusan', value)}
+                      >
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Pilih" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">-</SelectItem>
+                          {KEPUTUSAN_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                </div>
               </div>
             )}
           </ScrollArea>
@@ -474,14 +547,17 @@ export default function NilaiPage() {
                 <TableHead className="font-headline text-center">Jumlah</TableHead>
                 <TableHead className="font-headline text-center">Rata-rata</TableHead>
                 <TableHead className="font-headline text-center">Peringkat</TableHead>
+                <TableHead className="font-headline text-center min-w-[120px]">Absensi</TableHead>
+                <TableHead className="font-headline text-center min-w-[200px]">Keputusan</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center h-24">Memuat data...</TableCell></TableRow>}
-                {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
+                {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 7} className="text-center h-24">Memuat data...</TableCell></TableRow>}
+                {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 7} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
                 {!isLoading && sortedStudents.map(student => {
                 const stats = studentStats.stats.get(student.id);
                 const rank = studentStats.ranks.get(student.id);
+                const termData = studentTermDataMap.get(student.id);
                 return (
                 <TableRow key={student.id}>
                     <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
@@ -503,6 +579,34 @@ export default function NilaiPage() {
                     <TableCell className="text-center font-medium">{stats?.sum.toFixed(0) || 0}</TableCell>
                     <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
                     <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
+                    <TableCell className="p-1">
+                        <Select 
+                            value={termData?.absensi || ''}
+                            onValueChange={(value) => handleSaveTermData(student.id, 'absensi', value)}
+                        >
+                            <SelectTrigger className="min-w-[100px]">
+                                <SelectValue placeholder="Pilih" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="">-</SelectItem>
+                                {ABSENSI_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </TableCell>
+                     <TableCell className="p-1">
+                        <Select 
+                            value={termData?.keputusan || ''}
+                            onValueChange={(value) => handleSaveTermData(student.id, 'keputusan', value)}
+                        >
+                            <SelectTrigger className="min-w-[180px]">
+                                <SelectValue placeholder="Pilih" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="">-</SelectItem>
+                                {KEPUTUSAN_OPTIONS.map(opt => <SelectItem key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </TableCell>
                 </TableRow>
                 )})}
             </TableBody>

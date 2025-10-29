@@ -62,3 +62,12 @@ export type Nilai = {
     semester: 'ganjil' | 'genap';
     nilai: number;
 };
+
+export type NilaiSiswa = {
+    id: string;
+    siswaId: string;
+    kelas: number;
+    semester: 'ganjil' | 'genap';
+    absensi?: 'sakit' | 'izin' | 'alpa' | null;
+    keputusan?: 'lanjut semester genap' | 'naik kelas' | null;
+}
