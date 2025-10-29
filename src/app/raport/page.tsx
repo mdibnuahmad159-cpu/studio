@@ -51,7 +51,7 @@ export default function RaportPage() {
 
   const filteredStudents = useMemo(() => {
     if (!activeStudents) return [];
-    let sorted = [...activeStudents].sort((a,b) => a.nama.localeCompare(b.nama));
+    let sorted = [...activeStudents].sort((a,b) => b.nis.localeCompare(a.nis));
     if (!searchQuery) return sorted;
     
     return sorted.filter(student => 
