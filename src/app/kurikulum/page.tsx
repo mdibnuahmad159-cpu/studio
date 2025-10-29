@@ -104,7 +104,16 @@ export default function KurikulumPage() {
   };
 
   const handleSaveKurikulum = async () => {
-    if (formData.kelas && formData.mataPelajaran && formData.kitab && kurikulumRef && firestore) {
+    if (!formData.mataPelajaran || !formData.kitab) {
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Menyimpan',
+        description: 'Mohon isi semua kolom yang diperlukan.',
+      });
+      return;
+    }
+    
+    if (kurikulumRef && firestore) {
       if (kurikulumToEdit) {
         const kurikulumDocRef = doc(firestore, 'kurikulum', kurikulumToEdit.id);
         await updateDocumentNonBlocking(kurikulumDocRef, formData);
@@ -182,9 +191,11 @@ export default function KurikulumPage() {
             }
 
             const batch = writeBatch(firestore);
+            const kurikulumCollection = collection(firestore, 'kurikulum');
+
             newKurikulum.forEach(item => {
               if (item.kelas && item.mataPelajaran && item.kitab) {
-                 const newDocRef = doc(kurikulumRef);
+                 const newDocRef = doc(kurikulumCollection);
                  batch.set(newDocRef, item);
               }
             });
