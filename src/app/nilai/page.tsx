@@ -67,8 +67,9 @@ export default function NilaiPage() {
   
   // --- Data Fetching ---
   const siswaQuery = useMemoFirebase(() => {
-    if (!user || !selectedKelas) return null;
-    return query(collection(firestore, 'siswa'), where('status', '==', 'Aktif'), where('kelas', '==', Number(selectedKelas)));
+    const kelasNum = Number(selectedKelas);
+    if (!user || !selectedKelas || isNaN(kelasNum)) return null;
+    return query(collection(firestore, 'siswa'), where('status', '==', 'Aktif'), where('kelas', '==', kelasNum));
   }, [firestore, user, selectedKelas]);
   const { data: students, isLoading: studentsLoading } = useCollection<Siswa>(siswaQuery);
 
@@ -90,20 +91,22 @@ export default function NilaiPage() {
   const { data: subjects, isLoading: subjectsLoading } = useCollection<Kurikulum>(kurikulumQuery);
 
   const nilaiQuery = useMemoFirebase(() => {
-    if (!user || !selectedKelas) return null;
+    const kelasNum = Number(selectedKelas);
+    if (!user || !selectedKelas || isNaN(kelasNum)) return null;
     return query(
       collection(firestore, 'nilai'),
-      where('kelas', '==', Number(selectedKelas)),
+      where('kelas', '==', kelasNum),
       where('semester', '==', selectedSemester)
     );
   }, [firestore, user, selectedKelas, selectedSemester]);
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
   const nilaiSiswaQuery = useMemoFirebase(() => {
-    if (!user || !selectedKelas) return null;
+    const kelasNum = Number(selectedKelas);
+    if (!user || !selectedKelas || isNaN(kelasNum)) return null;
     return query(
       collection(firestore, 'nilaiSiswa'),
-      where('kelas', '==', Number(selectedKelas)),
+      where('kelas', '==', kelasNum),
       where('semester', '==', selectedSemester)
     );
   }, [firestore, user, selectedKelas, selectedSemester]);
@@ -136,7 +139,7 @@ export default function NilaiPage() {
     const stats = new Map<string, { sum: number; average: number }>();
     const ranks = new Map<string, number>();
 
-    if (!students || students.length === 0 || !sortedSubjects || sortedSubjects.length === 0) {
+    if (!students || students.length === 0 || !sortedSubjects) {
       return { stats, ranks };
     }
 
@@ -563,7 +566,7 @@ export default function NilaiPage() {
 
 
   return (
-    <div className="bg-background pb-32 md:pb-0">
+    <div className="bg-background">
       <div className="container flex flex-col py-12 md:py-20 h-full max-h-[calc(100vh-8rem)]">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <div className="text-center sm:text-left">
@@ -723,3 +726,4 @@ export default function NilaiPage() {
     </div>
   );
 }
+
