@@ -556,7 +556,7 @@ export default function NilaiPage() {
               <DialogDescription>
                 Pilih file CSV untuk import nilai. Pastikan NIS dan nama mata pelajaran sesuai.
                 Data nilai yang sudah ada akan diperbarui.
-              </DDialogDescription>
+              </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
               <div className="flex items-center gap-4">
@@ -568,7 +568,7 @@ export default function NilaiPage() {
                   ref={importInputRef} 
                 />
               </div>
-                <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate} disabled={!students || !sortedSubjects}>
+                <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate}>
                   <FileDown className="mr-2 h-4 w-4" />
                   Unduh Template CSV untuk Kelas {selectedKelas}
                 </Button>

@@ -339,7 +339,7 @@ export default function KelasPage() {
           <AlertDialog open={!!alertInfo} onOpenChange={() => setAlertInfo(null)}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <DialogTitle>{alertInfo?.title}</DialogTitle>
+                <AlertDialogTitle>{alertInfo?.title}</AlertDialogTitle>
                 <AlertDialogDescription>
                   {alertInfo?.description}
                 </AlertDialogDescription>
@@ -356,5 +356,5 @@ export default function KelasPage() {
       )}
     </div>
   );
-
+}
     
