@@ -100,115 +100,119 @@ const StudentTermDataCell = ({
 
 // Custom hook for data fetching and processing logic
 const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap') => {
-  const firestore = useFirestore();
-  const { user } = useUser();
-  const kelasNum = useMemo(() => parseInt(selectedKelas, 10), [selectedKelas]);
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const kelasNum = useMemo(() => parseInt(selectedKelas, 10), [selectedKelas]);
 
-  // --- Data Fetching ---
-  const siswaQuery = useMemoFirebase(() => {
-    if (!firestore || !user || isNaN(kelasNum)) return null;
-    return query(collection(firestore, 'siswa'), where('status', '==', 'Aktif'), where('kelas', '==', kelasNum));
-  }, [firestore, user, kelasNum]);
-  const { data: students, isLoading: studentsLoading } = useCollection<Siswa>(siswaQuery);
+    // --- STAGE 1: Fetch primary data (students, subjects, teachers) ---
+    const siswaQuery = useMemoFirebase(() => {
+        if (!firestore || !user || isNaN(kelasNum)) return null;
+        return query(collection(firestore, 'siswa'), where('status', '==', 'Aktif'), where('kelas', '==', kelasNum));
+    }, [firestore, user, kelasNum]);
+    const { data: students, isLoading: studentsLoading } = useCollection<Siswa>(siswaQuery);
 
-  const guruQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return collection(firestore, 'gurus');
-  }, [firestore, user]);
-  const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(guruQuery);
-  
-  const kurikulumQuery = useMemoFirebase(() => {
-    if (!firestore || !user || isNaN(kelasNum)) return null;
-    return query(collection(firestore, 'kurikulum'), where('kelas', '==', selectedKelas));
-  }, [firestore, user, selectedKelas]);
-  const { data: subjects, isLoading: subjectsLoading } = useCollection<Kurikulum>(kurikulumQuery);
-
-  const studentIds = useMemo(() => students?.map(s => s.id) || [], [students]);
-
-  const nilaiQuery = useMemoFirebase(() => {
-    if (studentsLoading || studentIds.length === 0) return null; // Defensive check
-    if (!firestore || !user || isNaN(kelasNum)) return null;
-    return query(
-      collection(firestore, 'nilai'),
-      where('kelas', '==', kelasNum),
-      where('semester', '==', selectedSemester),
-      where('siswaId', 'in', studentIds)
-    );
-  }, [firestore, user, kelasNum, selectedSemester, studentIds, studentsLoading]);
-  const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
-  
-  // --- Memoized Data Processing ---
-  const sortedSubjects = useMemo(() => {
-    if (!subjects) return [];
-    return [...subjects].sort((a,b) => a.kode.localeCompare(b.kode));
-  }, [subjects]);
-
-  const gradesMap = useMemo(() => {
-    const map = new Map<string, Nilai>();
-    if (!grades) return map;
-    grades.forEach(grade => {
-      const key = `${grade.siswaId}-${grade.kurikulumId}`;
-      map.set(key, grade);
-    });
-    return map;
-  }, [grades]);
-  
-  const studentStats = useMemo(() => {
-    const stats = new Map<string, { sum: number; average: number }>();
-    const ranks = new Map<string, number>();
+    const guruQuery = useMemoFirebase(() => {
+        if (!firestore || !user) return null;
+        return collection(firestore, 'gurus');
+    }, [firestore, user]);
+    const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(guruQuery);
     
-    if (!students || students.length === 0 || !sortedSubjects) {
-      return { stats, ranks };
-    }
+    const kurikulumQuery = useMemoFirebase(() => {
+        if (!firestore || !user || isNaN(kelasNum)) return null;
+        return query(collection(firestore, 'kurikulum'), where('kelas', '==', selectedKelas));
+    }, [firestore, user, selectedKelas]);
+    const { data: subjects, isLoading: subjectsLoading } = useCollection<Kurikulum>(kurikulumQuery);
 
-    students.forEach(student => {
-      let sum = 0;
-      let count = 0;
-      sortedSubjects.forEach(subject => {
-        const grade = gradesMap.get(`${student.id}-${subject.id}`);
-        if (grade?.nilai) {
-          sum += grade.nilai;
-          count++;
+    const studentIds = useMemo(() => students?.map(s => s.id) || [], [students]);
+
+    // --- STAGE 2: Fetch dependent data (grades) only when primary data is ready ---
+    const nilaiQuery = useMemoFirebase(() => {
+        // CRITICAL: Do not run this query until students have been loaded and their IDs are available.
+        if (studentsLoading || studentIds.length === 0) return null;
+        
+        return query(
+            collection(firestore, 'nilai'),
+            where('kelas', '==', kelasNum),
+            where('semester', '==', selectedSemester),
+            where('siswaId', 'in', studentIds)
+        );
+    }, [firestore, kelasNum, selectedSemester, studentIds, studentsLoading]);
+
+    // Note: gradesLoading will be true if `nilaiQuery` is null, which is what we want.
+    const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
+  
+    // --- Memoized Data Processing ---
+    const sortedSubjects = useMemo(() => {
+        if (!subjects) return [];
+        return [...subjects].sort((a,b) => a.kode.localeCompare(b.kode));
+    }, [subjects]);
+
+    const gradesMap = useMemo(() => {
+        const map = new Map<string, Nilai>();
+        if (!grades) return map;
+        grades.forEach(grade => {
+        const key = `${grade.siswaId}-${grade.kurikulumId}`;
+        map.set(key, grade);
+        });
+        return map;
+    }, [grades]);
+  
+    const studentStats = useMemo(() => {
+        const stats = new Map<string, { sum: number; average: number }>();
+        const ranks = new Map<string, number>();
+        
+        if (!students || students.length === 0 || !sortedSubjects) {
+        return { stats, ranks };
         }
-      });
-      const average = count > 0 ? sum / count : 0;
-      stats.set(student.id, { sum, average });
-    });
 
-    const sortedByAverage = [...students].sort((a, b) => {
-      const avgA = stats.get(a.id)?.average || 0;
-      const avgB = stats.get(b.id)?.average || 0;
-      return avgB - avgA;
-    });
-
-    let rank = 1;
-    for (let i = 0; i < sortedByAverage.length; i++) {
-        const currentStudent = sortedByAverage[i];
-        if (i > 0) {
-            const prevStudent = sortedByAverage[i-1];
-            const currentAvg = stats.get(currentStudent.id)?.average || 0;
-            const prevAvg = stats.get(prevStudent.id)?.average || 0;
-            if (currentAvg < prevAvg) {
-                rank = i + 1;
+        students.forEach(student => {
+        let sum = 0;
+        let count = 0;
+        sortedSubjects.forEach(subject => {
+            const grade = gradesMap.get(`${student.id}-${subject.id}`);
+            if (grade?.nilai) {
+            sum += grade.nilai;
+            count++;
             }
+        });
+        const average = count > 0 ? sum / count : 0;
+        stats.set(student.id, { sum, average });
+        });
+
+        const sortedByAverage = [...students].sort((a, b) => {
+        const avgA = stats.get(a.id)?.average || 0;
+        const avgB = stats.get(b.id)?.average || 0;
+        return avgB - avgA;
+        });
+
+        let rank = 1;
+        for (let i = 0; i < sortedByAverage.length; i++) {
+            const currentStudent = sortedByAverage[i];
+            if (i > 0) {
+                const prevStudent = sortedByAverage[i-1];
+                const currentAvg = stats.get(currentStudent.id)?.average || 0;
+                const prevAvg = stats.get(prevStudent.id)?.average || 0;
+                if (currentAvg < prevAvg) {
+                    rank = i + 1;
+                }
+            }
+            ranks.set(currentStudent.id, rank);
         }
-        ranks.set(currentStudent.id, rank);
-    }
-    
-    return { stats, ranks };
-  }, [students, sortedSubjects, gradesMap]);
+        
+        return { stats, ranks };
+    }, [students, sortedSubjects, gradesMap]);
 
-  const isLoading = studentsLoading || subjectsLoading || teachersLoading || (studentIds.length > 0 && gradesLoading);
+    const isLoading = studentsLoading || subjectsLoading || teachersLoading || gradesLoading;
 
-  return {
-    students,
-    teachers,
-    subjects,
-    gradesMap,
-    sortedSubjects,
-    studentStats,
-    isLoading
-  };
+    return {
+        students,
+        teachers,
+        subjects,
+        gradesMap,
+        sortedSubjects,
+        studentStats,
+        isLoading
+    };
 };
 
 
