@@ -29,7 +29,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -122,9 +122,9 @@ export default function GuruPage() {
     if (formData.name && formData.position && formData.whatsapp) {
       if (teacherToEdit) {
         const teacherDocRef = doc(firestore, 'gurus', teacherToEdit.id);
-        updateDocumentNonBlocking(teacherDocRef, { ...formData });
+        await updateDocumentNonBlocking(teacherDocRef, { ...formData });
       } else {
-        addDocumentNonBlocking(teachersRef, { ...formData, imageId: null });
+        await addDocumentNonBlocking(teachersRef, { ...formData, imageId: null });
       }
       setIsFormDialogOpen(false);
       setTeacherToEdit(null);
@@ -208,7 +208,7 @@ export default function GuruPage() {
     }
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     if (!importFile || !firestore || !teachersRef) return;
     
     const reader = new FileReader();
@@ -225,12 +225,15 @@ export default function GuruPage() {
               return;
             }
 
-            for (const teacher of newTeachers) {
+            const batch = writeBatch(firestore);
+            newTeachers.forEach(teacher => {
               if (teacher.name && teacher.position && teacher.whatsapp) {
-                 addDocumentNonBlocking(teachersRef, { ...teacher, imageId: null });
+                 const newTeacherRef = doc(teachersRef);
+                 batch.set(newTeacherRef, { ...teacher, imageId: null });
               }
-            }
+            });
             
+            await batch.commit();
             toast({ title: 'Import Berhasil!', description: `${newTeachers.length} data guru berhasil ditambahkan.` });
             setIsImportDialogOpen(false);
             setImportFile(null);

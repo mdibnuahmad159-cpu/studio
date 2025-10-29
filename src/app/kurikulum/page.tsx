@@ -50,7 +50,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { useToast } from '@/hooks/use-toast';
 
@@ -107,9 +107,9 @@ export default function KurikulumPage() {
     if (formData.kelas && formData.mataPelajaran && formData.kitab && kurikulumRef && firestore) {
       if (kurikulumToEdit) {
         const kurikulumDocRef = doc(firestore, 'kurikulum', kurikulumToEdit.id);
-        updateDocumentNonBlocking(kurikulumDocRef, formData);
+        await updateDocumentNonBlocking(kurikulumDocRef, formData);
       } else {
-        addDocumentNonBlocking(kurikulumRef, formData);
+        await addDocumentNonBlocking(kurikulumRef, formData);
       }
       toast({ title: 'Sukses!', description: 'Data kurikulum berhasil disimpan.' });
       setIsFormDialogOpen(false);
@@ -164,7 +164,7 @@ export default function KurikulumPage() {
     }
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     if (!importFile || !kurikulumRef || !firestore) return;
     
     const reader = new FileReader();
@@ -181,12 +181,15 @@ export default function KurikulumPage() {
               return;
             }
 
-            for (const item of newKurikulum) {
+            const batch = writeBatch(firestore);
+            newKurikulum.forEach(item => {
               if (item.kelas && item.mataPelajaran && item.kitab) {
-                 addDocumentNonBlocking(kurikulumRef, item);
+                 const newDocRef = doc(kurikulumRef);
+                 batch.set(newDocRef, item);
               }
-            }
+            });
 
+            await batch.commit();
             toast({ title: 'Import Berhasil!', description: `${newKurikulum.length} data kurikulum berhasil ditambahkan.` });
             setIsImportDialogOpen(false);
             setImportFile(null);

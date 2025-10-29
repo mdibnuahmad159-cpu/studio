@@ -165,7 +165,7 @@ export default function NilaiPage() {
 
   // --- Event Handlers ---
   const handleSaveGrade = async (siswaId: string, kurikulumId: string, value: string) => {
-    if (!firestore) return;
+    if (!firestore || !isAdmin) return true;
     if (value.trim() === '') {
         // Handle deletion if value is cleared.
         const grade = gradesMap.get(`${siswaId}-${kurikulumId}`);
@@ -271,7 +271,7 @@ export default function NilaiPage() {
     XLSX.writeFile(wb, `template_nilai_kelas_${selectedKelas}_${selectedSemester}.xlsx`);
   };
   
-  const handleImport = () => {
+  const handleImport = async () => {
     if (!importFile || !firestore || !students || !sortedSubjects) return;
 
     const reader = new FileReader();
@@ -402,6 +402,7 @@ export default function NilaiPage() {
                         onBlur={(e) => handleSaveGrade(selectedStudent.id, subject.id, e.target.value)}
                         className="w-24 text-center"
                         placeholder="-"
+                        disabled={!isAdmin}
                       />
                     </div>
                   );
@@ -462,6 +463,7 @@ export default function NilaiPage() {
                         onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
                         className="min-w-[70px] text-center mx-auto"
                         placeholder="-"
+                        disabled={!isAdmin}
                       />
                     </TableCell>
                   );
@@ -490,9 +492,11 @@ export default function NilaiPage() {
             </p>
           </div>
            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
-                  <Upload className="mr-2 h-4 w-4" /> Import Excel
-                </Button>
+                {isAdmin && (
+                    <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
+                        <Upload className="mr-2 h-4 w-4" /> Import Excel
+                    </Button>
+                )}
                 <Button onClick={() => handleExport('pdf')} variant="outline" size="sm">
                   <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
                 </Button>
@@ -539,39 +543,41 @@ export default function NilaiPage() {
           {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
 
-        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Import Nilai dari Excel</DialogTitle>
-              <DialogDescription>
-                Pilih file Excel untuk import nilai. Pastikan NIS dan nama mata pelajaran sesuai.
-                Data nilai yang sudah ada akan diperbarui.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-4">
-              <div className="flex items-center gap-4">
-                <Input 
-                  id="import-file" 
-                  type="file" 
-                  accept=".xlsx, .xls"
-                  onChange={handleImportFileChange}
-                  ref={importInputRef} 
-                />
-              </div>
-                <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate}>
-                  <FileDown className="mr-2 h-4 w-4" />
-                  Unduh Template Excel untuk Kelas {selectedKelas}
+        {isAdmin && (
+            <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                <DialogTitle>Import Nilai dari Excel</DialogTitle>
+                <DialogDescription>
+                    Pilih file Excel untuk import nilai. Pastikan NIS dan nama mata pelajaran sesuai.
+                    Data nilai yang sudah ada akan diperbarui.
+                </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                <div className="flex items-center gap-4">
+                    <Input 
+                    id="import-file" 
+                    type="file" 
+                    accept=".xlsx, .xls"
+                    onChange={handleImportFileChange}
+                    ref={importInputRef} 
+                    />
+                </div>
+                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Unduh Template Excel untuk Kelas {selectedKelas}
+                    </Button>
+                </div>
+                <DialogFooter>
+                <Button variant="secondary" onClick={() => setIsImportDialogOpen(false)}>Batal</Button>
+                <Button onClick={handleImport} disabled={!importFile}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Import
                 </Button>
-            </div>
-            <DialogFooter>
-              <Button variant="secondary" onClick={() => setIsImportDialogOpen(false)}>Batal</Button>
-              <Button onClick={handleImport} disabled={!importFile}>
-                <Upload className="mr-2 h-4 w-4" />
-                Import
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+                </DialogFooter>
+            </DialogContent>
+            </Dialog>
+        )}
       </div>
     </div>
   );

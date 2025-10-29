@@ -52,7 +52,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 
 
@@ -158,7 +158,7 @@ export default function SiswaPage() {
         description: 'Harap tunggu sebentar.'
     });
 
-    const processAndSave = (fileUrl: string) => {
+    const processAndSave = async (fileUrl: string) => {
         const studentData: Omit<DetailedStudent, 'id' | 'tahunLulus'> = {
             nis: formData.nis,
             nama: formData.nama,
@@ -174,7 +174,7 @@ export default function SiswaPage() {
         };
 
         const studentDocRef = doc(firestore, 'siswa', formData.nis);
-        setDocumentNonBlocking(studentDocRef, studentData, { merge: true });
+        await setDocumentNonBlocking(studentDocRef, studentData, { merge: true });
 
         if (!studentToEdit) {
             const raportDocRef = doc(firestore, 'raports', formData.nis);
@@ -190,7 +190,7 @@ export default function SiswaPage() {
                   kelas_6_ganjil: null, kelas_6_genap: null,
                 }
             };
-            setDocumentNonBlocking(raportDocRef, newRaport, { merge: true });
+            await setDocumentNonBlocking(raportDocRef, newRaport, { merge: true });
         }
         
         setIsFormDialogOpen(false);
@@ -286,7 +286,7 @@ export default function SiswaPage() {
     }
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     if (!importFile || !firestore) return;
 
     const reader = new FileReader();
@@ -303,7 +303,9 @@ export default function SiswaPage() {
               return;
             }
 
-            for (const student of newStudents) {
+            const batch = writeBatch(firestore);
+
+            newStudents.forEach(student => {
               if (student.nis && student.nama) {
                 const studentDocRef = doc(firestore, 'siswa', String(student.nis));
                 const raportDocRef = doc(firestore, 'raports', String(student.nis));
@@ -321,7 +323,7 @@ export default function SiswaPage() {
                   kelas: student.kelas ? Number(student.kelas) : 0,
                   status: student.status || 'Aktif',
                 };
-                setDocumentNonBlocking(studentDocRef, studentData, { merge: true });
+                batch.set(studentDocRef, studentData, { merge: true });
 
                 const newRaport: Omit<Raport, 'id'> = {
                   nis: String(student.nis),
@@ -335,10 +337,11 @@ export default function SiswaPage() {
                     kelas_6_ganjil: null, kelas_6_genap: null,
                   }
                 };
-                setDocumentNonBlocking(raportDocRef, newRaport, { merge: true });
+                batch.set(raportDocRef, newRaport, { merge: true });
               }
-            }
+            });
             
+            await batch.commit();
             toast({ title: 'Import Berhasil!', description: `${newStudents.length} data siswa berhasil ditambahkan/diperbarui.` });
             setIsImportDialogOpen(false);
             setImportFile(null);

@@ -136,7 +136,7 @@ export default function AlumniPage() {
     }
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     if (!importFile || !firestore) return;
 
     const reader = new FileReader();
@@ -153,7 +153,9 @@ export default function AlumniPage() {
               return;
             }
 
-            for (const alumnus of newAlumni) {
+            const batch = writeBatch(firestore);
+
+            newAlumni.forEach(alumnus => {
               if (alumnus.nis && alumnus.nama) {
                 const studentDocRef = doc(firestore, 'siswa', String(alumnus.nis));
                 const raportDocRef = doc(firestore, 'raports', String(alumnus.nis));
@@ -172,7 +174,7 @@ export default function AlumniPage() {
                   status: 'Lulus',
                   tahunLulus: alumnus.tahunLulus ? Number(alumnus.tahunLulus) : new Date().getFullYear(),
                 };
-                setDocumentNonBlocking(studentDocRef, studentData, { merge: true });
+                batch.set(studentDocRef, studentData, { merge: true });
 
                 const newRaport: Omit<Raport, 'id'> = {
                   nis: String(alumnus.nis),
@@ -186,10 +188,11 @@ export default function AlumniPage() {
                     kelas_6_ganjil: null, kelas_6_genap: null,
                   }
                 };
-                setDocumentNonBlocking(raportDocRef, newRaport, { merge: true });
+                batch.set(raportDocRef, newRaport, { merge: true });
               }
-            }
+            });
             
+            await batch.commit();
             toast({ title: 'Import Berhasil!', description: `${newAlumni.length} data alumni berhasil ditambahkan/diperbarui.` });
             setIsImportDialogOpen(false);
             setImportFile(null);
