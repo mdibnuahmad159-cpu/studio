@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Siswa, Kurikulum, Nilai, Guru, NilaiSiswa } from '@/lib/data';
-import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { Search, FileDown, Upload, CalendarIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -48,7 +48,6 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
   const { user } = useUser();
   const kelasNum = parseInt(selectedKelas, 10);
 
-  // STAGE 1: Fetch primary, non-dependent data.
   const siswaQuery = useMemoFirebase(() => {
     if (!user || isNaN(kelasNum)) return null;
     return query(collection(firestore, 'siswa'), where('status', '==', 'Aktif'), where('kelas', '==', kelasNum));
@@ -67,11 +66,10 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
   }, [firestore, user, selectedKelas]);
   const { data: subjects, isLoading: subjectsLoading } = useCollection<Kurikulum>(kurikulumQuery);
 
-  // STAGE 2: Fetch dependent data (grades, term data) only when primary data (students) is ready.
   const studentIds = useMemo(() => students?.map(s => s.id) || [], [students]);
 
   const nilaiQuery = useMemoFirebase(() => {
-    if (!user || isNaN(kelasNum) || studentIds.length === 0) return null; // CRITICAL: Prevent query with empty 'in' array
+    if (!user || isNaN(kelasNum) || studentIds.length === 0) return null;
     return query(
       collection(firestore, 'nilai'),
       where('kelas', '==', kelasNum),
@@ -81,20 +79,8 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
   }, [firestore, user, kelasNum, selectedSemester, studentIds]);
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
-  const nilaiSiswaQuery = useMemoFirebase(() => {
-    if (!user || isNaN(kelasNum) || studentIds.length === 0) return null; // CRITICAL: Prevent query with empty 'in' array
-    return query(
-      collection(firestore, 'nilaiSiswa'),
-      where('kelas', '==', kelasNum),
-      where('semester', '==', selectedSemester),
-      where('siswaId', 'in', studentIds)
-    );
-  }, [firestore, user, kelasNum, selectedSemester, studentIds]);
-  const { data: studentTermData, isLoading: termDataLoading } = useCollection<NilaiSiswa>(nilaiSiswaQuery);
+  const isLoading = studentsLoading || subjectsLoading || teachersLoading || (studentIds.length > 0 && gradesLoading);
 
-  const isLoading = studentsLoading || subjectsLoading || teachersLoading || (studentIds.length > 0 && (gradesLoading || termDataLoading));
-
-  // --- Memoized Data Processing ---
   const sortedSubjects = useMemo(() => {
     if (!subjects) return [];
     return [...subjects].sort((a, b) => a.kode.localeCompare(b.kode));
@@ -109,15 +95,6 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
     });
     return map;
   }, [grades]);
-  
-  const studentTermDataMap = useMemo(() => {
-    const map = new Map<string, NilaiSiswa>();
-    if (!studentTermData) return map;
-    studentTermData.forEach(termData => {
-        map.set(termData.siswaId, termData);
-    });
-    return map;
-  }, [studentTermData]);
 
   const studentStats = useMemo(() => {
     const stats = new Map<string, { sum: number; average: number }>();
@@ -169,11 +146,55 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
     teachers,
     subjects: sortedSubjects,
     gradesMap,
-    studentTermDataMap,
     studentStats,
     isLoading
   };
 };
+
+// This self-contained component handles fetching and updating a single field for a student's term data
+const StudentTermDataCell = ({ studentId, kelas, semester, field }: { studentId: string; kelas: string; semester: 'ganjil' | 'genap'; field: 'sakit' | 'izin' | 'alpa' | 'keputusan' }) => {
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const docId = `${studentId}-${kelas}-${semester}`;
+
+    const docRef = useMemoFirebase(() => {
+        if (!studentId || !kelas || !semester) return null;
+        return doc(firestore, 'nilaiSiswa', docId);
+    }, [firestore, docId, studentId, kelas, semester]);
+
+    const { data: termData, isLoading } = useDoc<NilaiSiswa>(docRef);
+
+    const handleSave = async (value: string | number) => {
+        if (!firestore) return;
+        const dataToSet = {
+            siswaId: studentId,
+            kelas: parseInt(kelas, 10),
+            semester: semester,
+            [field]: value
+        };
+        try {
+            await setDocumentNonBlocking(docRef!, dataToSet, { merge: true });
+            toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat menyimpan data.' });
+        }
+    };
+
+    if (isLoading) {
+      return <Input className="min-w-[70px] text-center" disabled placeholder="..."/>
+    }
+
+    return (
+        <Input
+            type={field === 'keputusan' ? 'text' : 'number'}
+            defaultValue={termData?.[field] as any}
+            onBlur={(e) => handleSave(field === 'keputusan' ? e.target.value : parseInt(e.target.value) || 0)}
+            className={cn("text-center", field === 'keputusan' ? "min-w-[200px]" : "min-w-[70px]")}
+            placeholder="-"
+        />
+    );
+};
+
 
 export default function NilaiPage() {
   const firestore = useFirestore();
@@ -196,7 +217,6 @@ export default function NilaiPage() {
     teachers, 
     subjects: sortedSubjects, 
     gradesMap,
-    studentTermDataMap,
     studentStats, 
     isLoading 
   } = useNilaiData(selectedKelas, selectedSemester);
@@ -221,26 +241,6 @@ export default function NilaiPage() {
       setSelectedStudent(null);
     }
   }, [sortedStudents, selectedStudent]);
-
-  const handleSave = async (siswaId: string, field: 'sakit' | 'izin' | 'alpa' | 'keputusan', value: string | number) => {
-    if (!firestore) return;
-    const docId = `${siswaId}-${selectedKelas}-${selectedSemester}`;
-    const docRef = doc(firestore, 'nilaiSiswa', docId);
-
-    const dataToSet = {
-        siswaId,
-        kelas: parseInt(selectedKelas, 10),
-        semester: selectedSemester,
-        [field]: value
-    };
-
-    try {
-        await setDocumentNonBlocking(docRef, dataToSet, { merge: true });
-        toast({ title: 'Sukses!', description: 'Data siswa berhasil disimpan.' });
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Gagal!', description: 'Tidak dapat menyimpan data.' });
-    }
-  };
   
   const handleSaveGrade = async (siswaId: string, kurikulumId: string, value: string) => {
     if (!firestore) return true;
@@ -545,7 +545,6 @@ export default function NilaiPage() {
                 {!isLoading && sortedStudents.map(student => {
                 const stats = studentStats.stats.get(student.id);
                 const rank = studentStats.ranks.get(student.id);
-                const termData = studentTermDataMap.get(student.id);
                 return (
                 <TableRow key={student.id}>
                     <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
@@ -568,16 +567,16 @@ export default function NilaiPage() {
                     <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
                     <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
                     <TableCell className="p-1">
-                        <Input type="number" defaultValue={termData?.sakit} onBlur={(e) => handleSave(student.id, 'sakit', parseInt(e.target.value) || 0)} className="min-w-[70px] text-center" placeholder="-" />
+                        <StudentTermDataCell studentId={student.id} kelas={selectedKelas} semester={selectedSemester} field="sakit" />
                     </TableCell>
                     <TableCell className="p-1">
-                        <Input type="number" defaultValue={termData?.izin} onBlur={(e) => handleSave(student.id, 'izin', parseInt(e.target.value) || 0)} className="min-w-[70px] text-center" placeholder="-" />
+                        <StudentTermDataCell studentId={student.id} kelas={selectedKelas} semester={selectedSemester} field="izin" />
                     </TableCell>
                     <TableCell className="p-1">
-                        <Input type="number" defaultValue={termData?.alpa} onBlur={(e) => handleSave(student.id, 'alpa', parseInt(e.target.value) || 0)} className="min-w-[70px] text-center" placeholder="-" />
+                        <StudentTermDataCell studentId={student.id} kelas={selectedKelas} semester={selectedSemester} field="alpa" />
                     </TableCell>
                     <TableCell className="p-1">
-                        <Input type="text" defaultValue={termData?.keputusan} onBlur={(e) => handleSave(student.id, 'keputusan', e.target.value)} className="min-w-[200px] text-center" placeholder="-" />
+                        <StudentTermDataCell studentId={student.id} kelas={selectedKelas} semester={selectedSemester} field="keputusan" />
                     </TableCell>
                 </TableRow>
                 )})}
