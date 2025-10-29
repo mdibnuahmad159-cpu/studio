@@ -126,7 +126,7 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
   const studentIds = useMemo(() => students?.map(s => s.id) || [], [students]);
 
   const nilaiQuery = useMemoFirebase(() => {
-    if (studentsLoading || studentIds.length === 0) return null;
+    if (studentsLoading || studentIds.length === 0) return null; // Defensive check
     if (!firestore || !user || isNaN(kelasNum)) return null;
     return query(
       collection(firestore, 'nilai'),
@@ -198,7 +198,7 @@ const useNilaiData = (selectedKelas: string, selectedSemester: 'ganjil' | 'genap
     return { stats, ranks };
   }, [students, sortedSubjects, gradesMap]);
 
-  const isLoading = studentsLoading || subjectsLoading || teachersLoading || gradesLoading;
+  const isLoading = studentsLoading || subjectsLoading || teachersLoading || (studentIds.length > 0 && gradesLoading);
 
   return {
     students,
@@ -734,5 +734,3 @@ export default function NilaiPage() {
     </div>
   );
 }
-
-    
