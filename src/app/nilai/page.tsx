@@ -76,17 +76,15 @@ export default function NilaiPage() {
   const { data: subjects, isLoading: subjectsLoading } = useCollection<Kurikulum>(kurikulumQuery);
 
   const nilaiQuery = useMemoFirebase(() => {
-    if (!user || !students) return null;
-    const studentIds = students.map(s => s.id);
-    if(studentIds.length === 0) return null;
-    
+    if (!user) return null;
+    // This query fetches all grades for the selected class and semester.
+    // It is more robust than using an 'in' query with a 30-item limit.
     return query(
       collection(firestore, 'nilai'),
       where('kelas', '==', Number(selectedKelas)),
-      where('semester', '==', selectedSemester),
-      where('siswaId', 'in', studentIds.slice(0, 30))
+      where('semester', '==', selectedSemester)
     );
-  }, [firestore, user, selectedKelas, selectedSemester, students]);
+  }, [firestore, user, selectedKelas, selectedSemester]);
   const { data: grades, isLoading: gradesLoading } = useCollection<Nilai>(nilaiQuery);
   
   // --- Memoized Data Processing ---
@@ -558,7 +556,7 @@ export default function NilaiPage() {
               <DialogDescription>
                 Pilih file CSV untuk import nilai. Pastikan NIS dan nama mata pelajaran sesuai.
                 Data nilai yang sudah ada akan diperbarui.
-              </DialogDescription>
+              </DDialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
               <div className="flex items-center gap-4">
