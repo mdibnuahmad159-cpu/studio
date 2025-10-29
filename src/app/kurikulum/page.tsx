@@ -50,7 +50,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, writeBatch } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { useToast } from '@/hooks/use-toast';
 
@@ -105,6 +105,14 @@ export default function KurikulumPage() {
 
   const handleSaveKurikulum = async () => {
     if (kurikulumRef && firestore) {
+      if (!formData.mataPelajaran || !formData.kitab) {
+        toast({
+          variant: 'destructive',
+          title: 'Data tidak lengkap',
+          description: 'Mohon isi semua kolom sebelum menyimpan.',
+        });
+        return;
+      }
       if (kurikulumToEdit) {
         const kurikulumDocRef = doc(firestore, 'kurikulum', kurikulumToEdit.id);
         await updateDocumentNonBlocking(kurikulumDocRef, formData);
@@ -181,18 +189,14 @@ export default function KurikulumPage() {
               return;
             }
 
-            const batch = writeBatch(firestore);
-            newKurikulum.forEach(item => {
+            for (const item of newKurikulum) {
               if (item.kelas !== undefined && item.mataPelajaran && item.kitab) {
-                 const newDocRef = doc(kurikulumRef); // This is the key change
-                 batch.set(newDocRef, {
+                 await addDocumentNonBlocking(kurikulumRef, {
                    ...item,
                    kelas: String(item.kelas) // ensure kelas is a string
                  });
               }
-            });
-
-            await batch.commit();
+            }
 
             toast({ title: 'Import Berhasil!', description: `${newKurikulum.length} data kurikulum berhasil ditambahkan.` });
             setIsImportDialogOpen(false);
