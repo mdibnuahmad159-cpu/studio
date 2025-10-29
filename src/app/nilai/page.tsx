@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Siswa, Kurikulum, Nilai } from '@/lib/data';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking } from '@/firebase';
 import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { Search, FileDown, Upload } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -270,75 +270,91 @@ export default function NilaiPage() {
   };
   
   const handleImport = async () => {
-    if (!importFile || !firestore || !students || !sortedSubjects) return;
+    if (!importFile || !firestore) {
+      toast({ variant: "destructive", title: "Gagal", description: "File atau koneksi database tidak tersedia." });
+      return;
+    }
+    const studentList = students;
+    const subjectList = sortedSubjects;
+    
+    if (!studentList || !subjectList) {
+        toast({ variant: "destructive", title: "Gagal", description: "Data siswa atau mata pelajaran belum dimuat." });
+        return;
+    }
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        try {
-            const data = e.target?.result;
-            const workbook = XLSX.read(data, { type: 'binary' });
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-            const importedData = XLSX.utils.sheet_to_json(worksheet) as any[];
+    await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = e.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const importedData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
-            if (importedData.length === 0) {
-              toast({ variant: "destructive", title: "File Kosong", description: "File Excel tidak berisi data." });
-              return;
-            }
+                if (importedData.length === 0) {
+                  toast({ variant: "destructive", title: "File Kosong", description: "File Excel tidak berisi data." });
+                  return;
+                }
 
-            const batch = writeBatch(firestore);
-            const subjectMapByCode = new Map(sortedSubjects.map(s => [s.kode, s.id]));
-            const studentMapByNis = new Map(students.map(s => [s.nis, s.id]));
+                const batch = writeBatch(firestore);
+                const subjectMapByCode = new Map(subjectList.map(s => [s.kode, s.id]));
+                const studentMapByNis = new Map(studentList.map(s => [s.nis, s.id]));
 
-            importedData.forEach(row => {
-              const nis = String(row.nis);
-              const siswaId = studentMapByNis.get(nis);
+                importedData.forEach(row => {
+                  const nis = String(row.nis);
+                  const siswaId = studentMapByNis.get(nis);
 
-              if (siswaId) {
-                Object.keys(row).forEach(header => {
-                  const kurikulumId = subjectMapByCode.get(header);
-                  if (kurikulumId) {
-                    const nilaiStr = row[header];
-                    if (nilaiStr !== null && nilaiStr !== undefined && String(nilaiStr).trim() !== '') {
-                      const nilai = parseInt(String(nilaiStr), 10);
-                      if (!isNaN(nilai) && nilai >= 0 && nilai <= 100) {
-                        const existingGrade = gradesMap.get(`${siswaId}-${kurikulumId}`);
-                        if (existingGrade) {
-                          const gradeRef = doc(firestore, 'nilai', existingGrade.id);
-                          batch.update(gradeRef, { nilai });
-                        } else {
-                          const newGradeRef = doc(collection(firestore, 'nilai'));
-                          const newGradeData: Omit<Nilai, 'id'> = {
-                            siswaId,
-                            kurikulumId,
-                            kelas: Number(selectedKelas),
-                            semester: selectedSemester,
-                            nilai,
-                          };
-                          batch.set(newGradeRef, newGradeData);
+                  if (siswaId) {
+                    Object.keys(row).forEach(header => {
+                      const kurikulumId = subjectMapByCode.get(header);
+                      if (kurikulumId) {
+                        const nilaiStr = row[header];
+                        if (nilaiStr !== null && nilaiStr !== undefined && String(nilaiStr).trim() !== '') {
+                          const nilai = parseInt(String(nilaiStr), 10);
+                          if (!isNaN(nilai) && nilai >= 0 && nilai <= 100) {
+                            const existingGrade = gradesMap.get(`${siswaId}-${kurikulumId}`);
+                            if (existingGrade) {
+                              const gradeRef = doc(firestore, 'nilai', existingGrade.id);
+                              batch.update(gradeRef, { nilai });
+                            } else {
+                              const newGradeRef = doc(collection(firestore, 'nilai'));
+                              const newGradeData: Omit<Nilai, 'id'> = {
+                                siswaId,
+                                kurikulumId,
+                                kelas: Number(selectedKelas),
+                                semester: selectedSemester,
+                                nilai,
+                              };
+                              batch.set(newGradeRef, newGradeData);
+                            }
+                          }
                         }
                       }
-                    }
+                    });
                   }
                 });
-              }
-            });
 
-            await batch.commit();
-            toast({ title: 'Import Berhasil!', description: `Nilai berhasil diperbarui dari file.` });
-            setIsImportDialogOpen(false);
-            setImportFile(null);
-        } catch (error) {
-            console.error("Error importing grades:", error);
-            toast({ variant: "destructive", title: 'Gagal', description: "Terjadi kesalahan saat mengimpor nilai." });
-        }
-    };
-    reader.onerror = (error) => {
-        console.error("Error reading file:", error);
-        toast({ variant: "destructive", title: 'Gagal Parsing', description: 'Tidak dapat memproses file Excel.' });
-    };
-    reader.readAsBinaryString(importFile);
+                await batch.commit();
+                toast({ title: 'Import Berhasil!', description: `Nilai berhasil diperbarui dari file.` });
+            } catch (error) {
+                console.error("Error importing grades:", error);
+                toast({ variant: "destructive", title: 'Gagal', description: "Terjadi kesalahan saat mengimpor nilai." });
+            } finally {
+                setIsImportDialogOpen(false);
+                setImportFile(null);
+                resolve(true);
+            }
+        };
+        reader.onerror = (error) => {
+            console.error("Error reading file:", error);
+            toast({ variant: "destructive", title: 'Gagal Parsing', description: 'Tidak dapat memproses file Excel.' });
+            resolve(true);
+        };
+        reader.readAsBinaryString(importFile);
+    });
   };
+
 
   const isLoading = studentsLoading || subjectsLoading || gradesLoading;
 
@@ -442,7 +458,7 @@ export default function NilaiPage() {
         </TableHeader>
         <TableBody>
           {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center h-24">Memuat data...</TableCell></TableRow>}
-          {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
+          {!isLoading && sortedSubjects.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
           {sortedStudents.map(student => {
             const stats = studentStats.stats.get(student.id);
             const rank = studentStats.ranks.get(student.id);
@@ -559,9 +575,9 @@ export default function NilaiPage() {
                     ref={importInputRef} 
                     />
                 </div>
-                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate}>
+                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate} disabled={!subjects || subjects.length === 0}>
                     <FileDown className="mr-2 h-4 w-4" />
-                    Unduh Template Excel untuk Kelas {selectedKelas}
+                    {subjects && subjects.length > 0 ? `Unduh Template Excel untuk Kelas ${selectedKelas}` : 'Pilih kelas dengan mapel dahulu'}
                     </Button>
                 </div>
                 <DialogFooter>
