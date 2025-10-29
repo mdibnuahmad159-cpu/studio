@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Siswa, Kurikulum, Nilai, Guru, NilaiSiswa } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking, useDoc } from '@/firebase';
-import { collection, doc, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { Search, FileDown, Upload, CalendarIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import jsPDF from 'jspdf';
@@ -58,7 +58,6 @@ const StudentTermDataCell = ({
   field: 'sakit' | 'izin' | 'alpa' | 'keputusan';
 }) => {
   const firestore = useFirestore();
-  const { isAdmin } = useAdmin();
   const { toast } = useToast();
 
   const docId = useMemo(() => `${studentId}-${kelas}-${semester}`, [studentId, kelas, semester]);
@@ -71,7 +70,7 @@ const StudentTermDataCell = ({
   const { data: termData, isLoading } = useDoc<NilaiSiswa>(docRef);
 
   const handleSave = async (value: string | number) => {
-    if (!firestore || !isAdmin) return;
+    if (!firestore) return;
     const dataToSet = {
         siswaId: studentId,
         kelas: kelas,
@@ -95,7 +94,7 @@ const StudentTermDataCell = ({
           "min-w-[70px] text-center",
           field === 'keputusan' && "min-w-[200px]"
         )}
-        disabled={!isAdmin || isLoading}
+        disabled={isLoading}
         placeholder={isLoading ? "..." : "-"}
       />
   );
@@ -107,7 +106,6 @@ export default function NilaiPage() {
   const { user } = useUser();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { isAdmin } = useAdmin();
 
   const [selectedKelas, setSelectedKelas] = useState('1');
   const [selectedSemester, setSelectedSemester] = useState<'ganjil' | 'genap'>('ganjil');
@@ -239,7 +237,7 @@ export default function NilaiPage() {
 
   // --- Event Handlers ---
   const handleSaveGrade = async (siswaId: string, kurikulumId: string, value: string) => {
-    if (!firestore || !isAdmin) return true;
+    if (!firestore) return true;
     const trimmedValue = value.trim();
 
     const existingGrade = gradesMap.get(`${siswaId}-${kurikulumId}`);
@@ -498,7 +496,6 @@ export default function NilaiPage() {
                         onBlur={(e) => handleSaveGrade(selectedStudent.id, subject.id, e.target.value)}
                         className="w-24 text-center"
                         placeholder="-"
-                        disabled={!isAdmin}
                       />
                     </div>
                   );
@@ -563,7 +560,6 @@ export default function NilaiPage() {
                             onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
                             className="min-w-[70px] text-center mx-auto"
                             placeholder="-"
-                            disabled={!isAdmin}
                         />
                         </TableCell>
                     );
@@ -595,11 +591,9 @@ export default function NilaiPage() {
             </p>
           </div>
            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                {isAdmin && (
-                    <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
-                        <Upload className="mr-2 h-4 w-4" /> Import Excel
-                    </Button>
-                )}
+                <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" size="sm">
+                    <Upload className="mr-2 h-4 w-4" /> Import Excel
+                </Button>
                 <Button onClick={() => handleExport('pdf')} variant="outline" size="sm" disabled={!students || students.length === 0}>
                   <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
                 </Button>
@@ -645,11 +639,11 @@ export default function NilaiPage() {
                     </SelectContent>
                 </Select>
             </div>
-             <div className="md:col-span-2 lg:col-span-1">
+             <div>
                 <Label>Tahun Pelajaran</Label>
                  <Input className="mt-1" placeholder="e.g. 2023/2024" value={tahunPelajaran} onChange={(e) => setTahunPelajaran(e.target.value)} />
             </div>
-             <div className="lg:col-span-1">
+             <div>
                 <Label>Tanggal</Label>
                  <Popover>
                     <PopoverTrigger asChild>
@@ -680,41 +674,39 @@ export default function NilaiPage() {
           {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
 
-        {isAdmin && (
-            <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-            <DialogContent>
-                <DialogHeader>
-                <DialogTitle>Import Nilai dari Excel</DialogTitle>
-                <DialogDescription>
-                    Pilih file Excel untuk import nilai. Gunakan KODE mata pelajaran sebagai header kolom.
-                    Data nilai yang sudah ada akan diperbarui.
-                </DialogDescription>
-                </DialogHeader>
-                <div className="py-4 space-y-4">
-                <div className="flex items-center gap-4">
-                    <Input 
-                    id="import-file" 
-                    type="file" 
-                    accept=".xlsx, .xls"
-                    onChange={handleImportFileChange}
-                    ref={importInputRef} 
-                    />
-                </div>
-                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate} disabled={!subjects || subjects.length === 0}>
-                    <FileDown className="mr-2 h-4 w-4" />
-                    {subjects && subjects.length > 0 ? `Unduh Template Excel untuk Kelas ${selectedKelas}` : 'Pilih kelas dengan mapel dahulu'}
-                    </Button>
-                </div>
-                <DialogFooter>
-                <Button variant="secondary" onClick={() => setIsImportDialogOpen(false)}>Batal</Button>
-                <Button onClick={handleImport} disabled={!importFile}>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Import
+        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+            <DialogTitle>Import Nilai dari Excel</DialogTitle>
+            <DialogDescription>
+                Pilih file Excel untuk import nilai. Gunakan KODE mata pelajaran sebagai header kolom.
+                Data nilai yang sudah ada akan diperbarui.
+            </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+            <div className="flex items-center gap-4">
+                <Input 
+                id="import-file" 
+                type="file" 
+                accept=".xlsx, .xls"
+                onChange={handleImportFileChange}
+                ref={importInputRef} 
+                />
+            </div>
+                <Button variant="link" size="sm" className="p-0 h-auto" onClick={downloadTemplate} disabled={!subjects || subjects.length === 0}>
+                <FileDown className="mr-2 h-4 w-4" />
+                {subjects && subjects.length > 0 ? `Unduh Template Excel untuk Kelas ${selectedKelas}` : 'Pilih kelas dengan mapel dahulu'}
                 </Button>
-                </DialogFooter>
-            </DialogContent>
-            </Dialog>
-        )}
+            </div>
+            <DialogFooter>
+            <Button variant="secondary" onClick={() => setIsImportDialogOpen(false)}>Batal</Button>
+            <Button onClick={handleImport} disabled={!importFile}>
+                <Upload className="mr-2 h-4 w-4" />
+                Import
+            </Button>
+            </DialogFooter>
+        </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
