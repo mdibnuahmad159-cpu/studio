@@ -53,7 +53,7 @@ import { id as localeID } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { JadwalUjian, Guru, Kurikulum } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -71,15 +71,16 @@ const emptyJadwalUjian: Omit<JadwalUjian, 'id'> = {
   jam: '08:00 - 09:30',
 };
 
-export default function JadwalUjian() {
+export default function JadwalUjianComponent() {
   const firestore = useFirestore();
   const { isAdmin } = useAdmin();
   const { user } = useUser();
-  
+  const [selectedKelas, setSelectedKelas] = useState('all');
+
   const jadwalUjianRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return collection(firestore, 'jadwalUjian');
-  }, [firestore, user]);
+    if (!user || selectedKelas === 'all') return null;
+    return query(collection(firestore, 'jadwalUjian'), where('kelas', '==', selectedKelas));
+  }, [firestore, user, selectedKelas]);
   const { data: jadwalUjian, isLoading: jadwalUjianLoading } = useCollection<JadwalUjian>(jadwalUjianRef);
 
   const teachersRef = useMemoFirebase(() => {
@@ -98,17 +99,11 @@ export default function JadwalUjian() {
   const [jadwalToEdit, setJadwalToEdit] = useState<JadwalUjian | null>(null);
   const [jadwalToDelete, setJadwalToDelete] = useState<JadwalUjian | null>(null);
   const [formData, setFormData] = useState<Omit<JadwalUjian, 'id'>>(emptyJadwalUjian);
-  const [selectedKelas, setSelectedKelas] = useState('all');
 
   const groupedJadwal = useMemo(() => {
     if (!jadwalUjian) return {};
-    let filtered = jadwalUjian;
-    if (selectedKelas !== 'all') {
-      filtered = filtered.filter(j => j.kelas === selectedKelas);
-    }
-
     const grouped: { [tanggal: string]: JadwalUjian[] } = {};
-    filtered.forEach(item => {
+    jadwalUjian.forEach(item => {
       const date = format(parseISO(item.tanggal), 'yyyy-MM-dd');
       if (!grouped[date]) {
         grouped[date] = [];
@@ -121,7 +116,7 @@ export default function JadwalUjian() {
     }
     
     return Object.fromEntries(Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)));
-  }, [jadwalUjian, selectedKelas]);
+  }, [jadwalUjian]);
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -145,13 +140,14 @@ export default function JadwalUjian() {
   };
 
   const handleSaveJadwal = () => {
-    if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam && formData.tanggal && jadwalUjianRef && firestore) {
+    if (firestore && formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam && formData.tanggal) {
+      const jadwalUjianCollection = collection(firestore, 'jadwalUjian');
       const dataToSave = { ...formData };
       if (jadwalToEdit) {
         const jadwalDocRef = doc(firestore, 'jadwalUjian', jadwalToEdit.id);
         updateDocumentNonBlocking(jadwalDocRef, dataToSave);
       } else {
-        addDocumentNonBlocking(jadwalUjianRef, dataToSave);
+        addDocumentNonBlocking(jadwalUjianCollection, dataToSave);
       }
       setIsDialogOpen(false);
       setJadwalToEdit(null);
@@ -204,7 +200,7 @@ export default function JadwalUjian() {
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           {isAdmin && (
-              <Button onClick={() => handleOpenDialog()} size="sm">
+              <Button onClick={() => handleOpenDialog()} size="sm" disabled={selectedKelas === 'all'}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal Ujian
               </Button>
           )}
@@ -219,7 +215,7 @@ export default function JadwalUjian() {
                     <SelectValue placeholder="Filter Kelas" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="all">Semua Kelas</SelectItem>
+                    <SelectItem value="all">Pilih Kelas</SelectItem>
                     {KELAS_OPTIONS.map(kelas => (
                         <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
                     ))}
@@ -228,7 +224,9 @@ export default function JadwalUjian() {
         </div>
       </div>
       
-      {isLoading ? (
+      {selectedKelas === 'all' ? (
+        <p className="text-center text-muted-foreground mt-8">Silakan pilih kelas terlebih dahulu untuk melihat atau menambah jadwal ujian.</p>
+      ) : isLoading ? (
          <p className="text-center">Memuat jadwal ujian...</p>
       ) : Object.keys(groupedJadwal).length === 0 ? (
          <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal ujian untuk ditampilkan.</p>
@@ -325,7 +323,7 @@ export default function JadwalUjian() {
                     <SelectTrigger><SelectValue placeholder="Pilih Kelas" /></SelectTrigger>
                     <SelectContent>
                       {KELAS_OPTIONS.map(kelas => (
-                            <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
+                            <SelectItem key={kelas} value={kelas} disabled>{`Kelas ${kelas}`}</SelectItem>
                         ))}
                     </SelectContent>
                   </Select>

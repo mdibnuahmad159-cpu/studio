@@ -68,7 +68,7 @@ const HARI_OPERASIONAL = ['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis']
 const JAM_PELAJARAN = ['14:00 - 15:00', '15:30 - 16:30'];
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
-export default function JadwalPelajaran() {
+export default function JadwalPelajaranComponent() {
   const firestore = useFirestore();
   const { isAdmin } = useAdmin();
   const { user } = useUser();
