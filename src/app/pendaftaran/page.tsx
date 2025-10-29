@@ -144,7 +144,7 @@ export default function PendaftaranPage() {
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="nickname">Nama Panggilan</Label>
-                        <Input id="nickname" name="nickname" value={formData.nickname} onChange={handleChange} required />
+                        <Input id="nickname" name="nickname" value={formData.nickname} required />
                     </div>
                      <div className="space-y-2">
                         <Label>Jenis Kelamin</Label>

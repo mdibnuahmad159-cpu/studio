@@ -141,7 +141,7 @@ export default function JadwalPage() {
   };
 
   const handleSaveJadwal = () => {
-    if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam && formData.hari && jadwalRef) {
+    if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam && formData.hari && jadwalRef && firestore) {
       const dataToSave = { ...formData };
       if (jadwalToEdit) {
         const jadwalDocRef = doc(firestore, 'jadwal', jadwalToEdit.id);

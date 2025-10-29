@@ -174,11 +174,9 @@ export default function SiswaPage() {
         };
 
         const studentDocRef = doc(firestore, 'siswa', formData.nis);
+        setDocumentNonBlocking(studentDocRef, studentData, { merge: true });
 
-        if (studentToEdit) {
-            updateDocumentNonBlocking(studentDocRef, studentData);
-        } else {
-            setDocumentNonBlocking(studentDocRef, studentData, { merge: true });
+        if (!studentToEdit) {
             const raportDocRef = doc(firestore, 'raports', formData.nis);
             const newRaport: Omit<Raport, 'id'> = {
                 nis: formData.nis,
@@ -365,19 +363,7 @@ export default function SiswaPage() {
   };
 
   const handleOpenPdf = (dataUrl: string) => {
-    // Convert base64 to blob
-    const byteString = atob(dataUrl.split(',')[1]);
-    const mimeString = dataUrl.split(',')[0].split(':')[1].split(';')[0];
-    const ab = new ArrayBuffer(byteString.length);
-    const ia = new Uint8Array(ab);
-    for (let i = 0; i < byteString.length; i++) {
-        ia[i] = byteString.charCodeAt(i);
-    }
-    const blob = new Blob([ab], { type: mimeString });
-    const blobUrl = URL.createObjectURL(blob);
-    
-    // Open in new tab
-    window.open(blobUrl, '_blank');
+    window.open(dataUrl, '_blank');
   };
 
   return (

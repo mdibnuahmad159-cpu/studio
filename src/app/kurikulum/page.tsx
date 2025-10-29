@@ -49,7 +49,7 @@ import { Label } from '@/components/ui/label';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Papa from 'papaparse';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { useToast } from '@/hooks/use-toast';
@@ -105,15 +105,12 @@ export default function KurikulumPage() {
 
   const handleSaveKurikulum = async () => {
     if (formData.kelas && formData.mataPelajaran && formData.kitab && kurikulumRef && firestore) {
-      const batch = writeBatch(firestore);
       if (kurikulumToEdit) {
         const kurikulumDocRef = doc(firestore, 'kurikulum', kurikulumToEdit.id);
-        batch.update(kurikulumDocRef, formData);
+        updateDocumentNonBlocking(kurikulumDocRef, formData);
       } else {
-        const newKurikulumRef = doc(kurikulumRef);
-        batch.set(newKurikulumRef, formData);
+        addDocumentNonBlocking(kurikulumRef, formData);
       }
-      await batch.commit();
       setIsFormDialogOpen(false);
       setKurikulumToEdit(null);
       toast({ title: 'Sukses!', description: 'Data kurikulum berhasil disimpan.' });
@@ -128,9 +125,7 @@ export default function KurikulumPage() {
   const confirmDelete = async () => {
     if (kurikulumToDelete && firestore) {
       const kurikulumDocRef = doc(firestore, 'kurikulum', kurikulumToDelete.id);
-      const batch = writeBatch(firestore);
-      batch.delete(kurikulumDocRef);
-      await batch.commit();
+      deleteDocumentNonBlocking(kurikulumDocRef);
       setKurikulumToDelete(null);
       toast({ title: 'Sukses!', description: 'Data kurikulum berhasil dihapus.' });
     }
