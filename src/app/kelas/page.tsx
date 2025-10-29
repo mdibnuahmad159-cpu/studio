@@ -207,7 +207,7 @@ export default function KelasPage() {
   const currentKelas = currentKelasForSelection;
 
   return (
-    <div className="bg-background">
+    <div className="bg-background pb-32 md:pb-0">
       <div className="container py-12 md:py-20">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="text-center sm:text-left">

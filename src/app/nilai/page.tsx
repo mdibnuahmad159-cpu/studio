@@ -494,8 +494,8 @@ export default function NilaiPage() {
 
 
   return (
-    <div className="bg-background">
-      <div className="container py-12 md:py-20 flex flex-col h-[calc(100vh-8rem)]">
+    <div className="bg-background pb-32 md:pb-0">
+      <div className="container flex flex-col py-12 md:py-20">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Input Nilai Siswa</h1>
@@ -551,7 +551,7 @@ export default function NilaiPage() {
           </div>
         </div>
         
-        <div className="flex-grow min-h-0">
+        <div className="flex-1 overflow-auto">
           {isMobile ? renderMobileView() : renderDesktopView()}
         </div>
 
