@@ -102,7 +102,7 @@ export default function SiswaPage() {
 
   const filteredStudents = useMemo(() => {
     if (!activeStudents) return [];
-    let sorted = [...activeStudents].sort((a,b) => a.nama.localeCompare(b.nama));
+    let sorted = [...activeStudents].sort((a,b) => a.nis.localeCompare(b.nis));
     if (!searchQuery) return sorted;
     
     return sorted.filter(student => 
