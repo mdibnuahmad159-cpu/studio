@@ -114,6 +114,7 @@ export default function KelasPage() {
   };
   
   const handleBatchUpdate = async (updateFn: (student: DetailedStudent) => any) => {
+    if (!firestore) return;
     const batch = writeBatch(firestore);
     const selectedDetails = getSelectedStudentsDetails();
     selectedDetails.forEach(student => {
@@ -355,4 +356,5 @@ export default function KelasPage() {
       )}
     </div>
   );
-}
+
+    
