@@ -426,56 +426,54 @@ export default function NilaiPage() {
   );
 
   const renderDesktopView = () => (
-    <div className="border rounded-lg overflow-hidden bg-card">
-      <ScrollArea className="w-full whitespace-nowrap">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="font-headline sticky left-0 bg-card z-10 w-[200px] shadow-sm">Nama Siswa</TableHead>
-              <TableHead className="font-headline w-[120px]">NIS</TableHead>
-              {sortedSubjects.map(subject => (
-                <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
-              ))}
-              <TableHead className="font-headline text-center">Jumlah Nilai</TableHead>
-              <TableHead className="font-headline text-center">Rata-rata</TableHead>
-              <TableHead className="font-headline text-center">Peringkat</TableHead>
+    <ScrollArea className="w-full whitespace-nowrap border rounded-lg bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="font-headline sticky left-0 bg-card z-10 w-[200px] shadow-sm">Nama Siswa</TableHead>
+            <TableHead className="font-headline w-[120px]">NIS</TableHead>
+            {sortedSubjects.map(subject => (
+              <TableHead key={subject.id} className="font-headline text-center min-w-[150px]">{subject.mataPelajaran}</TableHead>
+            ))}
+            <TableHead className="font-headline text-center">Jumlah Nilai</TableHead>
+            <TableHead className="font-headline text-center">Rata-rata</TableHead>
+            <TableHead className="font-headline text-center">Peringkat</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center h-24">Memuat data...</TableCell></TableRow>}
+          {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center h-24">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
+          {sortedStudents.map(student => {
+            const stats = studentStats.stats.get(student.id);
+            const rank = studentStats.ranks.get(student.id);
+            return (
+            <TableRow key={student.id}>
+              <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
+              <TableCell>{student.nis}</TableCell>
+              {sortedSubjects.map(subject => {
+                const grade = gradesMap.get(`${student.id}-${subject.id}`);
+                return (
+                  <TableCell key={subject.id} className="text-center">
+                    <Input
+                      type="number"
+                      defaultValue={grade?.nilai}
+                      onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
+                      className="min-w-[70px] text-center mx-auto"
+                      placeholder="-"
+                      disabled={!isAdmin}
+                    />
+                  </TableCell>
+                );
+              })}
+              <TableCell className="text-center font-medium">{stats?.sum.toFixed(0) || 0}</TableCell>
+              <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
+              <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center">Memuat data...</TableCell></TableRow>}
-            {!isLoading && sortedStudents.length === 0 && <TableRow><TableCell colSpan={sortedSubjects.length + 5} className="text-center">Tidak ada siswa di kelas ini.</TableCell></TableRow>}
-            {sortedStudents.map(student => {
-              const stats = studentStats.stats.get(student.id);
-              const rank = studentStats.ranks.get(student.id);
-              return (
-              <TableRow key={student.id}>
-                <TableCell className="font-medium sticky left-0 bg-card z-10">{student.nama}</TableCell>
-                <TableCell>{student.nis}</TableCell>
-                {sortedSubjects.map(subject => {
-                  const grade = gradesMap.get(`${student.id}-${subject.id}`);
-                  return (
-                    <TableCell key={subject.id} className="text-center">
-                      <Input
-                        type="number"
-                        defaultValue={grade?.nilai}
-                        onBlur={(e) => handleSaveGrade(student.id, subject.id, e.target.value)}
-                        className="min-w-[70px] text-center mx-auto"
-                        placeholder="-"
-                        disabled={!isAdmin}
-                      />
-                    </TableCell>
-                  );
-                })}
-                <TableCell className="text-center font-medium">{stats?.sum.toFixed(0) || 0}</TableCell>
-                <TableCell className="text-center font-medium">{stats?.average.toFixed(2) || '0.00'}</TableCell>
-                <TableCell className="text-center font-bold text-lg">{rank || '-'}</TableCell>
-              </TableRow>
-            )})}
-          </TableBody>
-        </Table>
-        <div className="h-1" />
-      </ScrollArea>
-    </div>
+          )})}
+        </TableBody>
+      </Table>
+      <div className="h-1" />
+    </ScrollArea>
   );
 
 
