@@ -293,7 +293,7 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
                             <div className="mt-1">
                               <p className="font-bold text-sm text-primary truncate" title={jadwalItem.mataPelajaran}>{jadwalItem.mataPelajaran}</p>
                               <div className="flex justify-between items-center mt-1">
-                                <p className="text-xs truncate text-muted-foreground" title={getTeacherName(jadwalItem.guruName)}>{getTeacherName(jadwalItem.guruName)}</p>
+                                <p className="text-xs truncate text-muted-foreground" title={jadwalItem.guruName}>{jadwalItem.guruName}</p>
                                 {isAdmin && selectedKelas !== 'all' && (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -366,7 +366,7 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
          <div>
           {selectedKelas === 'all' ? (
             KELAS_OPTIONS.map(kelas => renderInteractiveGrid(kelas))
-          ) : (jadwal && jadwal.length > 0) || isAdmin ? (
+          ) : (jadwal && jadwal.length > 0) || (isAdmin && selectedKelas !== 'all') ? (
               renderInteractiveGrid(selectedKelas)
           ) : (
               <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal untuk kelas ini.</p>
@@ -474,3 +474,5 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
     </>
   );
 }
+
+    
