@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -60,7 +60,7 @@ const emptyJadwal: Omit<JadwalUjian, 'id'> = {
   kelas: '0',
   mataPelajaran: '',
   guruId: '',
-  jam: '14:00 - 15:00',
+  jam: '08:00 - 10:00',
 };
 
 const HARI_OPERASIONAL = ['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis'];
@@ -72,7 +72,7 @@ export default function JadwalUjianComponent() {
   const { isAdmin } = useAdmin();
   const { user } = useUser();
   
-  const [selectedKelas, setSelectedKelas] = useState('');
+  const [selectedKelas, setSelectedKelas] = useState('0'); // Default to first class
   
   const jadwalUjianRef = useMemoFirebase(() => {
     if (!user || !selectedKelas) return null;
@@ -228,13 +228,6 @@ export default function JadwalUjianComponent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!selectedKelas && (
-              <TableRow>
-                <TableCell colSpan={isAdmin ? 5 : 4} className="text-center h-24 text-muted-foreground">
-                  Silakan pilih kelas terlebih dahulu untuk melihat atau menambah jadwal ujian.
-                </TableCell>
-              </TableRow>
-            )}
             {isLoading && selectedKelas && (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 5 : 4} className="text-center h-24">Loading...</TableCell>
