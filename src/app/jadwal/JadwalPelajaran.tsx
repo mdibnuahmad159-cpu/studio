@@ -39,7 +39,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Jadwal, Guru, Kurikulum } from '@/lib/data';
 import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where, getDocs, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { collection, doc, query, where, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -77,69 +77,54 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
 
   const teachersMap = useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
   const kurikulumMap = useMemo(() => new Map(kurikulum.map(k => [k.id, {pelajaran: k.mataPelajaran, kitab: k.kitab}])), [kurikulum]);
-
+  
   useEffect(() => {
     if (!firestore || !user) {
         setIsLoading(false);
         return;
-    };
-    
-    let isMounted = true;
-    const unsubscribers: Unsubscribe[] = [];
-
-    async function fetchAllData() {
-        setIsLoading(true);
-        try {
-            // 1. Fetch prerequisites first and wait for them
-            const teachersQuery = query(collection(firestore, 'gurus'));
-            const kurikulumQuery = query(collection(firestore, 'kurikulum'));
-
-            const [teachersSnapshot, kurikulumSnapshot] = await Promise.all([
-                getDocs(teachersQuery),
-                getDocs(kurikulumQuery)
-            ]);
-
-            if (!isMounted) return;
-
-            const teachersData = teachersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guru));
-            const kurikulumData = kurikulumSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Kurikulum));
-            
-            setTeachers(teachersData);
-            setKurikulum(kurikulumData);
-            
-            // 2. Now, fetch schedules based on selected class
-            if (selectedKelas === 'all') {
-                const jadwalSnapshot = await getDocs(collection(firestore, 'jadwal'));
-                if(isMounted) {
-                  setJadwal(jadwalSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal)));
-                }
-            } else {
-                const jadwalQuery = query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
-                const unsubscribe = onSnapshot(jadwalQuery, snapshot => {
-                    if (isMounted) {
-                        setJadwal(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal)));
-                    }
-                }, error => console.error("Error fetching schedule:", error));
-                unsubscribers.push(unsubscribe);
-            }
-        } catch (error) {
-            console.error("Failed to load data:", error);
-            toast({ variant: 'destructive', title: 'Gagal Memuat Data', description: 'Tidak dapat memuat data prasyarat.' });
-        } finally {
-            if (isMounted) {
-                setIsLoading(false);
-            }
-        }
     }
 
-    fetchAllData();
+    setIsLoading(true);
+    const unsubscribers: Unsubscribe[] = [];
+
+    // Subscribe to teachers and curriculum
+    const teachersQuery = query(collection(firestore, 'gurus'));
+    const kurikulumQuery = query(collection(firestore, 'kurikulum'));
+
+    unsubscribers.push(onSnapshot(teachersQuery, snapshot => {
+        setTeachers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guru)));
+    }, error => {
+        console.error("Error fetching teachers:", error);
+        toast({ variant: 'destructive', title: 'Gagal Memuat Guru' });
+    }));
+    
+    unsubscribers.push(onSnapshot(kurikulumQuery, snapshot => {
+        setKurikulum(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Kurikulum)));
+    }, error => {
+        console.error("Error fetching curriculum:", error);
+        toast({ variant: 'destructive', title: 'Gagal Memuat Kurikulum' });
+    }));
+    
+    // Subscribe to schedule
+    const jadwalQuery = selectedKelas === 'all' 
+      ? collection(firestore, 'jadwal')
+      : query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
+      
+    unsubscribers.push(onSnapshot(jadwalQuery, snapshot => {
+        setJadwal(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal)));
+        setIsLoading(false); // Stop loading once initial schedule is fetched
+    }, error => {
+        console.error("Error fetching schedule:", error);
+        toast({ variant: 'destructive', title: 'Gagal Memuat Jadwal' });
+        setIsLoading(false);
+    }));
 
     return () => {
-        isMounted = false;
         unsubscribers.forEach(unsub => unsub());
     };
 
   }, [selectedKelas, firestore, user, toast]);
+
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [jadwalToEdit, setJadwalToEdit] = useState<Jadwal | null>(null);
@@ -148,7 +133,6 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
   const [selectedHari, setSelectedHari] = useState('all');
 
   const jadwalByKelasHariJam = useMemo(() => {
-    if (!jadwal) return {};
     const grouped: { [key: string]: Jadwal } = {};
     jadwal.forEach(item => {
       const key = `${item.kelas}-${item.hari}-${item.jam}`;
