@@ -82,6 +82,7 @@ export default function JadwalPelajaranComponent() {
     if (!firestore || !user || !selectedKelas) return null;
     return query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
+
   const { data: jadwal, isLoading: jadwalLoading } = useCollection<Jadwal>(jadwalRef);
   
   const [teachers, setTeachers] = useState<Guru[]>([]);
@@ -339,7 +340,7 @@ export default function JadwalPelajaranComponent() {
          <p className="text-center">Memuat jadwal...</p>
       ) : (
          <div>
-          {(jadwal && jadwal.length > 0) ? 
+          {(jadwal && jadwal.length > 0) || isAdmin ? 
               renderInteractiveGrid(selectedKelas) :
               <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal untuk kelas ini.</p>
           }

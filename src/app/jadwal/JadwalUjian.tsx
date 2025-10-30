@@ -77,6 +77,7 @@ export default function JadwalUjianComponent() {
     if (!firestore || !user || !selectedKelas) return null;
     return query(collection(firestore, 'jadwalUjian'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
+
   const { data: jadwalUjian, isLoading: jadwalLoading } = useCollection<JadwalUjian>(jadwalUjianRef);
 
   const [teachers, setTeachers] = useState<Guru[]>([]);
@@ -246,7 +247,7 @@ export default function JadwalUjianComponent() {
         <p className="text-center text-muted-foreground mt-8">Silakan pilih kelas terlebih dahulu untuk melihat jadwal ujian.</p>
       ) : isLoading ? <p className="text-center">Memuat jadwal...</p> : (
         <div>
-          {jadwalUjian && jadwalUjian.length > 0 ? (
+          {(jadwalUjian && jadwalUjian.length > 0) || isAdmin ? (
             <Card className="mb-8 overflow-hidden">
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary">Kelas {selectedKelas}</CardTitle>
