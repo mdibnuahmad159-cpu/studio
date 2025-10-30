@@ -106,7 +106,7 @@ export default function JadwalUjianComponent() {
   }, [allKitabPelajaran, formData.kelas]);
 
   const loadDropdownData = async () => {
-    if (!firestore || !user) return;
+    if (!firestore || !user || isDataLoaded) return;
     try {
       const teachersQuery = query(collection(firestore, 'gurus'));
       const kurikulumQuery = query(collection(firestore, 'kurikulum'));
