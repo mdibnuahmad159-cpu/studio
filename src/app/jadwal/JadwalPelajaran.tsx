@@ -3,13 +3,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -92,13 +85,13 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
         return;
     };
     
-    setIsLoading(true);
-    let unsubscribeJadwal: Unsubscribe | null = null;
     let isMounted = true;
+    const unsubscribers: Unsubscribe[] = [];
 
-    async function fetchPrerequisitesAndSchedules() {
+    async function fetchAllData() {
+        setIsLoading(true);
         try {
-            // 1. Fetch prerequisites first (teachers and curriculum)
+            // 1. Fetch prerequisites first
             const teachersQuery = query(collection(firestore, 'gurus'));
             const kurikulumQuery = query(collection(firestore, 'kurikulum'));
 
@@ -115,23 +108,25 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
             setTeachers(teachersData);
             setKurikulum(kurikulumData);
             
-            // 2. Now that maps are ready, fetch schedules
+            // 2. Fetch schedules based on selected class
+            let finalJadwal: Jadwal[] = [];
+            
             if (selectedKelas === 'all') {
-                const allSchedules = await getDocs(query(collection(firestore, 'jadwal')));
-                if (isMounted) {
-                    setJadwal(allSchedules.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal)));
-                }
+                const jadwalSnapshot = await getDocs(collection(firestore, 'jadwal'));
+                finalJadwal = jadwalSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal));
             } else {
-                 const jadwalQuery = query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
-                 unsubscribeJadwal = onSnapshot(jadwalQuery, snapshot => {
+                const jadwalQuery = query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
+                const unsubscribe = onSnapshot(jadwalQuery, snapshot => {
                     if (isMounted) {
                         setJadwal(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal)));
                     }
-                }, error => {
-                    console.error("Error fetching schedule:", error);
-                    toast({ variant: 'destructive', title: 'Error', description: 'Gagal memuat jadwal.' });
-                });
+                }, error => console.error("Error fetching schedule:", error));
+                unsubscribers.push(unsubscribe);
             }
+            if(selectedKelas === 'all' && isMounted) {
+               setJadwal(finalJadwal);
+            }
+
         } catch (error) {
             console.error("Failed to load data:", error);
             toast({ variant: 'destructive', title: 'Gagal Memuat Data', description: 'Tidak dapat memuat data prasyarat.' });
@@ -142,11 +137,11 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
         }
     }
 
-    fetchPrerequisitesAndSchedules();
+    fetchAllData();
 
     return () => {
         isMounted = false;
-        if (unsubscribeJadwal) unsubscribeJadwal();
+        unsubscribers.forEach(unsub => unsub());
     };
 
   }, [selectedKelas, firestore, user, toast]);
@@ -179,12 +174,12 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
   };
 
   const handleOpenDialog = (item: Jadwal | null = null, defaults: Partial<Omit<Jadwal, 'id'>> = {}) => {
-    if (!isAdmin || selectedKelas === 'all') return;
+    if (!isAdmin) return;
     setJadwalToEdit(item);
     if (item) {
       setFormData({ ...item });
     } else {
-      setFormData({ ...emptyJadwal, kelas: selectedKelas, ...defaults });
+      setFormData({ ...emptyJadwal, ...defaults, ...(selectedKelas !== 'all' && { kelas: selectedKelas }) });
     }
     setIsDialogOpen(true);
   };
@@ -281,7 +276,7 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
                               <p className="font-bold text-sm text-primary truncate" title={kurikulumItem?.pelajaran}>{kurikulumItem?.pelajaran || ''}</p>
                               <div className="flex justify-between items-center mt-1">
                                 <p className="text-xs truncate text-muted-foreground" title={teachersMap.get(jadwalItem.guruId)}>{getTeacherName(jadwalItem.guruId)}</p>
-                                {isAdmin && selectedKelas !== 'all' && (
+                                {isAdmin && (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
@@ -298,7 +293,7 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
                             </div>
                           ) : (
                             <div className="flex items-center justify-center flex-grow">
-                              {isAdmin && selectedKelas !== 'all' ? (
+                              {isAdmin ? (
                                 <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(null, { kelas, hari, jam })}>
                                   <PlusCircle className="h-5 w-5 text-muted-foreground/50 hover:text-muted-foreground transition-colors" />
                                 </Button>
@@ -323,7 +318,7 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           {isAdmin && (
-              <Button onClick={() => handleOpenDialog()} size="sm" disabled={selectedKelas === 'all'}>
+              <Button onClick={() => handleOpenDialog()} size="sm">
                   <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal
               </Button>
           )}
@@ -353,7 +348,7 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
          <div>
           {selectedKelas === 'all' ? (
             KELAS_OPTIONS.filter(k => k !== 'all').map(kelas => renderInteractiveGrid(kelas))
-          ) : (!jadwal || jadwal.length === 0) && !(isAdmin && selectedKelas !== 'all') ? (
+          ) : (!jadwal || jadwal.length === 0) && !isAdmin ? (
               <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal untuk kelas ini.</p>
           ) : (
               renderInteractiveGrid(selectedKelas)
