@@ -72,13 +72,10 @@ export default function JadwalUjianComponent() {
   const { isAdmin } = useAdmin();
   const { user } = useUser();
   
-  const [selectedKelas, setSelectedKelas] = useState('all');
+  const [selectedKelas, setSelectedKelas] = useState('');
   
   const jadwalUjianRef = useMemoFirebase(() => {
-    if (!user) return null;
-    if (selectedKelas === 'all') {
-      return collection(firestore, 'jadwalUjian');
-    }
+    if (!user || !selectedKelas) return null;
     return query(collection(firestore, 'jadwalUjian'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
   const { data: jadwal, isLoading: jadwalLoading } = useCollection<JadwalUjian>(jadwalUjianRef);
@@ -119,12 +116,9 @@ export default function JadwalUjianComponent() {
   }, [selectedHari]);
 
   const kelasToRender = useMemo(() => {
-    if (selectedKelas === 'all') {
-      const uniqueKelas = [...new Set(jadwal?.map(j => j.kelas) || [])];
-      return KELAS_OPTIONS.filter(k => uniqueKelas.includes(k));
-    }
+    if (selectedKelas === '') return [];
     return [selectedKelas];
-  }, [selectedKelas, jadwal]);
+  }, [selectedKelas]);
   
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -176,7 +170,7 @@ export default function JadwalUjianComponent() {
 
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
-    doc.text(`Jadwal Ujian - ${selectedKelas === 'all' ? 'Semua Kelas' : `Kelas ${selectedKelas}`}`, 20, 10);
+    doc.text(`Jadwal Ujian - ${selectedKelas === '' ? 'Semua Kelas' : `Kelas ${selectedKelas}`}`, 20, 10);
     
     const head: any[] = [['Kelas', 'Hari', 'Jam', 'Pelajaran', 'Guru']];
     const body: any[] = [];
@@ -275,7 +269,7 @@ export default function JadwalUjianComponent() {
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           {isAdmin && (
-              <Button onClick={() => handleOpenDialog(null, { kelas: selectedKelas === 'all' ? '0' : selectedKelas })} size="sm" disabled={selectedKelas === 'all'}>
+              <Button onClick={() => handleOpenDialog(null, { kelas: selectedKelas })} size="sm" disabled={!selectedKelas}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal
               </Button>
           )}
@@ -287,10 +281,9 @@ export default function JadwalUjianComponent() {
         <div className="flex gap-4">
             <Select value={selectedKelas} onValueChange={setSelectedKelas}>
                 <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filter Kelas" />
+                    <SelectValue placeholder="Pilih Kelas" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="all">Semua Kelas</SelectItem>
                     {KELAS_OPTIONS.map(kelas => (
                         <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
                     ))}
@@ -310,13 +303,17 @@ export default function JadwalUjianComponent() {
         </div>
       </div>
       
-      {isLoading ? (
+      {isLoading && selectedKelas && (
          <p className="text-center">Loading...</p>
+      )}
+
+      {!selectedKelas ? (
+        <p className="text-center text-muted-foreground mt-8">Silakan pilih kelas terlebih dahulu untuk melihat atau menambah jadwal ujian.</p>
       ) : (
          <div>
-          {jadwal && jadwal.length > 0 ? 
+          {!isLoading && jadwal && jadwal.length > 0 ? 
             kelasToRender.map(kelas => renderInteractiveGrid(kelas)) :
-            <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal untuk ditampilkan berdasarkan filter yang dipilih.</p>
+            !isLoading && <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal ujian untuk ditampilkan berdasarkan filter yang dipilih.</p>
           }
          </div>
       )}
