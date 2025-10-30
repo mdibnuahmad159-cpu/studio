@@ -91,7 +91,7 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
     async function fetchAllData() {
         setIsLoading(true);
         try {
-            // 1. Fetch prerequisites first
+            // 1. Fetch prerequisites first and wait for them
             const teachersQuery = query(collection(firestore, 'gurus'));
             const kurikulumQuery = query(collection(firestore, 'kurikulum'));
 
@@ -108,12 +108,14 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
             setTeachers(teachersData);
             setKurikulum(kurikulumData);
             
-            // 2. Fetch schedules based on selected class
+            // 2. Now, fetch schedules based on selected class
             let finalJadwal: Jadwal[] = [];
             
             if (selectedKelas === 'all') {
                 const jadwalSnapshot = await getDocs(collection(firestore, 'jadwal'));
-                finalJadwal = jadwalSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal));
+                if(isMounted) {
+                  setJadwal(jadwalSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal)));
+                }
             } else {
                 const jadwalQuery = query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
                 const unsubscribe = onSnapshot(jadwalQuery, snapshot => {
@@ -123,10 +125,6 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
                 }, error => console.error("Error fetching schedule:", error));
                 unsubscribers.push(unsubscribe);
             }
-            if(selectedKelas === 'all' && isMounted) {
-               setJadwal(finalJadwal);
-            }
-
         } catch (error) {
             console.error("Failed to load data:", error);
             toast({ variant: 'destructive', title: 'Gagal Memuat Data', description: 'Tidak dapat memuat data prasyarat.' });
@@ -456,3 +454,5 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
     </>
   );
 }
+
+    
