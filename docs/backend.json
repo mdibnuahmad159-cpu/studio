@@ -142,17 +142,22 @@
           "type": "string"
         },
         "mataPelajaran": {
-          "type": "string"
+          "type": "string",
+          "description": "The name of the subject being tested."
         },
         "guruId": {
           "type": "string",
-          "description": "Reference to the Guru document ID (for the supervisor)."
+          "description": "Reference to the Guru document ID for the supervisor."
+        },
+        "guruName": {
+            "type": "string",
+            "description": "The name of the supervising teacher."
         },
         "jam": {
           "type": "string"
         }
       },
-      "required": ["hari", "kelas", "mataPelajaran", "guruId", "jam"]
+      "required": ["hari", "kelas", "mataPelajaran", "guruId", "guruName", "jam"]
     },
     "Raport": {
       "title": "Raport",

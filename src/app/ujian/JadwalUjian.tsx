@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -60,6 +60,7 @@ const emptyJadwal: Omit<JadwalUjian, 'id'> = {
   kelas: '0',
   mataPelajaran: '',
   guruId: '',
+  guruName: '',
   jam: '08:00 - 10:00',
 };
 
@@ -72,7 +73,7 @@ export default function JadwalUjianComponent() {
   const { isAdmin } = useAdmin();
   const { user } = useUser();
   
-  const [selectedKelas, setSelectedKelas] = useState('0'); // Default to first class
+  const [selectedKelas, setSelectedKelas] = useState('0');
   
   const jadwalUjianRef = useMemoFirebase(() => {
     if (!user || !selectedKelas) return null;
@@ -108,7 +109,23 @@ export default function JadwalUjianComponent() {
   }, [jadwalUjian, selectedHari]);
   
   const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+     if (name === 'guruId') {
+      const selectedTeacher = teachers?.find(t => t.id === value);
+      setFormData(prev => ({ 
+        ...prev, 
+        guruId: value, 
+        guruName: selectedTeacher?.name || '' 
+      }));
+    } else if (name === 'mataPelajaran') {
+      const selectedSubject = kitabPelajaran?.find(k => k.mataPelajaran === value);
+      setFormData(prev => ({ 
+        ...prev, 
+        mataPelajaran: selectedSubject?.mataPelajaran || ''
+      }));
+    }
+    else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleOpenDialog = (item: JadwalUjian | null = null) => {
@@ -150,11 +167,6 @@ export default function JadwalUjianComponent() {
     }
   };
 
-  const getTeacherName = (guruId: string) => {
-    const teacher = teachers?.find(t => t.id === guruId);
-    return teacher ? teacher.name.split(',')[0] : 'N/A';
-  };
-
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
     doc.text(`Jadwal Ujian - Kelas ${selectedKelas}`, 20, 10);
@@ -167,7 +179,7 @@ export default function JadwalUjianComponent() {
           item.hari,
           item.jam,
           item.mataPelajaran,
-          getTeacherName(item.guruId)
+          item.guruName
         ]);
     });
 
@@ -245,7 +257,7 @@ export default function JadwalUjianComponent() {
                 <TableCell>{item.hari}</TableCell>
                 <TableCell>{item.jam}</TableCell>
                 <TableCell>{item.mataPelajaran}</TableCell>
-                <TableCell>{getTeacherName(item.guruId)}</TableCell>
+                <TableCell>{item.guruName}</TableCell>
                 {isAdmin && (
                   <TableCell className="text-right">
                     <DropdownMenu>
