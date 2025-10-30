@@ -73,9 +73,8 @@ export default function JadwalUjianComponent() {
   const { isAdmin } = useAdmin();
   const { user } = useUser();
   
-  const [selectedKelas, setSelectedKelas] = useState('0');
+  const [selectedKelas, setSelectedKelas] = useState('');
   
-  // --- Queries ---
   const jadwalUjianRef = useMemoFirebase(() => {
     if (!user || !selectedKelas) return null;
     return query(collection(firestore, 'jadwalUjian'), where('kelas', '==', selectedKelas));
@@ -88,7 +87,6 @@ export default function JadwalUjianComponent() {
   const allKurikulumRef = useMemoFirebase(() => user ? collection(firestore, 'kurikulum') : null, [firestore, user]);
   const { data: allKitabPelajaran, isLoading: kurikulumLoading } = useCollection<Kurikulum>(allKurikulumRef);
 
-  // --- State ---
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [jadwalToEdit, setJadwalToEdit] = useState<JadwalUjian | null>(null);
   const [jadwalToDelete, setJadwalToDelete] = useState<JadwalUjian | null>(null);
@@ -109,7 +107,6 @@ export default function JadwalUjianComponent() {
       return allKitabPelajaran.filter(k => k.kelas === formData.kelas);
   }, [allKitabPelajaran, formData.kelas]);
   
-  // --- Handlers ---
   const handleSelectChange = (name: string, value: string) => {
      if (name === 'guruId') {
       const selectedTeacher = allTeachers?.find(t => t.id === value);
@@ -235,7 +232,7 @@ export default function JadwalUjianComponent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && (
+            {isLoading && selectedKelas && (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 5 : 4} className="text-center h-24">Loading...</TableCell>
               </TableRow>
@@ -369,3 +366,5 @@ export default function JadwalUjianComponent() {
     </>
   );
 }
+
+    
