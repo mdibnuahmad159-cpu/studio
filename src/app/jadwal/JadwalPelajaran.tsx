@@ -80,79 +80,75 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
   const [jadwal, setJadwal] = useState<Jadwal[]>([]);
   const [teachers, setTeachers] = useState<Guru[]>([]);
   const [kurikulum, setKurikulum] = useState<Kurikulum[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (!firestore || !user) return;
-    
-    setIsLoading(true);
-    let unsubscribeJadwal: Unsubscribe | null = null;
-    let unsubscribeGurus: Unsubscribe | null = null;
-    let unsubscribeKurikulum: Unsubscribe | null = null;
-
-    async function fetchInitialData() {
-        try {
-            // Fetch static data once
-            const teachersQuery = query(collection(firestore, 'gurus'));
-            unsubscribeGurus = onSnapshot(teachersQuery, snapshot => {
-                setTeachers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guru)));
-            });
-
-            const kurikulumQuery = query(collection(firestore, 'kurikulum'));
-            unsubscribeKurikulum = onSnapshot(kurikulumQuery, snapshot => {
-                setKurikulum(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Kurikulum)));
-            });
-
-        } catch (error) {
-            console.error("Failed to load initial data:", error);
-            toast({ variant: 'destructive', title: 'Gagal Memuat Data', description: 'Tidak dapat memuat data guru dan kurikulum.' });
-        }
-    }
-
-    fetchInitialData();
-
-    if (selectedKelas && selectedKelas !== 'all') {
-        const jadwalQuery = query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
-        unsubscribeJadwal = onSnapshot(jadwalQuery, snapshot => {
-            setJadwal(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal)));
-            setIsLoading(false);
-        }, error => {
-            console.error("Error fetching schedule:", error);
-            setIsLoading(false);
-        });
-    } else if (selectedKelas === 'all') {
-        // Fetch all schedules for "Semua Kelas"
-        const allClassQueries = KELAS_OPTIONS.filter(k => k !== 'all').map(kelas => 
-            getDocs(query(collection(firestore, 'jadwal'), where('kelas', '==', kelas)))
-        );
-        Promise.all(allClassQueries).then(allSnapshots => {
-            const combinedSchedules: Jadwal[] = [];
-            allSnapshots.forEach(snapshot => {
-                snapshot.forEach(doc => {
-                    combinedSchedules.push({ id: doc.id, ...doc.data() } as Jadwal);
-                });
-            });
-            setJadwal(combinedSchedules);
-            setIsLoading(false);
-        }).catch(error => {
-            console.error("Error fetching all schedules:", error);
-            setIsLoading(false);
-        });
-    } else {
-        setJadwal([]);
-        setIsLoading(false);
-    }
-    
-    return () => {
-        if (unsubscribeJadwal) unsubscribeJadwal();
-        if (unsubscribeGurus) unsubscribeGurus();
-        if (unsubscribeKurikulum) unsubscribeKurikulum();
-    };
-
-  }, [selectedKelas, firestore, user, toast]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const teachersMap = useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
   const kurikulumMap = useMemo(() => new Map(kurikulum.map(k => [k.id, {pelajaran: k.mataPelajaran, kitab: k.kitab}])), [kurikulum]);
+
+  useEffect(() => {
+    if (!firestore || !user) {
+        setIsLoading(false);
+        return;
+    };
+    
+    setIsLoading(true);
+    let unsubscribeJadwal: Unsubscribe | null = null;
+    let isMounted = true;
+
+    async function fetchPrerequisitesAndSchedules() {
+        try {
+            // 1. Fetch prerequisites first (teachers and curriculum)
+            const teachersQuery = query(collection(firestore, 'gurus'));
+            const kurikulumQuery = query(collection(firestore, 'kurikulum'));
+
+            const [teachersSnapshot, kurikulumSnapshot] = await Promise.all([
+                getDocs(teachersQuery),
+                getDocs(kurikulumQuery)
+            ]);
+
+            if (!isMounted) return;
+
+            const teachersData = teachersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guru));
+            const kurikulumData = kurikulumSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Kurikulum));
+            
+            setTeachers(teachersData);
+            setKurikulum(kurikulumData);
+            
+            // 2. Now that maps are ready, fetch schedules
+            if (selectedKelas === 'all') {
+                const allSchedules = await getDocs(query(collection(firestore, 'jadwal')));
+                if (isMounted) {
+                    setJadwal(allSchedules.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal)));
+                }
+            } else {
+                 const jadwalQuery = query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
+                 unsubscribeJadwal = onSnapshot(jadwalQuery, snapshot => {
+                    if (isMounted) {
+                        setJadwal(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal)));
+                    }
+                }, error => {
+                    console.error("Error fetching schedule:", error);
+                    toast({ variant: 'destructive', title: 'Error', description: 'Gagal memuat jadwal.' });
+                });
+            }
+        } catch (error) {
+            console.error("Failed to load data:", error);
+            toast({ variant: 'destructive', title: 'Gagal Memuat Data', description: 'Tidak dapat memuat data prasyarat.' });
+        } finally {
+            if (isMounted) {
+                setIsLoading(false);
+            }
+        }
+    }
+
+    fetchPrerequisitesAndSchedules();
+
+    return () => {
+        isMounted = false;
+        if (unsubscribeJadwal) unsubscribeJadwal();
+    };
+
+  }, [selectedKelas, firestore, user, toast]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [jadwalToEdit, setJadwalToEdit] = useState<Jadwal | null>(null);
