@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, BookMarked, UserCircle, GraduationCap, CalendarDays, FileText, ClipboardCheck, ChevronDown, ChevronUp, BookCopy, PencilRuler } from 'lucide-react';
+import { Home, Users, BookMarked, UserCircle, GraduationCap, CalendarDays, FileText, ClipboardCheck, ChevronDown, ChevronUp, BookCopy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
@@ -17,7 +17,6 @@ const navLinks = [
   { href: '/alumni', label: 'Alumni', icon: GraduationCap },
   { href: '/kelas', label: 'Kelas', icon: BookCopy },
   { href: '/jadwal', label: 'Jadwal', icon: CalendarDays },
-  { href: '/ujian', label: 'Ujian', icon: PencilRuler },
   { href: '/nilai', label: 'Nilai', icon: ClipboardCheck },
   { href: '/raport', label: 'Raport', icon: FileText },
 ];
@@ -78,7 +77,7 @@ export function BottomNav() {
                             key={link.href}
                             href={link.href}
                             className={cn(
-                            'flex flex-col items-center justify-center text-muted-foreground transition-colors w-1/5 h-full pt-2 pb-1',
+                            'flex flex-col items-center justify-center text-muted-foreground transition-colors w-1/4 h-full pt-2 pb-1',
                             isActive ? 'text-primary' : 'hover:text-primary'
                             )}
                         >

@@ -27,7 +27,7 @@ export function Footer() {
                <li><Link href="/pendaftaran" className="text-sm text-muted-foreground hover:text-primary">Pendaftaran</Link></li>
                <li><Link href="/kelas" className="text-sm text-muted-foreground hover:text-primary">Kelas</Link></li>
                <li><Link href="/raport" className="text-sm text-muted-foreground hover:text-primary">Raport</Link></li>
-                <li><Link href="/ujian" className="text-sm text-muted-foreground hover:text-primary">Ujian</Link></li>
+                <li><Link href="/jadwal" className="text-sm text-muted-foreground hover:text-primary">Jadwal</Link></li>
             </ul>
           </div>
         </div>
