@@ -37,6 +37,7 @@ const navLinks = [
   { href: '/alumni', label: 'Data Alumni' },
   { href: '/kurikulum', label: 'Kurikulum' },
   { href: '/jadwal', label: 'Jadwal' },
+  { href: '/ujian', label: 'Ujian' },
   { href: '/kelas', label: 'Kelas' },
   { href: '/raport', label: 'Raport' },
   { href: '/nilai', label: 'Nilai' },
