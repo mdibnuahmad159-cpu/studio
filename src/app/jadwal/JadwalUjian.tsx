@@ -70,11 +70,17 @@ export default function JadwalUjianComponent() {
   const { toast } = useToast();
 
   const [selectedKelas, setSelectedKelas] = useState('all');
-  
+
   const jadwalUjianRef = useMemoFirebase(() => {
     if (!user) return null;
-    return collection(firestore, 'jadwalUjian');
-  }, [firestore, user]);
+    if (selectedKelas === 'all') {
+      // Potentially problematic if the collection is large and rules are strict.
+      // For this app, we assume it's acceptable or filtered later.
+      // A better approach for very large collections would be to enforce class selection.
+      return collection(firestore, 'jadwalUjian');
+    }
+    return query(collection(firestore, 'jadwalUjian'), where('kelas', '==', selectedKelas));
+  }, [firestore, user, selectedKelas]);
   const { data: jadwalUjian, isLoading: jadwalLoading } = useCollection<JadwalUjian>(jadwalUjianRef);
 
   const teachersRef = useMemoFirebase(() => {
@@ -94,20 +100,14 @@ export default function JadwalUjianComponent() {
   const [jadwalToDelete, setJadwalToDelete] = useState<JadwalUjian | null>(null);
   const [formData, setFormData] = useState<Omit<JadwalUjian, 'id'>>(emptyJadwalUjian);
 
-  const filteredJadwal = useMemo(() => {
-    if (!jadwalUjian) return [];
-    if (selectedKelas === 'all') return jadwalUjian;
-    return jadwalUjian.filter(j => j.kelas === selectedKelas);
-  }, [jadwalUjian, selectedKelas]);
-
   const jadwalByKelasHariJam = useMemo(() => {
     const grouped: { [key: string]: JadwalUjian } = {};
-    filteredJadwal.forEach(item => {
+    (jadwalUjian || []).forEach(item => {
       const key = `${item.kelas}-${item.hari}-${item.jam}`;
       grouped[key] = item;
     });
     return grouped;
-  }, [filteredJadwal]);
+  }, [jadwalUjian]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -165,7 +165,7 @@ export default function JadwalUjianComponent() {
     const head: any[] = [['Kelas', 'Hari', 'Tanggal', 'Jam', 'Mata Pelajaran', 'Pengawas']];
     const body: any[] = [];
     
-    filteredJadwal
+    (jadwalUjian || [])
       .sort((a,b) => Number(a.kelas) - Number(b.kelas) || HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari))
       .forEach(item => {
         body.push([
@@ -183,6 +183,14 @@ export default function JadwalUjianComponent() {
   };
 
   const isLoading = jadwalLoading || teachersLoading || kurikulumLoading;
+
+  const kelasToRender = useMemo(() => {
+    if (selectedKelas === 'all') {
+      const uniqueKelas = [...new Set(jadwalUjian?.map(j => j.kelas) || [])];
+      return KELAS_OPTIONS.filter(k => uniqueKelas.includes(k)).sort((a,b) => Number(a) - Number(b));
+    }
+    return [selectedKelas];
+  }, [selectedKelas, jadwalUjian]);
 
   const renderInteractiveGrid = (kelas: string) => (
     <Card key={kelas} className="mb-8 overflow-hidden">
@@ -269,10 +277,9 @@ export default function JadwalUjianComponent() {
       {isLoading ? <p className="text-center">Loading...</p> : (
         <div>
           {jadwalUjian && jadwalUjian.length > 0 ? (
-            (selectedKelas === 'all' ? KELAS_OPTIONS.filter(k => jadwalUjian.some(j => j.kelas === k)) : [selectedKelas])
-              .map(kelas => renderInteractiveGrid(kelas))
+            kelasToRender.map(kelas => renderInteractiveGrid(kelas))
           ) : (
-            <p className="text-center text-muted-foreground mt-8">Belum ada jadwal ujian yang dibuat.</p>
+            <p className="text-center text-muted-foreground mt-8">Belum ada jadwal ujian yang dibuat untuk kelas ini.</p>
           )}
         </div>
       )}
@@ -348,3 +355,5 @@ export default function JadwalUjianComponent() {
     </>
   );
 }
+
+    
