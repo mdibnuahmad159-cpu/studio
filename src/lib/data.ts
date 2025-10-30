@@ -44,16 +44,6 @@ export type Jadwal = {
   jam: string;
 };
 
-export type JadwalUjian = {
-  id: string; // Document ID from Firestore
-  hari: string;
-  kelas: string;
-  mataPelajaran: string; // Subject name
-  guruId: string; // Reference to Guru ID (for the supervisor)
-  guruName: string; // Supervisor name
-  jam: string;
-};
-
 export type RaportFile = {
   [key: string]: string | null; // e.g., 'kelas_0_ganjil': 'gs://bucket/path/to/file.pdf'
 };

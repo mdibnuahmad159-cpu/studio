@@ -17,7 +17,6 @@ const navLinks = [
   { href: '/alumni', label: 'Alumni', icon: GraduationCap },
   { href: '/kelas', label: 'Kelas', icon: BookCopy },
   { href: '/jadwal', label: 'Jadwal', icon: CalendarDays },
-  { href: '/ujian', label: 'Ujian', icon: FileSignature },
   { href: '/nilai', label: 'Nilai', icon: ClipboardCheck },
   { href: '/raport', label: 'Raport', icon: FileText },
 ];
