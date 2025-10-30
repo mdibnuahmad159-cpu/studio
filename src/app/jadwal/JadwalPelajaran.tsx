@@ -77,12 +77,16 @@ export default function JadwalPelajaranComponent() {
   
   const jadwalRef = useMemoFirebase(() => {
     if (!user) return null;
+    return collection(firestore, 'jadwal');
+  }, [firestore, user]);
+  const { data: semuaJadwal, isLoading: jadwalLoading } = useCollection<Jadwal>(jadwalRef);
+
+  const jadwal = useMemo(() => {
     if (selectedKelas === 'all') {
-      return collection(firestore, 'jadwal');
+      return semuaJadwal;
     }
-    return query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
-  }, [firestore, user, selectedKelas]);
-  const { data: jadwal, isLoading: jadwalLoading } = useCollection<Jadwal>(jadwalRef);
+    return semuaJadwal?.filter(j => j.kelas === selectedKelas);
+  }, [semuaJadwal, selectedKelas]);
 
   const teachersRef = useMemoFirebase(() => {
     if (!user) return null;
