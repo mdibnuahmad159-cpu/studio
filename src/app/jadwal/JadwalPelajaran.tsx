@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   TableBody,
   TableCell,
@@ -47,7 +47,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Jadwal, Guru, Kurikulum } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, doc, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, Query } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -56,7 +56,7 @@ interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-const emptyJadwal: Omit<Jadwal, 'id'> = {
+const emptyJadwal: Omit<Jadwal, 'id' | 'kurikulumId'> = {
   hari: 'Sabtu',
   kelas: '0',
   mataPelajaran: '',
@@ -70,20 +70,59 @@ const HARI_OPERASIONAL = ['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis']
 const JAM_PELAJARAN = ['14:00 - 15:00', '15:30 - 16:30'];
 const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
 
-export default function JadwalPelajaranComponent() {
+interface JadwalPelajaranProps {
+  selectedKelas: string;
+}
+
+export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelajaranProps) {
   const firestore = useFirestore();
   const { isAdmin } = useAdmin();
   const { user } = useUser();
   const { toast } = useToast();
   
-  const [selectedKelas, setSelectedKelas] = useState<string | null>(null);
+  const [allSchedules, setAllSchedules] = useState<Jadwal[]>([]);
+  const [isMultiLoading, setIsMultiLoading] = useState(false);
   
-  const jadwalRef = useMemoFirebase(() => {
-    if (!firestore || !user || !selectedKelas) return null;
+  const singleJadwalQuery = useMemoFirebase(() => {
+    if (!firestore || !user || selectedKelas === 'all') return null;
     return query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
 
-  const { data: jadwal, isLoading: jadwalLoading } = useCollection<Jadwal>(jadwalRef);
+  const { data: singleJadwal, isLoading: singleJadwalLoading } = useCollection<Jadwal>(singleJadwalQuery);
+
+  useEffect(() => {
+    async function fetchAllSchedules() {
+      if (selectedKelas !== 'all' || !firestore || !user) return;
+      setIsMultiLoading(true);
+      
+      const allClassQueries = KELAS_OPTIONS.map(kelas => 
+        getDocs(query(collection(firestore, 'jadwal'), where('kelas', '==', kelas)))
+      );
+      
+      try {
+        const allSnapshots = await Promise.all(allClassQueries);
+        const combinedSchedules: Jadwal[] = [];
+        allSnapshots.forEach(snapshot => {
+          snapshot.forEach(doc => {
+            combinedSchedules.push({ id: doc.id, ...doc.data() } as Jadwal);
+          });
+        });
+        setAllSchedules(combinedSchedules);
+      } catch (error) {
+        console.error("Error fetching all schedules: ", error);
+        toast({ variant: 'destructive', title: 'Gagal Memuat Jadwal', description: 'Terjadi kesalahan saat memuat semua jadwal.' });
+      } finally {
+        setIsMultiLoading(false);
+      }
+    }
+    fetchAllSchedules();
+  }, [selectedKelas, firestore, user, toast]);
+
+  const jadwal = useMemo(() => {
+    return selectedKelas === 'all' ? allSchedules : singleJadwal;
+  }, [selectedKelas, allSchedules, singleJadwal]);
+
+  const isLoading = selectedKelas === 'all' ? isMultiLoading : singleJadwalLoading;
   
   const [teachers, setTeachers] = useState<Guru[]>([]);
   const [kitabPelajaran, setKitabPelajaran] = useState<Kurikulum[]>([]);
@@ -93,7 +132,7 @@ export default function JadwalPelajaranComponent() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [jadwalToEdit, setJadwalToEdit] = useState<Jadwal | null>(null);
   const [jadwalToDelete, setJadwalToDelete] = useState<Jadwal | null>(null);
-  const [formData, setFormData] = useState<Omit<Jadwal, 'id'>>(emptyJadwal);
+  const [formData, setFormData] = useState<Omit<Jadwal, 'id' | 'kurikulumId'>>(emptyJadwal);
   const [selectedHari, setSelectedHari] = useState('all');
 
   const jadwalByKelasHariJam = useMemo(() => {
@@ -149,11 +188,12 @@ export default function JadwalPelajaranComponent() {
       }
   };
 
-  const handleOpenDialog = (item: Jadwal | null = null, defaults: Partial<Omit<Jadwal, 'id'>> = {}) => {
-    if (!isAdmin || !selectedKelas) return;
+  const handleOpenDialog = (item: Jadwal | null = null, defaults: Partial<Omit<Jadwal, 'id' | 'kurikulumId'>> = {}) => {
+    if (!isAdmin || selectedKelas === 'all') return;
     setJadwalToEdit(item);
     if (item) {
-      setFormData({ ...item });
+      const { kurikulumId, ...rest } = item;
+      setFormData({ ...rest });
     } else {
       setFormData({ ...emptyJadwal, kelas: selectedKelas, ...defaults });
     }
@@ -205,18 +245,15 @@ export default function JadwalPelajaranComponent() {
 
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
-    doc.text(`Jadwal Pelajaran - Kelas ${selectedKelas}`, 20, 10);
+    const title = selectedKelas === 'all' 
+      ? 'Jadwal Pelajaran - Semua Kelas'
+      : `Jadwal Pelajaran - Kelas ${selectedKelas}`;
+    doc.text(title, 20, 10);
     
-    const head: any[] = [['Kelas', 'Hari', 'Jam', 'Pelajaran', 'Guru']];
+    const head: any[] = [['Kelas', 'Hari', 'Jam', 'Pelajaran', 'Kitab', 'Guru']];
     const body: any[] = [];
     
-    let jadwalToExport = jadwal;
-
-    if (selectedHari !== 'all') {
-      jadwalToExport = jadwalToExport?.filter(j => j.hari === selectedHari);
-    }
-
-    (jadwalToExport || [])
+    (jadwal || [])
       .sort((a,b) => Number(a.kelas) - Number(b.kelas) || HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari))
       .forEach(item => {
         body.push([
@@ -224,6 +261,7 @@ export default function JadwalPelajaranComponent() {
           item.hari,
           item.jam,
           item.mataPelajaran,
+          item.kitab,
           getTeacherName(item.guruName)
         ]);
     });
@@ -232,8 +270,6 @@ export default function JadwalPelajaranComponent() {
     doc.save(`jadwal-pelajaran.pdf`);
   };
 
-  const isLoading = jadwalLoading && !!selectedKelas;
-  
   const renderInteractiveGrid = (kelas: string) => {
     return (
       <Card key={kelas} className="mb-8 overflow-hidden">
@@ -258,7 +294,7 @@ export default function JadwalPelajaranComponent() {
                               <p className="font-bold text-sm text-primary truncate" title={jadwalItem.mataPelajaran}>{jadwalItem.mataPelajaran}</p>
                               <div className="flex justify-between items-center mt-1">
                                 <p className="text-xs truncate text-muted-foreground" title={getTeacherName(jadwalItem.guruName)}>{getTeacherName(jadwalItem.guruName)}</p>
-                                {isAdmin && (
+                                {isAdmin && selectedKelas !== 'all' && (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
@@ -275,7 +311,7 @@ export default function JadwalPelajaranComponent() {
                             </div>
                           ) : (
                             <div className="flex items-center justify-center flex-grow">
-                              {isAdmin ? (
+                              {isAdmin && selectedKelas !== 'all' ? (
                                 <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(null, { kelas, hari, jam })}>
                                   <PlusCircle className="h-5 w-5 text-muted-foreground/50 hover:text-muted-foreground transition-colors" />
                                 </Button>
@@ -300,7 +336,7 @@ export default function JadwalPelajaranComponent() {
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           {isAdmin && (
-              <Button onClick={() => handleOpenDialog()} size="sm" disabled={!selectedKelas}>
+              <Button onClick={() => handleOpenDialog()} size="sm" disabled={selectedKelas === 'all'}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal
               </Button>
           )}
@@ -310,17 +346,7 @@ export default function JadwalPelajaranComponent() {
           </Button>
         </div>
         <div className="flex gap-4">
-            <Select value={selectedKelas ?? ''} onValueChange={(value) => setSelectedKelas(value)}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Pilih Kelas" />
-                </SelectTrigger>
-                <SelectContent>
-                    {KELAS_OPTIONS.map(kelas => (
-                        <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-            <Select value={selectedHari} onValueChange={setSelectedHari} disabled={!selectedKelas}>
+            <Select value={selectedHari} onValueChange={setSelectedHari}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Filter Hari" />
                 </SelectTrigger>
@@ -334,16 +360,17 @@ export default function JadwalPelajaranComponent() {
         </div>
       </div>
       
-      {!selectedKelas ? (
-        <p className="text-center text-muted-foreground mt-8">Silakan pilih kelas untuk melihat jadwal.</p>
-      ) : isLoading ? (
-         <p className="text-center">Memuat jadwal...</p>
+      {isLoading ? (
+         <p className="text-center mt-8">Memuat jadwal...</p>
       ) : (
          <div>
-          {(jadwal && jadwal.length > 0) || isAdmin ? 
-              renderInteractiveGrid(selectedKelas) :
+          {selectedKelas === 'all' ? (
+            KELAS_OPTIONS.map(kelas => renderInteractiveGrid(kelas))
+          ) : (jadwal && jadwal.length > 0) || isAdmin ? (
+              renderInteractiveGrid(selectedKelas)
+          ) : (
               <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal untuk kelas ini.</p>
-          }
+          )}
          </div>
       )}
 
@@ -447,5 +474,3 @@ export default function JadwalPelajaranComponent() {
     </>
   );
 }
-
-    
