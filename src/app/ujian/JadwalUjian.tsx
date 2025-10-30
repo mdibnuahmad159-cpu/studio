@@ -81,7 +81,7 @@ export default function JadwalUjianComponent() {
   const { data: jadwal, isLoading: jadwalLoading } = useCollection<JadwalUjian>(jadwalUjianRef);
 
   const teachersRef = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user) return null; // Teachers are needed for display, load them once available
     return collection(firestore, 'gurus');
   }, [firestore, user]);
   const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(teachersRef);
@@ -116,7 +116,7 @@ export default function JadwalUjianComponent() {
   }, [selectedHari]);
 
   const kelasToRender = useMemo(() => {
-    if (selectedKelas === '') return [];
+    if (!selectedKelas) return [];
     return [selectedKelas];
   }, [selectedKelas]);
   
@@ -197,7 +197,7 @@ export default function JadwalUjianComponent() {
     doc.save(`jadwal-ujian.pdf`);
   };
 
-  const isLoading = jadwalLoading || teachersLoading || kurikulumLoading;
+  const isLoading = (jadwalLoading || teachersLoading || kurikulumLoading) && !!selectedKelas;
   
   const renderInteractiveGrid = (kelas: string) => {
     return (
@@ -303,17 +303,15 @@ export default function JadwalUjianComponent() {
         </div>
       </div>
       
-      {isLoading && selectedKelas && (
-         <p className="text-center">Loading...</p>
-      )}
+      {isLoading && <p className="text-center">Loading...</p>}
 
       {!selectedKelas ? (
         <p className="text-center text-muted-foreground mt-8">Silakan pilih kelas terlebih dahulu untuk melihat atau menambah jadwal ujian.</p>
       ) : (
          <div>
-          {!isLoading && jadwal && jadwal.length > 0 ? 
-            kelasToRender.map(kelas => renderInteractiveGrid(kelas)) :
-            !isLoading && <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal ujian untuk ditampilkan berdasarkan filter yang dipilih.</p>
+          {!isLoading && jadwal && jadwal.length === 0 ? 
+            <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal ujian untuk ditampilkan berdasarkan filter yang dipilih.</p> :
+            !isLoading && kelasToRender.map(kelas => renderInteractiveGrid(kelas))
           }
          </div>
       )}
