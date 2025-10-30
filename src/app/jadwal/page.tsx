@@ -1,12 +1,14 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import JadwalPelajaran from './JadwalPelajaran';
 import JadwalUjian from './JadwalUjian';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function JadwalPage() {
+  const [activeTab, setActiveTab] = useState('pelajaran');
+
   return (
     <div className="bg-background pb-32 md:pb-0">
       <div className="container py-12 md:py-20">
@@ -21,16 +23,16 @@ export default function JadwalPage() {
           </div>
         </div>
 
-        <Tabs defaultValue="pelajaran" className="w-full">
+        <Tabs defaultValue="pelajaran" value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="pelajaran">Jadwal Pelajaran</TabsTrigger>
             <TabsTrigger value="ujian">Jadwal Ujian</TabsTrigger>
           </TabsList>
           <TabsContent value="pelajaran" className="mt-6">
-            <JadwalPelajaran />
+            {activeTab === 'pelajaran' && <JadwalPelajaran />}
           </TabsContent>
           <TabsContent value="ujian" className="mt-6">
-            <JadwalUjian />
+            {activeTab === 'ujian' && <JadwalUjian />}
           </TabsContent>
         </Tabs>
 
