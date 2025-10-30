@@ -109,40 +109,35 @@
     "Jadwal": {
       "title": "Jadwal",
       "type": "object",
-      "description": "Represents a class schedule entry.",
+      "description": "Represents a class schedule entry. Denormalized for performance.",
       "properties": {
-        "hari": {
-          "type": "string"
-        },
-        "kelas": {
-          "type": "string"
-        },
-        "mataPelajaran": {
-          "type": "string"
-        },
-        "guruId": {
-          "type": "string",
-          "description": "Reference to the Guru document ID."
-        },
-        "jam": {
-          "type": "string"
-        }
+        "hari": { "type": "string" },
+        "kelas": { "type": "string" },
+        "jam": { "type": "string" },
+        "mataPelajaran": { "type": "string", "description": "Denormalized subject name." },
+        "kitab": { "type": "string", "description": "Denormalized book name." },
+        "guruId": { "type": "string", "description": "Reference to the Guru document ID." },
+        "guruName": { "type": "string", "description": "Denormalized teacher name." },
+        "kurikulumId": { "type": "string", "description": "Reference to the Kurikulum document ID." }
       },
-      "required": ["hari", "kelas", "mataPelajaran", "guruId", "jam"]
+      "required": ["hari", "kelas", "jam", "mataPelajaran", "guruId", "guruName"]
     },
     "JadwalUjian": {
       "title": "JadwalUjian",
       "type": "object",
-      "description": "Represents an exam schedule entry.",
+      "description": "Represents an exam schedule entry. Denormalized for performance.",
       "properties": {
         "hari": { "type": "string" },
         "tanggal": { "type": "string", "format": "date" },
         "jam": { "type": "string" },
-        "mataPelajaran": { "type": "string" },
-        "guruId": { "type": "string" },
-        "kelas": { "type": "string" }
+        "kelas": { "type": "string" },
+        "mataPelajaran": { "type": "string", "description": "Denormalized subject name." },
+        "kitab": { "type": "string", "description": "Denormalized book name." },
+        "guruId": { "type": "string", "description": "Reference to the Guru document ID (supervisor)." },
+        "guruName": { "type": "string", "description": "Denormalized supervisor name." },
+        "kurikulumId": { "type": "string", "description": "Reference to the Kurikulum document ID." }
       },
-      "required": ["hari", "tanggal", "jam", "mataPelajaran", "guruId", "kelas"]
+      "required": ["hari", "tanggal", "jam", "kelas", "mataPelajaran", "guruId", "guruName"]
     },
     "Raport": {
       "title": "Raport",
@@ -224,3 +219,5 @@
     }
   }
 }
+
+    

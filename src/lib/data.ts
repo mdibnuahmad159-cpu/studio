@@ -39,9 +39,12 @@ export type Jadwal = {
   id: string; // Document ID from Firestore
   hari: string;
   kelas: string;
-  mataPelajaran: string;
-  guruId: string; // Reference to Guru ID
   jam: string;
+  mataPelajaran: string;
+  kitab?: string;
+  guruId: string;
+  guruName?: string;
+  kurikulumId?: string;
 };
 
 export type JadwalUjian = {
@@ -49,9 +52,12 @@ export type JadwalUjian = {
   hari: string;
   tanggal: string;
   jam: string;
-  mataPelajaran: string;
-  guruId: string; // Reference to Guru ID (pengawas)
   kelas: string;
+  mataPelajaran: string;
+  kitab?: string;
+  guruId: string; // Reference to Guru ID (pengawas)
+  guruName?: string;
+  kurikulumId?: string;
 };
 
 export type RaportFile = {
@@ -72,3 +78,5 @@ export type Nilai = {
     semester: 'ganjil' | 'genap';
     nilai: number;
 };
+
+    

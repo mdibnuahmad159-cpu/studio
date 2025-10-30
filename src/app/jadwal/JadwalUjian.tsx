@@ -57,6 +57,8 @@ const emptyJadwalUjian: Omit<JadwalUjian, 'id'> = {
   mataPelajaran: '',
   guruId: '',
   kelas: '0',
+  guruName: '',
+  kitab: ''
 };
 
 const HARI_OPERASIONAL = ['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis'];
@@ -147,11 +149,22 @@ export default function JadwalUjianComponent() {
     if (!firestore) return;
     const jadwalUjianCollectionRef = collection(firestore, 'jadwalUjian');
     if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam && formData.hari && formData.tanggal) {
+      
+      const selectedTeacher = teachers.find(t => t.id === formData.guruId);
+      const selectedKurikulum = kitabPelajaran.find(k => k.mataPelajaran === formData.mataPelajaran && k.kelas === formData.kelas);
+
+      const dataToSave: Omit<JadwalUjian, 'id'> = {
+          ...formData,
+          guruName: selectedTeacher?.name || '',
+          kitab: selectedKurikulum?.kitab || '',
+          kurikulumId: selectedKurikulum?.id,
+      };
+
       if (jadwalToEdit) {
         const jadwalDocRef = doc(firestore, 'jadwalUjian', jadwalToEdit.id);
-        updateDocumentNonBlocking(jadwalDocRef, formData);
+        updateDocumentNonBlocking(jadwalDocRef, dataToSave);
       } else {
-        addDocumentNonBlocking(jadwalUjianCollectionRef, formData);
+        addDocumentNonBlocking(jadwalUjianCollectionRef, dataToSave);
       }
       toast({ title: 'Sukses!', description: 'Jadwal ujian berhasil disimpan.' });
       setIsDialogOpen(false);
@@ -175,9 +188,8 @@ export default function JadwalUjianComponent() {
     }
   };
   
-  const getTeacherName = (guruId: string) => {
-    const teacher = teachers.find(t => t.id === guruId);
-    return teacher ? teacher.name.split(',')[0] : '...';
+  const getTeacherName = (guruName?: string) => {
+    return guruName ? guruName.split(',')[0] : '...';
   };
 
   const handleExportPdf = () => {
@@ -197,7 +209,7 @@ export default function JadwalUjianComponent() {
           item.tanggal,
           item.jam,
           item.mataPelajaran,
-          getTeacherName(item.guruId)
+          getTeacherName(item.guruName)
         ]);
     });
 
@@ -259,7 +271,7 @@ export default function JadwalUjianComponent() {
                                         <div className="mt-1">
                                             <p className="font-bold text-sm text-primary truncate" title={jadwalItem.mataPelajaran}>{jadwalItem.mataPelajaran}</p>
                                             <div className="flex justify-between items-center mt-1">
-                                            <p className="text-xs truncate text-muted-foreground" title={getTeacherName(jadwalItem.guruId)}>Pengawas: {getTeacherName(jadwalItem.guruId)}</p>
+                                            <p className="text-xs truncate text-muted-foreground" title={getTeacherName(jadwalItem.guruName)}>Pengawas: {getTeacherName(jadwalItem.guruName)}</p>
                                             {isAdmin && (
                                                 <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 shrink-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -367,3 +379,5 @@ export default function JadwalUjianComponent() {
     </>
   );
 }
+
+    

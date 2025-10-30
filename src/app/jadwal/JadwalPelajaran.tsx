@@ -62,6 +62,8 @@ const emptyJadwal: Omit<Jadwal, 'id'> = {
   mataPelajaran: '',
   guruId: '',
   jam: '14:00 - 15:00',
+  guruName: '',
+  kitab: ''
 };
 
 const HARI_OPERASIONAL = ['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis'];
@@ -161,7 +163,17 @@ export default function JadwalPelajaranComponent() {
     if (!firestore) return;
     const jadwalCollectionRef = collection(firestore, 'jadwal');
     if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam && formData.hari) {
-      const dataToSave = { ...formData };
+      
+      const selectedTeacher = teachers.find(t => t.id === formData.guruId);
+      const selectedKurikulum = kitabPelajaran.find(k => k.mataPelajaran === formData.mataPelajaran && k.kelas === formData.kelas);
+
+      const dataToSave: Omit<Jadwal, 'id'> = {
+        ...formData,
+        guruName: selectedTeacher?.name || '',
+        kitab: selectedKurikulum?.kitab || '',
+        kurikulumId: selectedKurikulum?.id,
+      };
+
       if (jadwalToEdit) {
         const jadwalDocRef = doc(firestore, 'jadwal', jadwalToEdit.id);
         updateDocumentNonBlocking(jadwalDocRef, dataToSave);
@@ -186,9 +198,8 @@ export default function JadwalPelajaranComponent() {
     }
   };
 
-  const getTeacherName = (guruId: string) => {
-    const teacher = teachers?.find(t => t.id === guruId);
-    return teacher ? teacher.name.split(',')[0] : '...';
+  const getTeacherName = (guruName?: string) => {
+    return guruName ? guruName.split(',')[0] : '...';
   };
 
   const handleExportPdf = () => {
@@ -212,7 +223,7 @@ export default function JadwalPelajaranComponent() {
           item.hari,
           item.jam,
           item.mataPelajaran,
-          getTeacherName(item.guruId)
+          getTeacherName(item.guruName)
         ]);
     });
 
@@ -245,7 +256,7 @@ export default function JadwalPelajaranComponent() {
                             <div className="mt-1">
                               <p className="font-bold text-sm text-primary truncate" title={jadwalItem.mataPelajaran}>{jadwalItem.mataPelajaran}</p>
                               <div className="flex justify-between items-center mt-1">
-                                <p className="text-xs truncate text-muted-foreground" title={getTeacherName(jadwalItem.guruId)}>{getTeacherName(jadwalItem.guruId)}</p>
+                                <p className="text-xs truncate text-muted-foreground" title={getTeacherName(jadwalItem.guruName)}>{getTeacherName(jadwalItem.guruName)}</p>
                                 {isAdmin && (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -435,3 +446,5 @@ export default function JadwalPelajaranComponent() {
     </>
   );
 }
+
+    
