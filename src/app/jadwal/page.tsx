@@ -1,13 +1,10 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import JadwalPelajaran from './JadwalPelajaran';
-import JadwalUjian from './JadwalUjian';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function JadwalPage() {
-  const [activeTab, setActiveTab] = useState('pelajaran');
 
   return (
     <div className="bg-background pb-32 md:pb-0">
@@ -15,26 +12,15 @@ export default function JadwalPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="text-center sm:text-left">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">
-              Manajemen Jadwal
+              Manajemen Jadwal Pelajaran
             </h1>
             <p className="mt-4 max-w-2xl mx-auto sm:mx-0 text-lg text-muted-foreground">
-              Kelola jadwal pelajaran reguler dan jadwal ujian semester.
+              Kelola jadwal pelajaran reguler untuk setiap kelas.
             </p>
           </div>
         </div>
 
-        <Tabs defaultValue="pelajaran" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="pelajaran">Jadwal Pelajaran</TabsTrigger>
-            <TabsTrigger value="ujian">Jadwal Ujian</TabsTrigger>
-          </TabsList>
-          <TabsContent value="pelajaran" className="mt-6">
-            {activeTab === 'pelajaran' && <JadwalPelajaran />}
-          </TabsContent>
-          <TabsContent value="ujian" className="mt-6">
-            {activeTab === 'ujian' && <JadwalUjian />}
-          </TabsContent>
-        </Tabs>
+        <JadwalPelajaran />
 
       </div>
     </div>

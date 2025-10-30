@@ -47,19 +47,6 @@ export type Jadwal = {
   kurikulumId?: string;
 };
 
-export type JadwalUjian = {
-  id: string; // Document ID from Firestore
-  hari: string;
-  tanggal: string;
-  jam: string;
-  kelas: string;
-  mataPelajaran: string;
-  kitab?: string;
-  guruId: string; // Reference to Guru ID (pengawas)
-  guruName?: string;
-  kurikulumId?: string;
-};
-
 export type RaportFile = {
   [key: string]: string | null; // e.g., 'kelas_0_ganjil': 'gs://bucket/path/to/file.pdf'
 };
@@ -78,5 +65,3 @@ export type Nilai = {
     semester: 'ganjil' | 'genap';
     nilai: number;
 };
-
-    
