@@ -220,7 +220,7 @@ export default function JadwalUjianComponent() {
             <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
           </Button>
         </div>
-        <Select value={selectedKelas ?? ''} onValueChange={(value) => setSelectedKelas(value || null)}>
+        <Select value={selectedKelas ?? ''} onValueChange={(value) => setSelectedKelas(value)}>
           <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Pilih Kelas" />
           </SelectTrigger>
@@ -367,5 +367,3 @@ export default function JadwalUjianComponent() {
     </>
   );
 }
-
-    

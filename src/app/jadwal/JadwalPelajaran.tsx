@@ -298,7 +298,7 @@ export default function JadwalPelajaranComponent() {
           </Button>
         </div>
         <div className="flex gap-4">
-            <Select value={selectedKelas ?? ''} onValueChange={(value) => setSelectedKelas(value || null)}>
+            <Select value={selectedKelas ?? ''} onValueChange={(value) => setSelectedKelas(value)}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Pilih Kelas" />
                 </SelectTrigger>
@@ -329,7 +329,7 @@ export default function JadwalPelajaranComponent() {
           {!selectedKelas ? <p className="text-center text-muted-foreground mt-8">Silakan pilih kelas untuk melihat jadwal.</p> :
             (jadwal && jadwal.length > 0) ? 
               renderInteractiveGrid(selectedKelas) :
-              <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal untuk ditampilkan berdasarkan filter yang dipilih.</p>
+              <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal untuk ditampilkan.</p>
           }
          </div>
       )}
@@ -434,5 +434,3 @@ export default function JadwalPelajaranComponent() {
     </>
   );
 }
-
-    
