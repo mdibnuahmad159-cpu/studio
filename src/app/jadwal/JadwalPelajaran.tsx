@@ -75,10 +75,10 @@ export default function JadwalPelajaranComponent() {
   const { user } = useUser();
   const { toast } = useToast();
   
-  const [selectedKelas, setSelectedKelas] = useState('all');
+  const [selectedKelas, setSelectedKelas] = useState<string | null>(null);
   
   const jadwalRef = useMemoFirebase(() => {
-    if (!user || selectedKelas === 'all') return null;
+    if (!user || !selectedKelas) return null;
     return query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
   const { data: jadwal, isLoading: jadwalLoading } = useCollection<Jadwal>(jadwalRef);
@@ -110,13 +110,6 @@ export default function JadwalPelajaranComponent() {
     }
     return [selectedHari];
   }, [selectedHari]);
-
-  const kelasToRender = useMemo(() => {
-    if (selectedKelas === 'all') {
-      return KELAS_OPTIONS.filter(k => jadwal?.some(j => j.kelas === k));
-    }
-    return [selectedKelas];
-  }, [selectedKelas, jadwal]);
   
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -155,12 +148,12 @@ export default function JadwalPelajaranComponent() {
   };
 
   const handleOpenDialog = (item: Jadwal | null = null, defaults: Partial<Omit<Jadwal, 'id'>> = {}) => {
-    if (!isAdmin) return;
+    if (!isAdmin || !selectedKelas) return;
     setJadwalToEdit(item);
     if (item) {
       setFormData({ ...item });
     } else {
-      setFormData({ ...emptyJadwal, ...defaults });
+      setFormData({ ...emptyJadwal, kelas: selectedKelas, ...defaults });
     }
     setIsDialogOpen(true);
   };
@@ -200,7 +193,7 @@ export default function JadwalPelajaranComponent() {
 
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
-    doc.text(`Jadwal Pelajaran - ${selectedKelas === 'all' ? 'Kelas yang Difilter' : `Kelas ${selectedKelas}`}`, 20, 10);
+    doc.text(`Jadwal Pelajaran - Kelas ${selectedKelas}`, 20, 10);
     
     const head: any[] = [['Kelas', 'Hari', 'Jam', 'Pelajaran', 'Guru']];
     const body: any[] = [];
@@ -227,7 +220,7 @@ export default function JadwalPelajaranComponent() {
     doc.save(`jadwal-pelajaran.pdf`);
   };
 
-  const isLoading = jadwalLoading && selectedKelas !== 'all';
+  const isLoading = jadwalLoading && !!selectedKelas;
   
   const renderInteractiveGrid = (kelas: string) => {
     return (
@@ -295,7 +288,7 @@ export default function JadwalPelajaranComponent() {
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           {isAdmin && (
-              <Button onClick={() => handleOpenDialog(null, { kelas: selectedKelas === 'all' ? '0' : selectedKelas })} size="sm" disabled={selectedKelas === 'all'}>
+              <Button onClick={() => handleOpenDialog()} size="sm" disabled={!selectedKelas}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal
               </Button>
           )}
@@ -305,18 +298,17 @@ export default function JadwalPelajaranComponent() {
           </Button>
         </div>
         <div className="flex gap-4">
-            <Select value={selectedKelas} onValueChange={setSelectedKelas}>
+            <Select value={selectedKelas ?? ''} onValueChange={(value) => setSelectedKelas(value || null)}>
                 <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filter Kelas" />
+                    <SelectValue placeholder="Pilih Kelas" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="all">Semua Kelas</SelectItem>
                     {KELAS_OPTIONS.map(kelas => (
                         <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
                     ))}
                 </SelectContent>
             </Select>
-            <Select value={selectedHari} onValueChange={setSelectedHari}>
+            <Select value={selectedHari} onValueChange={setSelectedHari} disabled={!selectedKelas}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Filter Hari" />
                 </SelectTrigger>
@@ -334,9 +326,9 @@ export default function JadwalPelajaranComponent() {
          <p className="text-center">Memuat jadwal...</p>
       ) : (
          <div>
-          {selectedKelas === 'all' ? <p className="text-center text-muted-foreground mt-8">Silakan pilih kelas untuk melihat jadwal.</p> :
+          {!selectedKelas ? <p className="text-center text-muted-foreground mt-8">Silakan pilih kelas untuk melihat jadwal.</p> :
             (jadwal && jadwal.length > 0) ? 
-              kelasToRender.map(kelas => renderInteractiveGrid(kelas)) :
+              renderInteractiveGrid(selectedKelas) :
               <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal untuk ditampilkan berdasarkan filter yang dipilih.</p>
           }
          </div>

@@ -137,9 +137,9 @@ export default function JadwalUjianComponent() {
   };
 
   const handleOpenDialog = (item: JadwalUjian | null = null, defaults: Partial<Omit<JadwalUjian, 'id'>> = {}) => {
-    if (!isAdmin) return;
+    if (!isAdmin || !selectedKelas) return;
     setJadwalToEdit(item);
-    setFormData(item ? { ...item } : { ...emptyJadwalUjian, ...defaults });
+    setFormData(item ? { ...item } : { ...emptyJadwalUjian, kelas: selectedKelas, ...defaults });
     setIsDialogOpen(true);
   };
 
@@ -212,7 +212,7 @@ export default function JadwalUjianComponent() {
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           {isAdmin && (
-            <Button onClick={() => handleOpenDialog(null, { kelas: selectedKelas ?? undefined })} size="sm" disabled={!selectedKelas}>
+            <Button onClick={() => handleOpenDialog()} size="sm" disabled={!selectedKelas}>
               <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal Ujian
             </Button>
           )}
@@ -274,7 +274,7 @@ export default function JadwalUjianComponent() {
                                         ) : (
                                         <div className="flex items-center justify-center flex-grow">
                                             {isAdmin ? (
-                                            <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(null, { kelas: selectedKelas, hari, jam })}>
+                                            <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(null, { hari, jam })}>
                                                 <PlusCircle className="h-5 w-5 text-muted-foreground/50 hover:text-muted-foreground transition-colors" />
                                             </Button>
                                             ) : <span className="text-xs text-muted-foreground">-</span>}
@@ -367,3 +367,5 @@ export default function JadwalUjianComponent() {
     </>
   );
 }
+
+    
