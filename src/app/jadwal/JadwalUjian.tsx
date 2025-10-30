@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -79,7 +79,8 @@ export default function JadwalUjianComponent() {
 
   const [teachers, setTeachers] = useState<Guru[]>([]);
   const [kitabPelajaran, setKitabPelajaran] = useState<Kurikulum[]>([]);
-  const [formDependenciesLoading, setFormDependenciesLoading] = useState(false);
+  const [teachersLoading, setTeachersLoading] = useState(false);
+  const [kurikulumLoading, setKurikulumLoading] = useState(false);
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [jadwalToEdit, setJadwalToEdit] = useState<JadwalUjian | null>(null);
@@ -102,38 +103,41 @@ export default function JadwalUjianComponent() {
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-
-  const loadFormDependencies = async () => {
-    if (!firestore || (teachers.length > 0 && kitabPelajaran.length > 0)) return;
-
-    setFormDependenciesLoading(true);
+  
+  const loadTeachers = async () => {
+    if (!firestore || teachers.length > 0) return;
+    setTeachersLoading(true);
     try {
-      const teachersQuery = query(collection(firestore, 'gurus'));
-      const kurikulumQuery = query(collection(firestore, 'kurikulum'));
-
-      const [teachersSnapshot, kurikulumSnapshot] = await Promise.all([
-        getDocs(teachersQuery),
-        getDocs(kurikulumQuery),
-      ]);
-      
-      const teachersData = teachersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guru));
-      const kurikulumData = kurikulumSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Kurikulum));
-
-      setTeachers(teachersData);
-      setKitabPelajaran(kurikulumData);
+        const teachersQuery = query(collection(firestore, 'gurus'));
+        const teachersSnapshot = await getDocs(teachersQuery);
+        const teachersData = teachersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guru));
+        setTeachers(teachersData);
     } catch (error) {
-      console.error("Failed to load form dependencies:", error);
-      toast({ variant: 'destructive', title: 'Gagal Memuat Data', description: 'Tidak dapat memuat daftar guru dan mata pelajaran.' });
+        console.error("Failed to load teachers:", error);
+        toast({ variant: 'destructive', title: 'Gagal Memuat Guru', description: 'Tidak dapat memuat daftar pengawas.' });
     } finally {
-      setFormDependenciesLoading(false);
+        setTeachersLoading(false);
     }
   };
 
-  const handleOpenDialog = async (item: JadwalUjian | null = null, defaults: Partial<Omit<JadwalUjian, 'id'>> = {}) => {
+  const loadKurikulum = async () => {
+      if (!firestore || kitabPelajaran.length > 0) return;
+      setKurikulumLoading(true);
+      try {
+          const kurikulumQuery = query(collection(firestore, 'kurikulum'));
+          const kurikulumSnapshot = await getDocs(kurikulumQuery);
+          const kurikulumData = kurikulumSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Kurikulum));
+          setKitabPelajaran(kurikulumData);
+      } catch (error) {
+          console.error("Failed to load curriculum:", error);
+          toast({ variant: 'destructive', title: 'Gagal Memuat Mapel', description: 'Tidak dapat memuat daftar mata pelajaran.' });
+      } finally {
+          setKurikulumLoading(false);
+      }
+  };
+
+  const handleOpenDialog = (item: JadwalUjian | null = null, defaults: Partial<Omit<JadwalUjian, 'id'>> = {}) => {
     if (!isAdmin) return;
-    
-    await loadFormDependencies();
-    
     setJadwalToEdit(item);
     setFormData(item ? { ...item } : { ...emptyJadwalUjian, ...defaults });
     setIsDialogOpen(true);
@@ -171,7 +175,10 @@ export default function JadwalUjianComponent() {
     }
   };
   
-  const getTeacherName = (guruId: string) => teachers?.find(t => t.id === guruId)?.name.split(',')[0] || guruId;
+  const getTeacherName = (guruId: string) => {
+    const teacher = teachers.find(t => t.id === guruId);
+    return teacher ? teacher.name.split(',')[0] : '...';
+  };
 
   const handleExportPdf = () => {
     if (!jadwalUjian) return;
@@ -324,15 +331,15 @@ export default function JadwalUjianComponent() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="mataPelajaran">Mata Pelajaran</Label>
-                  <Select name="mataPelajaran" onValueChange={v => handleSelectChange('mataPelajaran', v)} value={formData.mataPelajaran} disabled={formDependenciesLoading}>
-                    <SelectTrigger><SelectValue placeholder={formDependenciesLoading ? 'Memuat...' : 'Pilih Mata Pelajaran'} /></SelectTrigger>
+                  <Select name="mataPelajaran" onValueChange={v => handleSelectChange('mataPelajaran', v)} value={formData.mataPelajaran} disabled={kurikulumLoading}>
+                    <SelectTrigger onPointerDown={loadKurikulum}><SelectValue placeholder={kurikulumLoading ? 'Memuat...' : 'Pilih Mata Pelajaran'} /></SelectTrigger>
                     <SelectContent>{kitabPelajaran?.filter(k => k.kelas === formData.kelas).map(m => <SelectItem key={m.id} value={m.mataPelajaran}>[{m.kode}] {m.mataPelajaran}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="guruId">Pengawas</Label>
-                  <Select name="guruId" onValueChange={v => handleSelectChange('guruId', v)} value={formData.guruId} disabled={formDependenciesLoading}>
-                    <SelectTrigger><SelectValue placeholder={formDependenciesLoading ? 'Memuat...' : 'Pilih Pengawas'} /></SelectTrigger>
+                  <Select name="guruId" onValueChange={v => handleSelectChange('guruId', v)} value={formData.guruId} disabled={teachersLoading}>
+                    <SelectTrigger onPointerDown={loadTeachers}><SelectValue placeholder={teachersLoading ? 'Memuat...' : 'Pilih Pengawas'} /></SelectTrigger>
                     <SelectContent>{teachers?.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
