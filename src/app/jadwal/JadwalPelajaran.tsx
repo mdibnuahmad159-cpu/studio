@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -109,8 +108,6 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
             setKurikulum(kurikulumData);
             
             // 2. Now, fetch schedules based on selected class
-            let finalJadwal: Jadwal[] = [];
-            
             if (selectedKelas === 'all') {
                 const jadwalSnapshot = await getDocs(collection(firestore, 'jadwal'));
                 if(isMounted) {
@@ -454,5 +451,3 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
     </>
   );
 }
-
-    
