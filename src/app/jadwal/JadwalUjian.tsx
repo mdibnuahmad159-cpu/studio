@@ -69,7 +69,7 @@ export default function JadwalUjianComponent() {
   const { user } = useUser();
   const { toast } = useToast();
 
-  const [selectedKelas, setSelectedKelas] = useState('');
+  const [selectedKelas, setSelectedKelas] = useState<string | null>(null);
 
   const jadwalUjianRef = useMemoFirebase(() => {
     if (!user || !selectedKelas) return null;
@@ -181,9 +181,9 @@ export default function JadwalUjianComponent() {
   };
 
   const handleExportPdf = () => {
-    if (!jadwalUjian) return;
+    if (!jadwalUjian || !selectedKelas) return;
     const doc = new jsPDF() as jsPDFWithAutoTable;
-    doc.text(`Jadwal Ujian - ${selectedKelas === '' ? 'Pilih Kelas Dahulu' : `Kelas ${selectedKelas}`}`, 20, 10);
+    doc.text(`Jadwal Ujian - Kelas ${selectedKelas}`, 20, 10);
     
     const head: any[] = [['Kelas', 'Hari', 'Tanggal', 'Jam', 'Mata Pelajaran', 'Pengawas']];
     const body: any[] = [];
@@ -212,7 +212,7 @@ export default function JadwalUjianComponent() {
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           {isAdmin && (
-            <Button onClick={() => handleOpenDialog(null, { kelas: selectedKelas })} size="sm" disabled={!selectedKelas}>
+            <Button onClick={() => handleOpenDialog(null, { kelas: selectedKelas ?? undefined })} size="sm" disabled={!selectedKelas}>
               <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal Ujian
             </Button>
           )}
@@ -220,7 +220,7 @@ export default function JadwalUjianComponent() {
             <FileDown className="mr-2 h-4 w-4" /> Ekspor PDF
           </Button>
         </div>
-        <Select value={selectedKelas} onValueChange={setSelectedKelas}>
+        <Select value={selectedKelas ?? ''} onValueChange={(value) => setSelectedKelas(value || null)}>
           <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Pilih Kelas" />
           </SelectTrigger>
