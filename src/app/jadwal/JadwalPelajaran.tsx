@@ -3,7 +3,6 @@
 
 import React, { useState, useMemo } from 'react';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -78,7 +77,7 @@ export default function JadwalPelajaranComponent() {
   const [selectedKelas, setSelectedKelas] = useState<string | null>(null);
   
   const jadwalRef = useMemoFirebase(() => {
-    if (!user || !selectedKelas) return null;
+    if (!firestore || !user || !selectedKelas) return null;
     return query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
   const { data: jadwal, isLoading: jadwalLoading } = useCollection<Jadwal>(jadwalRef);
@@ -159,8 +158,9 @@ export default function JadwalPelajaranComponent() {
   };
 
   const handleSaveJadwal = () => {
+    if (!firestore) return;
     const jadwalCollectionRef = collection(firestore, 'jadwal');
-    if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam && formData.hari && jadwalCollectionRef && firestore) {
+    if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam && formData.hari) {
       const dataToSave = { ...formData };
       if (jadwalToEdit) {
         const jadwalDocRef = doc(firestore, 'jadwal', jadwalToEdit.id);
@@ -322,14 +322,15 @@ export default function JadwalPelajaranComponent() {
         </div>
       </div>
       
-      {isLoading ? (
+      {!selectedKelas ? (
+        <p className="text-center text-muted-foreground mt-8">Silakan pilih kelas untuk melihat jadwal.</p>
+      ) : isLoading ? (
          <p className="text-center">Memuat jadwal...</p>
       ) : (
          <div>
-          {!selectedKelas ? <p className="text-center text-muted-foreground mt-8">Silakan pilih kelas untuk melihat jadwal.</p> :
-            (jadwal && jadwal.length > 0) ? 
+          {(jadwal && jadwal.length > 0) ? 
               renderInteractiveGrid(selectedKelas) :
-              <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal untuk ditampilkan.</p>
+              <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal untuk kelas ini.</p>
           }
          </div>
       )}
