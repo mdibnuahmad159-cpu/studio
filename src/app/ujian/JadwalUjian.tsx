@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -87,9 +87,9 @@ export default function JadwalUjianComponent() {
   const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(teachersRef);
   
   const kurikulumRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return collection(firestore, 'kurikulum');
-  }, [firestore, user]);
+    if (!user || !selectedKelas) return null;
+    return query(collection(firestore, 'kurikulum'), where('kelas', '==', selectedKelas));
+  }, [firestore, user, selectedKelas]);
   const { data: kitabPelajaran, isLoading: kurikulumLoading } = useCollection<Kurikulum>(kurikulumRef);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
