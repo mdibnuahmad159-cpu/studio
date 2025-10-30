@@ -17,6 +17,7 @@ const navLinks = [
   { href: '/alumni', label: 'Alumni', icon: GraduationCap },
   { href: '/kelas', label: 'Kelas', icon: BookCopy },
   { href: '/jadwal', label: 'Jadwal', icon: CalendarDays },
+  { href: '/ujian', label: 'Ujian', icon: FileSignature },
   { href: '/nilai', label: 'Nilai', icon: ClipboardCheck },
   { href: '/raport', label: 'Raport', icon: FileText },
 ];
@@ -51,7 +52,7 @@ export function BottomNav() {
             <div
                 className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
             >
-                <nav className="flex justify-center items-center h-16">
+                <nav className="grid grid-cols-5 h-16">
                     {topRowLinks.map((link) => {
                     const isActive = pathname === link.href;
                     return (
@@ -59,7 +60,7 @@ export function BottomNav() {
                         key={link.href}
                         href={link.href}
                         className={cn(
-                            'flex flex-col items-center justify-center text-muted-foreground transition-colors w-1/5 h-full pt-2 pb-1',
+                            'flex flex-col items-center justify-center text-muted-foreground transition-colors w-full h-full pt-2 pb-1',
                             isActive ? 'text-primary' : 'hover:text-primary'
                         )}
                         >
@@ -69,7 +70,7 @@ export function BottomNav() {
                     );
                     })}
                 </nav>
-                <nav className="flex justify-center items-center h-16 border-t">
+                <nav className="grid grid-cols-5 h-16 border-t">
                     {bottomRowLinks.map((link) => {
                         const isActive = pathname === link.href;
                         return (
@@ -77,7 +78,7 @@ export function BottomNav() {
                             key={link.href}
                             href={link.href}
                             className={cn(
-                            'flex flex-col items-center justify-center text-muted-foreground transition-colors w-1/5 h-full pt-2 pb-1',
+                            'flex flex-col items-center justify-center text-muted-foreground transition-colors w-full h-full pt-2 pb-1',
                             isActive ? 'text-primary' : 'hover:text-primary'
                             )}
                         >

@@ -130,6 +130,30 @@
       },
       "required": ["hari", "kelas", "mataPelajaran", "guruId", "jam"]
     },
+    "JadwalUjian": {
+      "title": "JadwalUjian",
+      "type": "object",
+      "description": "Represents an exam schedule entry.",
+      "properties": {
+        "hari": {
+          "type": "string"
+        },
+        "kelas": {
+          "type": "string"
+        },
+        "mataPelajaran": {
+          "type": "string"
+        },
+        "guruId": {
+          "type": "string",
+          "description": "Reference to the Guru document ID (for the supervisor)."
+        },
+        "jam": {
+          "type": "string"
+        }
+      },
+      "required": ["hari", "kelas", "mataPelajaran", "guruId", "jam"]
+    },
     "Raport": {
       "title": "Raport",
       "type": "object",
@@ -195,6 +219,10 @@
     "/jadwal/{jadwalId}": {
       "schema": { "$ref": "#/entities/Jadwal" },
       "description": "Stores class schedule entries."
+    },
+    "/jadwalUjian/{jadwalUjianId}": {
+      "schema": { "$ref": "#/entities/JadwalUjian" },
+      "description": "Stores exam schedule entries."
     },
     "/raports/{raportId}": {
       "schema": { "$ref": "#/entities/Raport" },
