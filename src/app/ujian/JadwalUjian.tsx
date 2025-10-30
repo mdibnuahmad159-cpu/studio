@@ -76,7 +76,9 @@ export default function JadwalUjianComponent() {
   const [selectedKelas, setSelectedKelas] = useState('');
   
   const jadwalUjianRef = useMemoFirebase(() => {
-    if (!user || !selectedKelas) return null;
+    if (!user || !selectedKelas) {
+      return null;
+    }
     return query(collection(firestore, 'jadwalUjian'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
   const { data: jadwalUjian, isLoading: jadwalLoading } = useCollection<JadwalUjian>(jadwalUjianRef);
