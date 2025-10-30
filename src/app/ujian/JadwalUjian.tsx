@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -75,24 +75,20 @@ export default function JadwalUjianComponent() {
   
   const [selectedKelas, setSelectedKelas] = useState('0');
   
+  // --- Queries ---
   const jadwalUjianRef = useMemoFirebase(() => {
     if (!user || !selectedKelas) return null;
     return query(collection(firestore, 'jadwalUjian'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
   const { data: jadwalUjian, isLoading: jadwalLoading } = useCollection<JadwalUjian>(jadwalUjianRef);
 
-  const teachersRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return collection(firestore, 'gurus');
-  }, [firestore, user]);
-  const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(teachersRef);
-  
-  const kurikulumRef = useMemoFirebase(() => {
-    if (!user || !selectedKelas) return null;
-    return query(collection(firestore, 'kurikulum'), where('kelas', '==', selectedKelas));
-  }, [firestore, user, selectedKelas]);
-  const { data: kitabPelajaran, isLoading: kurikulumLoading } = useCollection<Kurikulum>(kurikulumRef);
+  const allTeachersRef = useMemoFirebase(() => user ? collection(firestore, 'gurus') : null, [firestore, user]);
+  const { data: allTeachers, isLoading: teachersLoading } = useCollection<Guru>(allTeachersRef);
 
+  const allKurikulumRef = useMemoFirebase(() => user ? collection(firestore, 'kurikulum') : null, [firestore, user]);
+  const { data: allKitabPelajaran, isLoading: kurikulumLoading } = useCollection<Kurikulum>(allKurikulumRef);
+
+  // --- State ---
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [jadwalToEdit, setJadwalToEdit] = useState<JadwalUjian | null>(null);
   const [jadwalToDelete, setJadwalToDelete] = useState<JadwalUjian | null>(null);
@@ -107,23 +103,22 @@ export default function JadwalUjianComponent() {
     }
     return filtered.sort((a,b) => HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari) || a.jam.localeCompare(b.jam));
   }, [jadwalUjian, selectedHari]);
+
+  const kitabPelajaranForForm = useMemo(() => {
+      if (!allKitabPelajaran) return [];
+      return allKitabPelajaran.filter(k => k.kelas === formData.kelas);
+  }, [allKitabPelajaran, formData.kelas]);
   
+  // --- Handlers ---
   const handleSelectChange = (name: string, value: string) => {
      if (name === 'guruId') {
-      const selectedTeacher = teachers?.find(t => t.id === value);
+      const selectedTeacher = allTeachers?.find(t => t.id === value);
       setFormData(prev => ({ 
         ...prev, 
         guruId: value, 
         guruName: selectedTeacher?.name || '' 
       }));
-    } else if (name === 'mataPelajaran') {
-      const selectedSubject = kitabPelajaran?.find(k => k.mataPelajaran === value);
-      setFormData(prev => ({ 
-        ...prev, 
-        mataPelajaran: selectedSubject?.mataPelajaran || ''
-      }));
-    }
-    else {
+    } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
@@ -240,19 +235,19 @@ export default function JadwalUjianComponent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && selectedKelas && (
+            {isLoading && (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 5 : 4} className="text-center h-24">Loading...</TableCell>
               </TableRow>
             )}
-            {selectedKelas && !isLoading && filteredJadwal.length === 0 && (
+            {!isLoading && filteredJadwal.length === 0 && (
                  <TableRow>
                     <TableCell colSpan={isAdmin ? 5 : 4} className="text-center h-24 text-muted-foreground">
-                        Tidak ada jadwal ujian untuk ditampilkan.
+                       {selectedKelas ? "Tidak ada jadwal ujian untuk kelas ini." : "Silakan pilih kelas terlebih dahulu."}
                     </TableCell>
                 </TableRow>
             )}
-            {selectedKelas && !isLoading && filteredJadwal.map((item) => (
+            {!isLoading && filteredJadwal.map((item) => (
               <TableRow key={item.id}>
                 <TableCell>{item.hari}</TableCell>
                 <TableCell>{item.jam}</TableCell>
@@ -293,10 +288,19 @@ export default function JadwalUjianComponent() {
               <DialogHeader>
                 <DialogTitle>{jadwalToEdit ? 'Edit Jadwal Ujian' : 'Tambah Jadwal Ujian'}</DialogTitle>
                 <DialogDescription>
-                  {jadwalToEdit ? 'Perbarui informasi jadwal ujian.' : `Isi formulir untuk menambahkan jadwal ujian baru untuk kelas ${selectedKelas}.`}
+                  {jadwalToEdit ? 'Perbarui informasi jadwal ujian.' : `Isi formulir untuk menambahkan jadwal ujian baru untuk kelas ${formData.kelas}.`}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                 <div className="space-y-2">
+                  <Label htmlFor="kelas">Kelas</Label>
+                  <Select name="kelas" onValueChange={(value) => handleSelectChange('kelas', value)} value={formData.kelas}>
+                    <SelectTrigger><SelectValue placeholder="Pilih Kelas" /></SelectTrigger>
+                    <SelectContent>
+                      {KELAS_OPTIONS.map(kelas => <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
                  <div className="space-y-2">
                   <Label htmlFor="hari">Hari</Label>
                   <Select name="hari" onValueChange={(value) => handleSelectChange('hari', value)} value={formData.hari}>
@@ -320,7 +324,7 @@ export default function JadwalUjianComponent() {
                   <Select name="mataPelajaran" onValueChange={(value) => handleSelectChange('mataPelajaran', value)} value={formData.mataPelajaran}>
                     <SelectTrigger><SelectValue placeholder="Pilih Mata Pelajaran" /></SelectTrigger>
                     <SelectContent>
-                      {kitabPelajaran?.map((mapel) => (
+                      {kitabPelajaranForForm.map((mapel) => (
                         <SelectItem key={mapel.id} value={mapel.mataPelajaran}>[{mapel.kode}] {mapel.mataPelajaran}</SelectItem>
                       ))}
                     </SelectContent>
@@ -331,7 +335,7 @@ export default function JadwalUjianComponent() {
                   <Select name="guruId" onValueChange={(value) => handleSelectChange('guruId', String(value))} value={String(formData.guruId)}>
                     <SelectTrigger><SelectValue placeholder="Pilih Pengawas" /></SelectTrigger>
                     <SelectContent>
-                      {teachers?.map(teacher => (
+                      {allTeachers?.map(teacher => (
                         <SelectItem key={teacher.id} value={String(teacher.id)}>{teacher.name}</SelectItem>
                       ))}
                     </SelectContent>
