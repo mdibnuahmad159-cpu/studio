@@ -48,7 +48,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { JadwalUjian, Guru, Kurikulum } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -81,12 +81,10 @@ export default function JadwalUjianComponent() {
   }, [firestore, user, selectedKelas]);
   const { data: jadwalUjian, isLoading: jadwalLoading } = useCollection<JadwalUjian>(jadwalUjianRef);
 
-  const allTeachersRef = useMemoFirebase(() => user ? collection(firestore, 'gurus') : null, [firestore, user]);
-  const { data: allTeachers, isLoading: teachersLoading } = useCollection<Guru>(allTeachersRef);
-
-  const allKurikulumRef = useMemoFirebase(() => user ? collection(firestore, 'kurikulum') : null, [firestore, user]);
-  const { data: allKitabPelajaran, isLoading: kurikulumLoading } = useCollection<Kurikulum>(allKurikulumRef);
-
+  const [allTeachers, setAllTeachers] = useState<Guru[]>([]);
+  const [allKitabPelajaran, setAllKitabPelajaran] = useState<Kurikulum[]>([]);
+  
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [jadwalToEdit, setJadwalToEdit] = useState<JadwalUjian | null>(null);
   const [jadwalToDelete, setJadwalToDelete] = useState<JadwalUjian | null>(null);
@@ -106,6 +104,28 @@ export default function JadwalUjianComponent() {
       if (!allKitabPelajaran) return [];
       return allKitabPelajaran.filter(k => k.kelas === formData.kelas);
   }, [allKitabPelajaran, formData.kelas]);
+
+  const loadDropdownData = async () => {
+    if (!firestore || !user) return;
+    try {
+      const teachersQuery = query(collection(firestore, 'gurus'));
+      const kurikulumQuery = query(collection(firestore, 'kurikulum'));
+
+      const [teachersSnapshot, kurikulumSnapshot] = await Promise.all([
+        getDocs(teachersQuery),
+        getDocs(kurikulumQuery),
+      ]);
+
+      const teachersData = teachersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guru));
+      const kurikulumData = kurikulumSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Kurikulum));
+
+      setAllTeachers(teachersData);
+      setAllKitabPelajaran(kurikulumData);
+      setIsDataLoaded(true);
+    } catch (error) {
+      console.error("Failed to load dropdown data:", error);
+    }
+  };
   
   const handleSelectChange = (name: string, value: string) => {
      if (name === 'guruId') {
@@ -120,8 +140,13 @@ export default function JadwalUjianComponent() {
     }
   };
 
-  const handleOpenDialog = (item: JadwalUjian | null = null) => {
+  const handleOpenDialog = async (item: JadwalUjian | null = null) => {
     if (!isAdmin) return;
+    
+    if (!isDataLoaded) {
+      await loadDropdownData();
+    }
+
     setJadwalToEdit(item);
     if (item) {
       setFormData({ ...item });
@@ -179,7 +204,7 @@ export default function JadwalUjianComponent() {
     doc.save(`jadwal-ujian-kelas-${selectedKelas}.pdf`);
   };
 
-  const isLoading = jadwalLoading || teachersLoading || kurikulumLoading;
+  const isLoading = jadwalLoading && !!selectedKelas;
 
   return (
     <>
@@ -232,7 +257,7 @@ export default function JadwalUjianComponent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && selectedKelas && (
+            {isLoading && (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 5 : 4} className="text-center h-24">Loading...</TableCell>
               </TableRow>
@@ -318,8 +343,8 @@ export default function JadwalUjianComponent() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="mataPelajaran">Mata Pelajaran</Label>
-                  <Select name="mataPelajaran" onValueChange={(value) => handleSelectChange('mataPelajaran', value)} value={formData.mataPelajaran}>
-                    <SelectTrigger><SelectValue placeholder="Pilih Mata Pelajaran" /></SelectTrigger>
+                  <Select name="mataPelajaran" onValueChange={(value) => handleSelectChange('mataPelajaran', value)} value={formData.mataPelajaran} disabled={!isDataLoaded}>
+                    <SelectTrigger><SelectValue placeholder={isDataLoaded ? "Pilih Mata Pelajaran" : "Memuat..."} /></SelectTrigger>
                     <SelectContent>
                       {kitabPelajaranForForm.map((mapel) => (
                         <SelectItem key={mapel.id} value={mapel.mataPelajaran}>[{mapel.kode}] {mapel.mataPelajaran}</SelectItem>
@@ -329,8 +354,8 @@ export default function JadwalUjianComponent() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="guruId">Pengawas</Label>
-                  <Select name="guruId" onValueChange={(value) => handleSelectChange('guruId', String(value))} value={String(formData.guruId)}>
-                    <SelectTrigger><SelectValue placeholder="Pilih Pengawas" /></SelectTrigger>
+                  <Select name="guruId" onValueChange={(value) => handleSelectChange('guruId', String(value))} value={String(formData.guruId)} disabled={!isDataLoaded}>
+                    <SelectTrigger><SelectValue placeholder={isDataLoaded ? "Pilih Pengawas" : "Memuat..."} /></SelectTrigger>
                     <SelectContent>
                       {allTeachers?.map(teacher => (
                         <SelectItem key={teacher.id} value={String(teacher.id)}>{teacher.name}</SelectItem>
@@ -366,5 +391,3 @@ export default function JadwalUjianComponent() {
     </>
   );
 }
-
-    
