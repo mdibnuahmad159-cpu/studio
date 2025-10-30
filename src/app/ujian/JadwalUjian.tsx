@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -50,7 +49,6 @@ import { JadwalUjian, Guru, Kurikulum } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -76,8 +74,8 @@ export default function JadwalUjianComponent() {
   const [selectedKelas, setSelectedKelas] = useState('');
   
   const jadwalUjianRef = useMemoFirebase(() => {
-    if (!user) return null;
-    if (!selectedKelas || selectedKelas === 'all') return collection(firestore, 'jadwalUjian');
+    if (!user || !selectedKelas) return null;
+    if (selectedKelas === 'all') return collection(firestore, 'jadwalUjian');
     return query(collection(firestore, 'jadwalUjian'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
   const { data: jadwal, isLoading: jadwalLoading } = useCollection<JadwalUjian>(jadwalUjianRef);
@@ -89,9 +87,9 @@ export default function JadwalUjianComponent() {
   const { data: teachers, isLoading: teachersLoading } = useCollection<Guru>(teachersRef);
   
   const kurikulumRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return collection(firestore, 'kurikulum');
-  }, [firestore, user]);
+    if (!user || !selectedKelas) return null;
+    return query(collection(firestore, 'kurikulum'), where('kelas', '==', selectedKelas));
+  }, [firestore, user, selectedKelas]);
   const { data: kitabPelajaran, isLoading: kurikulumLoading } = useCollection<Kurikulum>(kurikulumRef);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -184,7 +182,7 @@ export default function JadwalUjianComponent() {
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           {isAdmin && (
-              <Button onClick={() => handleOpenDialog(null)} size="sm">
+              <Button onClick={() => handleOpenDialog(null)} size="sm" disabled={!selectedKelas || selectedKelas === 'all'}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Tambah Jadwal Ujian
               </Button>
           )}
@@ -232,10 +230,10 @@ export default function JadwalUjianComponent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {(isLoading && selectedKelas) ? (
                 <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center">Loading...</TableCell></TableRow>
               ) : filteredJadwal.length === 0 ? (
-                <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center">Tidak ada jadwal ujian untuk ditampilkan.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center">{!selectedKelas ? 'Silakan pilih kelas terlebih dahulu' : 'Tidak ada jadwal ujian untuk ditampilkan.'}</TableCell></TableRow>
               ) : (
                 filteredJadwal.map((item) => (
                   <TableRow key={item.id}>
