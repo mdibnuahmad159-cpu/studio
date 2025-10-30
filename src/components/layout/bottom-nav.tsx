@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, BookMarked, UserCircle, GraduationCap, CalendarDays, FileText, ClipboardCheck, ChevronDown, ChevronUp, BookCopy, FileSignature } from 'lucide-react';
+import { Home, Users, BookMarked, UserCircle, GraduationCap, CalendarDays, FileText, ClipboardCheck, ChevronDown, ChevronUp, BookCopy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
@@ -68,24 +69,26 @@ export function BottomNav() {
                     );
                     })}
                 </nav>
-                <nav className="grid grid-cols-5 h-16 border-t">
-                    {bottomRowLinks.map((link) => {
-                        const isActive = pathname === link.href;
-                        return (
-                        <Link
-                            key={link.href}
-                            href={link.href}
-                            className={cn(
-                            'flex flex-col items-center justify-center text-muted-foreground transition-colors w-full h-full pt-2 pb-1',
-                            isActive ? 'text-primary' : 'hover:text-primary'
-                            )}
-                        >
-                            <link.icon className="h-5 w-5 mb-1" />
-                            <span className="text-[10px] text-center">{link.label}</span>
-                        </Link>
-                        );
-                    })}
-                </nav>
+                <div className="flex justify-center border-t">
+                    <nav className="grid grid-cols-4 h-16 w-4/5">
+                        {bottomRowLinks.map((link) => {
+                            const isActive = pathname === link.href;
+                            return (
+                            <Link
+                                key={link.href}
+                                href={link.href}
+                                className={cn(
+                                'flex flex-col items-center justify-center text-muted-foreground transition-colors w-full h-full pt-2 pb-1',
+                                isActive ? 'text-primary' : 'hover:text-primary'
+                                )}
+                            >
+                                <link.icon className="h-5 w-5 mb-1" />
+                                <span className="text-[10px] text-center">{link.label}</span>
+                            </Link>
+                            );
+                        })}
+                    </nav>
+                </div>
             </div>
         </motion.div>
     </div>
