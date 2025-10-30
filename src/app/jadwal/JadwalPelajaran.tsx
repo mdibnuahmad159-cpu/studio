@@ -47,7 +47,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Jadwal, Guru, Kurikulum } from '@/lib/data';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, doc, query, where, getDocs, Query } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -56,19 +56,17 @@ interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-const emptyJadwal: Omit<Jadwal, 'id' | 'kurikulumId'> = {
+const emptyJadwal: Omit<Jadwal, 'id'> = {
   hari: 'Sabtu',
   kelas: '0',
-  mataPelajaran: '',
-  guruId: '',
   jam: '14:00 - 15:00',
-  guruName: '',
-  kitab: ''
+  guruId: '',
+  kurikulumId: ''
 };
 
 const HARI_OPERASIONAL = ['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis'];
 const JAM_PELAJARAN = ['14:00 - 15:00', '15:30 - 16:30'];
-const KELAS_OPTIONS = ['0', '1', '2', '3', '4', '5', '6'];
+const KELAS_OPTIONS = ['all', '0', '1', '2', '3', '4', '5', '6'];
 
 interface JadwalPelajaranProps {
   selectedKelas: string;
@@ -84,7 +82,7 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
   const [isMultiLoading, setIsMultiLoading] = useState(false);
   
   const singleJadwalQuery = useMemoFirebase(() => {
-    if (!firestore || !user || selectedKelas === 'all') return null;
+    if (!firestore || !user || selectedKelas === 'all' || !selectedKelas) return null;
     return query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
   }, [firestore, user, selectedKelas]);
 
@@ -95,7 +93,7 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
       if (selectedKelas !== 'all' || !firestore || !user) return;
       setIsMultiLoading(true);
       
-      const allClassQueries = KELAS_OPTIONS.map(kelas => 
+      const allClassQueries = KELAS_OPTIONS.filter(k => k !== 'all').map(kelas => 
         getDocs(query(collection(firestore, 'jadwal'), where('kelas', '==', kelas)))
       );
       
@@ -125,14 +123,37 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
   const isLoading = selectedKelas === 'all' ? isMultiLoading : singleJadwalLoading;
   
   const [teachers, setTeachers] = useState<Guru[]>([]);
-  const [kitabPelajaran, setKitabPelajaran] = useState<Kurikulum[]>([]);
-  const [teachersLoading, setTeachersLoading] = useState(false);
-  const [kurikulumLoading, setKurikulumLoading] = useState(false);
+  const [kurikulum, setKurikulum] = useState<Kurikulum[]>([]);
+
+  useEffect(() => {
+    async function loadInitialData() {
+        if (!firestore) return;
+        try {
+            const teachersQuery = query(collection(firestore, 'gurus'));
+            const teachersSnapshot = await getDocs(teachersQuery);
+            const teachersData = teachersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guru));
+            setTeachers(teachersData);
+
+            const kurikulumQuery = query(collection(firestore, 'kurikulum'));
+            const kurikulumSnapshot = await getDocs(kurikulumQuery);
+            const kurikulumData = kurikulumSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Kurikulum));
+            setKurikulum(kurikulumData);
+        } catch (error) {
+            console.error("Failed to load initial data:", error);
+            toast({ variant: 'destructive', title: 'Gagal Memuat Data', description: 'Tidak dapat memuat data guru dan kurikulum.' });
+        }
+    }
+    loadInitialData();
+  }, [firestore, toast]);
+  
+  const teachersMap = useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
+  const kurikulumMap = useMemo(() => new Map(kurikulum.map(k => [k.id, {pelajaran: k.mataPelajaran, kitab: k.kitab}])), [kurikulum]);
+
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [jadwalToEdit, setJadwalToEdit] = useState<Jadwal | null>(null);
   const [jadwalToDelete, setJadwalToDelete] = useState<Jadwal | null>(null);
-  const [formData, setFormData] = useState<Omit<Jadwal, 'id' | 'kurikulumId'>>(emptyJadwal);
+  const [formData, setFormData] = useState<Omit<Jadwal, 'id'>>(emptyJadwal);
   const [selectedHari, setSelectedHari] = useState('all');
 
   const jadwalByKelasHariJam = useMemo(() => {
@@ -156,44 +177,11 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const loadTeachers = async () => {
-    if (!firestore || teachers.length > 0) return;
-    setTeachersLoading(true);
-    try {
-        const teachersQuery = query(collection(firestore, 'gurus'));
-        const teachersSnapshot = await getDocs(teachersQuery);
-        const teachersData = teachersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guru));
-        setTeachers(teachersData);
-    } catch (error) {
-        console.error("Failed to load teachers:", error);
-        toast({ variant: 'destructive', title: 'Gagal Memuat Guru', description: 'Tidak dapat memuat daftar pengajar.' });
-    } finally {
-        setTeachersLoading(false);
-    }
-  };
-
-  const loadKurikulum = async () => {
-      if (!firestore || kitabPelajaran.length > 0) return;
-      setKurikulumLoading(true);
-      try {
-          const kurikulumQuery = query(collection(firestore, 'kurikulum'));
-          const kurikulumSnapshot = await getDocs(kurikulumQuery);
-          const kurikulumData = kurikulumSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Kurikulum));
-          setKitabPelajaran(kurikulumData);
-      } catch (error) {
-          console.error("Failed to load curriculum:", error);
-          toast({ variant: 'destructive', title: 'Gagal Memuat Mapel', description: 'Tidak dapat memuat daftar mata pelajaran.' });
-      } finally {
-          setKurikulumLoading(false);
-      }
-  };
-
-  const handleOpenDialog = (item: Jadwal | null = null, defaults: Partial<Omit<Jadwal, 'id' | 'kurikulumId'>> = {}) => {
+  const handleOpenDialog = (item: Jadwal | null = null, defaults: Partial<Omit<Jadwal, 'id'>> = {}) => {
     if (!isAdmin || selectedKelas === 'all') return;
     setJadwalToEdit(item);
     if (item) {
-      const { kurikulumId, ...rest } = item;
-      setFormData({ ...rest });
+      setFormData({ ...item });
     } else {
       setFormData({ ...emptyJadwal, kelas: selectedKelas, ...defaults });
     }
@@ -203,16 +191,10 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
   const handleSaveJadwal = () => {
     if (!firestore) return;
     const jadwalCollectionRef = collection(firestore, 'jadwal');
-    if (formData.kelas && formData.mataPelajaran && formData.guruId && formData.jam && formData.hari) {
+    if (formData.kelas && formData.kurikulumId && formData.guruId && formData.jam && formData.hari) {
       
-      const selectedTeacher = teachers.find(t => t.id === formData.guruId);
-      const selectedKurikulum = kitabPelajaran.find(k => k.mataPelajaran === formData.mataPelajaran && k.kelas === formData.kelas);
-
       const dataToSave: Omit<Jadwal, 'id'> = {
         ...formData,
-        guruName: selectedTeacher?.name || '',
-        kitab: selectedKurikulum?.kitab || '',
-        kurikulumId: selectedKurikulum?.id,
       };
 
       if (jadwalToEdit) {
@@ -238,10 +220,11 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
         setJadwalToDelete(null);
     }
   };
-
-  const getTeacherName = (guruName?: string) => {
-    return guruName ? guruName.split(',')[0] : '...';
-  };
+  
+  const getTeacherName = (guruId?: string) => {
+    if (!guruId) return '...';
+    return teachersMap.get(guruId)?.split(',')[0] || '...';
+  }
 
   const handleExportPdf = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
@@ -256,13 +239,14 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
     (jadwal || [])
       .sort((a,b) => Number(a.kelas) - Number(b.kelas) || HARI_OPERASIONAL.indexOf(a.hari) - HARI_OPERASIONAL.indexOf(b.hari))
       .forEach(item => {
+        const kurikulumItem = item.kurikulumId ? kurikulumMap.get(item.kurikulumId) : null;
         body.push([
           `Kelas ${item.kelas}`,
           item.hari,
           item.jam,
-          item.mataPelajaran,
-          item.kitab,
-          getTeacherName(item.guruName)
+          kurikulumItem?.pelajaran || '',
+          kurikulumItem?.kitab || '',
+          getTeacherName(item.guruId)
         ]);
     });
 
@@ -286,14 +270,15 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
                     {JAM_PELAJARAN.map(jam => {
                       const key = `${kelas}-${hari}-${jam}`;
                       const jadwalItem = jadwalByKelasHariJam[key];
+                      const kurikulumItem = jadwalItem?.kurikulumId ? kurikulumMap.get(jadwalItem.kurikulumId) : null;
                       return (
                         <div key={jam} className="border rounded-lg p-3 min-h-[90px] flex flex-col justify-between bg-card shadow-sm transition-shadow hover:shadow-md">
                           <p className="text-xs font-semibold text-muted-foreground">{jam}</p>
                           {jadwalItem ? (
                             <div className="mt-1">
-                              <p className="font-bold text-sm text-primary truncate" title={jadwalItem.mataPelajaran}>{jadwalItem.mataPelajaran}</p>
+                              <p className="font-bold text-sm text-primary truncate" title={kurikulumItem?.pelajaran}>{kurikulumItem?.pelajaran || ''}</p>
                               <div className="flex justify-between items-center mt-1">
-                                <p className="text-xs truncate text-muted-foreground" title={jadwalItem.guruName}>{jadwalItem.guruName}</p>
+                                <p className="text-xs truncate text-muted-foreground" title={teachersMap.get(jadwalItem.guruId)}>{getTeacherName(jadwalItem.guruId)}</p>
                                 {isAdmin && selectedKelas !== 'all' && (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -365,11 +350,11 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
       ) : (
          <div>
           {selectedKelas === 'all' ? (
-            KELAS_OPTIONS.map(kelas => renderInteractiveGrid(kelas))
-          ) : (jadwal && jadwal.length > 0) || (isAdmin && selectedKelas !== 'all') ? (
-              renderInteractiveGrid(selectedKelas)
-          ) : (
+            KELAS_OPTIONS.filter(k => k !== 'all').map(kelas => renderInteractiveGrid(kelas))
+          ) : (!jadwal || jadwal.length === 0) && !(isAdmin && selectedKelas !== 'all') ? (
               <p className="text-center text-muted-foreground mt-8">Tidak ada jadwal untuk kelas ini.</p>
+          ) : (
+              renderInteractiveGrid(selectedKelas)
           )}
          </div>
       )}
@@ -392,7 +377,7 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
                       <SelectValue placeholder="Pilih Kelas" />
                     </SelectTrigger>
                     <SelectContent>
-                      {KELAS_OPTIONS.map(kelas => (
+                      {KELAS_OPTIONS.filter(k => k !== 'all').map(kelas => (
                             <SelectItem key={kelas} value={kelas}>Kelas {kelas}</SelectItem>
                         ))}
                     </SelectContent>
@@ -425,20 +410,20 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="mataPelajaran">Mata Pelajaran</Label>
-                  <Select name="mataPelajaran" onValueChange={(value) => handleSelectChange('mataPelajaran', value)} value={formData.mataPelajaran} disabled={kurikulumLoading}>
-                    <SelectTrigger onPointerDown={loadKurikulum}><SelectValue placeholder={kurikulumLoading ? 'Memuat...' : 'Pilih Mata Pelajaran'} /></SelectTrigger>
+                  <Label htmlFor="kurikulumId">Mata Pelajaran</Label>
+                  <Select name="kurikulumId" onValueChange={(value) => handleSelectChange('kurikulumId', value)} value={formData.kurikulumId}>
+                    <SelectTrigger><SelectValue placeholder={'Pilih Mata Pelajaran'} /></SelectTrigger>
                     <SelectContent>
-                      {kitabPelajaran?.filter(k => k.kelas === formData.kelas).map((mapel) => (
-                            <SelectItem key={mapel.id} value={mapel.mataPelajaran}>[{mapel.kode}] {mapel.mataPelajaran}</SelectItem>
+                      {kurikulum?.filter(k => k.kelas === formData.kelas).map((mapel) => (
+                            <SelectItem key={mapel.id} value={mapel.id}>[{mapel.kode}] {mapel.mataPelajaran}</SelectItem>
                         ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="guruId">Guru</Label>
-                  <Select name="guruId" onValueChange={(value) => handleSelectChange('guruId', String(value))} value={String(formData.guruId)} disabled={teachersLoading}>
-                    <SelectTrigger onPointerDown={loadTeachers}><SelectValue placeholder={teachersLoading ? 'Memuat...' : 'Pilih Guru'} /></SelectTrigger>
+                  <Select name="guruId" onValueChange={(value) => handleSelectChange('guruId', String(value))} value={String(formData.guruId)}>
+                    <SelectTrigger><SelectValue placeholder={'Pilih Guru'} /></SelectTrigger>
                     <SelectContent>
                       {teachers?.map(teacher => (
                             <SelectItem key={teacher.id} value={String(teacher.id)}>{teacher.name}</SelectItem>

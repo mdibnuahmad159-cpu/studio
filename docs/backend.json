@@ -109,18 +109,15 @@
     "Jadwal": {
       "title": "Jadwal",
       "type": "object",
-      "description": "Represents a class schedule entry. Denormalized for performance.",
+      "description": "Represents a class schedule entry.",
       "properties": {
         "hari": { "type": "string" },
         "kelas": { "type": "string" },
         "jam": { "type": "string" },
-        "mataPelajaran": { "type": "string", "description": "Denormalized subject name." },
-        "kitab": { "type": "string", "description": "Denormalized book name." },
         "guruId": { "type": "string", "description": "Reference to the Guru document ID." },
-        "guruName": { "type": "string", "description": "Denormalized teacher name." },
         "kurikulumId": { "type": "string", "description": "Reference to the Kurikulum document ID." }
       },
-      "required": ["hari", "kelas", "jam", "mataPelajaran", "guruId", "guruName"]
+      "required": ["hari", "kelas", "jam", "guruId", "kurikulumId"]
     },
     "Raport": {
       "title": "Raport",
@@ -198,3 +195,5 @@
     }
   }
 }
+
+    

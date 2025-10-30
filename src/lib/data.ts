@@ -40,11 +40,8 @@ export type Jadwal = {
   hari: string;
   kelas: string;
   jam: string;
-  mataPelajaran: string;
-  kitab?: string;
   guruId: string;
-  guruName?: string;
-  kurikulumId?: string;
+  kurikulumId: string;
 };
 
 export type RaportFile = {
@@ -65,3 +62,5 @@ export type Nilai = {
     semester: 'ganjil' | 'genap';
     nilai: number;
 };
+
+    
