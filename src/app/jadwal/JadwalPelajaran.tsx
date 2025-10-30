@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -46,8 +45,8 @@ import { Label } from '@/components/ui/label';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Jadwal, Guru, Kurikulum } from '@/lib/data';
-import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from '@/firebase';
-import { collection, doc, query, where, getDocs } from 'firebase/firestore';
+import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc, query, where, getDocs, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -78,77 +77,82 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
   const { user } = useUser();
   const { toast } = useToast();
   
-  const [allSchedules, setAllSchedules] = useState<Jadwal[]>([]);
-  const [isMultiLoading, setIsMultiLoading] = useState(false);
-  
-  const singleJadwalQuery = useMemoFirebase(() => {
-    if (!firestore || !user || selectedKelas === 'all' || !selectedKelas) return null;
-    return query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
-  }, [firestore, user, selectedKelas]);
-
-  const { data: singleJadwal, isLoading: singleJadwalLoading } = useCollection<Jadwal>(singleJadwalQuery);
-
-  useEffect(() => {
-    async function fetchAllSchedules() {
-      if (selectedKelas !== 'all' || !firestore || !user) return;
-      setIsMultiLoading(true);
-      
-      const allClassQueries = KELAS_OPTIONS.filter(k => k !== 'all').map(kelas => 
-        getDocs(query(collection(firestore, 'jadwal'), where('kelas', '==', kelas)))
-      );
-      
-      try {
-        const allSnapshots = await Promise.all(allClassQueries);
-        const combinedSchedules: Jadwal[] = [];
-        allSnapshots.forEach(snapshot => {
-          snapshot.forEach(doc => {
-            combinedSchedules.push({ id: doc.id, ...doc.data() } as Jadwal);
-          });
-        });
-        setAllSchedules(combinedSchedules);
-      } catch (error) {
-        console.error("Error fetching all schedules: ", error);
-        toast({ variant: 'destructive', title: 'Gagal Memuat Jadwal', description: 'Terjadi kesalahan saat memuat semua jadwal.' });
-      } finally {
-        setIsMultiLoading(false);
-      }
-    }
-    fetchAllSchedules();
-  }, [selectedKelas, firestore, user, toast]);
-
-  const jadwal = useMemo(() => {
-    return selectedKelas === 'all' ? allSchedules : singleJadwal;
-  }, [selectedKelas, allSchedules, singleJadwal]);
-
-  const isLoading = selectedKelas === 'all' ? isMultiLoading : singleJadwalLoading;
-  
+  const [jadwal, setJadwal] = useState<Jadwal[]>([]);
   const [teachers, setTeachers] = useState<Guru[]>([]);
   const [kurikulum, setKurikulum] = useState<Kurikulum[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    async function loadInitialData() {
-        if (!firestore) return;
+    if (!firestore || !user) return;
+    
+    setIsLoading(true);
+    let unsubscribeJadwal: Unsubscribe | null = null;
+    let unsubscribeGurus: Unsubscribe | null = null;
+    let unsubscribeKurikulum: Unsubscribe | null = null;
+
+    async function fetchInitialData() {
         try {
+            // Fetch static data once
             const teachersQuery = query(collection(firestore, 'gurus'));
-            const teachersSnapshot = await getDocs(teachersQuery);
-            const teachersData = teachersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guru));
-            setTeachers(teachersData);
+            unsubscribeGurus = onSnapshot(teachersQuery, snapshot => {
+                setTeachers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guru)));
+            });
 
             const kurikulumQuery = query(collection(firestore, 'kurikulum'));
-            const kurikulumSnapshot = await getDocs(kurikulumQuery);
-            const kurikulumData = kurikulumSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Kurikulum));
-            setKurikulum(kurikulumData);
+            unsubscribeKurikulum = onSnapshot(kurikulumQuery, snapshot => {
+                setKurikulum(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Kurikulum)));
+            });
+
         } catch (error) {
             console.error("Failed to load initial data:", error);
             toast({ variant: 'destructive', title: 'Gagal Memuat Data', description: 'Tidak dapat memuat data guru dan kurikulum.' });
         }
     }
-    loadInitialData();
-  }, [firestore, toast]);
-  
+
+    fetchInitialData();
+
+    if (selectedKelas && selectedKelas !== 'all') {
+        const jadwalQuery = query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
+        unsubscribeJadwal = onSnapshot(jadwalQuery, snapshot => {
+            setJadwal(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal)));
+            setIsLoading(false);
+        }, error => {
+            console.error("Error fetching schedule:", error);
+            setIsLoading(false);
+        });
+    } else if (selectedKelas === 'all') {
+        // Fetch all schedules for "Semua Kelas"
+        const allClassQueries = KELAS_OPTIONS.filter(k => k !== 'all').map(kelas => 
+            getDocs(query(collection(firestore, 'jadwal'), where('kelas', '==', kelas)))
+        );
+        Promise.all(allClassQueries).then(allSnapshots => {
+            const combinedSchedules: Jadwal[] = [];
+            allSnapshots.forEach(snapshot => {
+                snapshot.forEach(doc => {
+                    combinedSchedules.push({ id: doc.id, ...doc.data() } as Jadwal);
+                });
+            });
+            setJadwal(combinedSchedules);
+            setIsLoading(false);
+        }).catch(error => {
+            console.error("Error fetching all schedules:", error);
+            setIsLoading(false);
+        });
+    } else {
+        setJadwal([]);
+        setIsLoading(false);
+    }
+    
+    return () => {
+        if (unsubscribeJadwal) unsubscribeJadwal();
+        if (unsubscribeGurus) unsubscribeGurus();
+        if (unsubscribeKurikulum) unsubscribeKurikulum();
+    };
+
+  }, [selectedKelas, firestore, user, toast]);
+
   const teachersMap = useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
   const kurikulumMap = useMemo(() => new Map(kurikulum.map(k => [k.id, {pelajaran: k.mataPelajaran, kitab: k.kitab}])), [kurikulum]);
-
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [jadwalToEdit, setJadwalToEdit] = useState<Jadwal | null>(null);
@@ -271,6 +275,7 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
                       const key = `${kelas}-${hari}-${jam}`;
                       const jadwalItem = jadwalByKelasHariJam[key];
                       const kurikulumItem = jadwalItem?.kurikulumId ? kurikulumMap.get(jadwalItem.kurikulumId) : null;
+                      
                       return (
                         <div key={jam} className="border rounded-lg p-3 min-h-[90px] flex flex-col justify-between bg-card shadow-sm transition-shadow hover:shadow-md">
                           <p className="text-xs font-semibold text-muted-foreground">{jam}</p>

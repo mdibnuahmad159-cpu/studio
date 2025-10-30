@@ -67,7 +67,7 @@ const positionOptions = [
   'Wakil Kepala Madrasah',
   'Sekretaris',
   'Bendahara',
-  ...Array.from({ length: 7 }, (_, i) => `Wali Kelas ${6 - i}`),
+  ...Array.from({ length: 6 }, (_, i) => `Wali Kelas ${6 - i}`),
   'Guru'
 ];
 
@@ -84,7 +84,6 @@ const positionOrder = [
   'Wali Kelas 3',
   'Wali Kelas 2',
   'Wali Kelas 1',
-  'Wali Kelas 0',
   'Guru'
 ];
 
