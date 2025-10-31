@@ -119,6 +119,23 @@
       },
       "required": ["hari", "kelas", "jam", "guruId", "kurikulumId"]
     },
+    "JadwalUjian": {
+      "title": "JadwalUjian",
+      "description": "Represents an exam schedule entry.",
+      "type": "object",
+      "properties": {
+        "hari": { "type": "string" },
+        "tanggal": { "type": "string", "format": "date" },
+        "jam": { "type": "string" },
+        "mataPelajaran": { "type": "string" },
+        "guruId": { "type": "string", "description": "Reference to the supervising Guru's ID." },
+        "kelas": { "type": "string" },
+        "guruName": { "type": "string", "description": "Denormalized teacher's name." },
+        "kitab": { "type": "string", "description": "Denormalized subject book name." },
+        "kurikulumId": { "type": "string", "description": "Reference to the Kurikulum ID." }
+      },
+      "required": ["hari", "tanggal", "jam", "mataPelajaran", "guruId", "kelas", "guruName"]
+    },
     "Raport": {
       "title": "Raport",
       "type": "object",
@@ -185,6 +202,10 @@
       "schema": { "$ref": "#/entities/Jadwal" },
       "description": "Stores class schedule entries."
     },
+    "/jadwalUjian/{ujianId}": {
+        "schema": { "$ref": "#/entities/JadwalUjian" },
+        "description": "Stores exam schedule entries."
+    },
     "/raports/{raportId}": {
       "schema": { "$ref": "#/entities/Raport" },
       "description": "Stores student report card data. The document ID should be the student's NIS."
@@ -195,5 +216,3 @@
     }
   }
 }
-
-    

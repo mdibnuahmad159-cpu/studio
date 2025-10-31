@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -142,7 +142,12 @@ export default function JadwalUjianComponent() {
   const handleOpenDialog = (item: JadwalUjian | null = null, defaults: Partial<Omit<JadwalUjian, 'id'>> = {}) => {
     if (!isAdmin || !selectedKelas) return;
     setJadwalToEdit(item);
-    setFormData(item ? { ...item } : { ...emptyJadwalUjian, kelas: selectedKelas, ...defaults });
+    if(item) {
+        const { id, ...rest } = item;
+        setFormData(rest);
+    } else {
+        setFormData({ ...emptyJadwalUjian, kelas: selectedKelas, ...defaults });
+    }
     setIsDialogOpen(true);
   };
 
@@ -380,5 +385,3 @@ export default function JadwalUjianComponent() {
     </>
   );
 }
-
-    

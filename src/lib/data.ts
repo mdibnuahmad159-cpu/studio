@@ -44,6 +44,20 @@ export type Jadwal = {
   kurikulumId: string;
 };
 
+export type JadwalUjian = {
+  id: string;
+  hari: string;
+  tanggal: string;
+  jam: string;
+  mataPelajaran: string;
+  guruId: string;
+  kelas: string;
+  guruName: string;
+  kitab: string;
+  kurikulumId?: string;
+};
+
+
 export type RaportFile = {
   [key: string]: string | null; // e.g., 'kelas_0_ganjil': 'gs://bucket/path/to/file.pdf'
 };
@@ -62,5 +76,3 @@ export type Nilai = {
     semester: 'ganjil' | 'genap';
     nilai: number;
 };
-
-    

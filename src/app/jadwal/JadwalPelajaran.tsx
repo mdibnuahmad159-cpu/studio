@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -39,7 +40,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Jadwal, Guru, Kurikulum } from '@/lib/data';
 import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { collection, doc, query, where, onSnapshot, Unsubscribe, getDocs } from 'firebase/firestore';
 import { useAdmin } from '@/context/AdminProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -60,11 +61,8 @@ const HARI_OPERASIONAL = ['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis']
 const JAM_PELAJARAN = ['14:00 - 15:00', '15:30 - 16:30'];
 const KELAS_OPTIONS = ['all', '0', '1', '2', '3', '4', '5', '6'];
 
-interface JadwalPelajaranProps {
-  selectedKelas: string;
-}
 
-export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelajaranProps) {
+export default function JadwalPelajaranComponent() {
   const firestore = useFirestore();
   const { isAdmin } = useAdmin();
   const { user } = useUser();
@@ -74,55 +72,62 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
   const [teachers, setTeachers] = useState<Guru[]>([]);
   const [kurikulum, setKurikulum] = useState<Kurikulum[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [selectedKelas, setSelectedKelas] = useState('all');
 
   const teachersMap = useMemo(() => new Map(teachers.map(t => [t.id, t.name])), [teachers]);
   const kurikulumMap = useMemo(() => new Map(kurikulum.map(k => [k.id, {pelajaran: k.mataPelajaran, kitab: k.kitab}])), [kurikulum]);
   
   useEffect(() => {
     if (!firestore || !user) {
-        setIsLoading(false);
-        return;
+      setIsLoading(false);
+      return;
     }
-
+  
     setIsLoading(true);
-    const unsubscribers: Unsubscribe[] = [];
+    let unsub: Unsubscribe | null = null;
+  
+    const fetchData = async () => {
+      try {
+        const [teachersSnap, kurikulumSnap] = await Promise.all([
+          getDocs(collection(firestore, 'gurus')),
+          getDocs(collection(firestore, 'kurikulum'))
+        ]);
+        
+        setTeachers(teachersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guru)));
+        setKurikulum(kurikulumSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Kurikulum)));
+        
+        // After fetching prerequisites, set up the listener for the schedule
+        let jadwalQuery;
+        if (selectedKelas === 'all') {
+          jadwalQuery = collection(firestore, 'jadwal');
+        } else {
+          jadwalQuery = query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
+        }
 
-    // Subscribe to teachers and curriculum
-    const teachersQuery = query(collection(firestore, 'gurus'));
-    const kurikulumQuery = query(collection(firestore, 'kurikulum'));
-
-    unsubscribers.push(onSnapshot(teachersQuery, snapshot => {
-        setTeachers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Guru)));
-    }, error => {
-        console.error("Error fetching teachers:", error);
-        toast({ variant: 'destructive', title: 'Gagal Memuat Guru' });
-    }));
-    
-    unsubscribers.push(onSnapshot(kurikulumQuery, snapshot => {
-        setKurikulum(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Kurikulum)));
-    }, error => {
-        console.error("Error fetching curriculum:", error);
-        toast({ variant: 'destructive', title: 'Gagal Memuat Kurikulum' });
-    }));
-    
-    // Subscribe to schedule
-    const jadwalQuery = selectedKelas === 'all' 
-      ? collection(firestore, 'jadwal')
-      : query(collection(firestore, 'jadwal'), where('kelas', '==', selectedKelas));
-      
-    unsubscribers.push(onSnapshot(jadwalQuery, snapshot => {
-        setJadwal(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal)));
-        setIsLoading(false); // Stop loading once initial schedule is fetched
-    }, error => {
-        console.error("Error fetching schedule:", error);
-        toast({ variant: 'destructive', title: 'Gagal Memuat Jadwal' });
+        unsub = onSnapshot(jadwalQuery, snapshot => {
+          setJadwal(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Jadwal)));
+          setIsLoading(false);
+        }, error => {
+          console.error("Error fetching schedule:", error);
+          toast({ variant: 'destructive', title: 'Gagal Memuat Jadwal' });
+          setIsLoading(false);
+        });
+  
+      } catch (error) {
+        console.error("Error fetching prerequisites:", error);
+        toast({ variant: 'destructive', title: 'Gagal Memuat Data Guru/Kurikulum' });
         setIsLoading(false);
-    }));
-
-    return () => {
-        unsubscribers.forEach(unsub => unsub());
+      }
     };
-
+  
+    fetchData();
+  
+    return () => {
+      if (unsub) {
+        unsub();
+      }
+    };
   }, [selectedKelas, firestore, user, toast]);
 
 
@@ -156,7 +161,7 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
     if (!isAdmin) return;
     setJadwalToEdit(item);
     if (item) {
-      setFormData({ ...item });
+      setFormData({ hari: item.hari, kelas: item.kelas, jam: item.jam, guruId: item.guruId, kurikulumId: item.kurikulumId });
     } else {
       setFormData({ ...emptyJadwal, ...defaults, ...(selectedKelas !== 'all' && { kelas: selectedKelas }) });
     }
@@ -317,6 +322,18 @@ export default function JadwalPelajaranComponent({ selectedKelas }: JadwalPelaja
                         <SelectItem key={hari} value={hari}>{hari}</SelectItem>
                     ))}
                 </SelectContent>
+            </Select>
+            <Select value={selectedKelas} onValueChange={setSelectedKelas}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Pilih Kelas" />
+              </SelectTrigger>
+              <SelectContent>
+                  {KELAS_OPTIONS.map(kelas => (
+                      <SelectItem key={kelas} value={kelas}>
+                          {kelas === 'all' ? 'Semua Kelas' : `Kelas ${kelas}`}
+                      </SelectItem>
+                  ))}
+              </SelectContent>
             </Select>
         </div>
       </div>

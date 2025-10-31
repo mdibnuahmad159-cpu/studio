@@ -1,3 +1,4 @@
+
 /**
  * @file Firebase Security Rules for the school management app.
  *
@@ -35,11 +36,8 @@ service cloud.firestore {
      * @principle Authenticated access for profiles.
      */
     match /gurus/{guruId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     /**
@@ -52,11 +50,8 @@ service cloud.firestore {
      * @principle Authenticated access for profiles.
      */
     match /siswa/{siswaId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     /**
@@ -69,11 +64,8 @@ service cloud.firestore {
      * @principle Authenticated access for curriculum data.
      */
     match /kurikulum/{kurikulumId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     /**
@@ -86,11 +78,18 @@ service cloud.firestore {
      * @principle Authenticated access for schedule data.
      */
     match /jadwal/{jadwalId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+    
+    /**
+     * @description Controls access to the `jadwalUjian` collection.
+     * @path /databases/{database}/documents/jadwalUjian/{ujianId}
+     * @allow (read, write): Any authenticated user can manage exam schedules.
+     */
+    match /jadwalUjian/{ujianId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     /**
@@ -103,11 +102,8 @@ service cloud.firestore {
      * @principle Authenticated access for report data.
      */
     match /raports/{raportId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     /**
@@ -120,11 +116,8 @@ service cloud.firestore {
      * @principle Authenticated access for grade data.
      */
     match /nilai/{nilaiId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
   }
 }
