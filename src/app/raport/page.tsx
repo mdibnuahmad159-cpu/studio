@@ -4,7 +4,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Raport, Siswa as DetailedStudent } from '@/lib/data';
-import { Upload, Download, Eye, Search, X } from 'lucide-react';
+import { Upload, Download, Eye, Search, X, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -13,6 +13,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Tabs,
   TabsContent,
@@ -50,6 +60,8 @@ export default function RaportPage() {
   const [uploadTarget, setUploadTarget] = useState<{nis: string, raportKey: string} | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<DetailedStudent | null>(null);
+  const [raportToDelete, setRaportToDelete] = useState<{ nis: string; raportKey: string; studentName: string; semesterLabel: string; } | null>(null);
+
 
   const raportsMap = useMemo(() => {
     return new Map(raports?.map(r => [r.nis, r]));
@@ -119,6 +131,26 @@ export default function RaportPage() {
     // @ts-ignore
     return studentRaport?.raports[raportKey] || null;
   };
+  
+  const handleDeleteClick = (nis: string, raportKey: string, studentName: string, semesterLabel: string) => {
+    setRaportToDelete({ nis, raportKey, studentName, semesterLabel });
+  };
+
+  const confirmDelete = () => {
+    if (raportToDelete && firestore) {
+      const { nis, raportKey } = raportToDelete;
+      const raportDocRef = doc(firestore, 'raports', nis);
+      const updateData = { [`raports.${raportKey}`]: null };
+      
+      updateDocumentNonBlocking(raportDocRef, updateData);
+
+      toast({
+        title: 'Hapus Berhasil!',
+        description: 'File raport telah dihapus.',
+      });
+      setRaportToDelete(null);
+    }
+  };
 
   const renderSemesterActions = (student: DetailedStudent, kelas: string, semester: 'ganjil' | 'genap') => {
     const raportKey = `kelas_${kelas}_${semester}`;
@@ -141,6 +173,11 @@ export default function RaportPage() {
                                 <Download className="mr-2 h-4 w-4" /> Unduh
                             </a>
                         </Button>
+                         {isAdmin && (
+                          <Button size="sm" variant="destructive" onClick={() => handleDeleteClick(student.nis, raportKey, student.nama, semesterLabel)}>
+                              <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                          </Button>
+                        )}
                     </>
                 ) : (
                     <span className="text-sm text-muted-foreground">Belum diunggah</span>
@@ -255,6 +292,25 @@ export default function RaportPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+        )}
+        
+        {raportToDelete && (
+          <AlertDialog open={!!raportToDelete} onOpenChange={() => setRaportToDelete(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tindakan ini akan menghapus file raport Semester {raportToDelete.semesterLabel} untuk siswa <span className="font-bold">{raportToDelete.studentName}</span>. Aksi ini tidak dapat dibatalkan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+                  Hapus
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
 
       </div>
